@@ -12,7 +12,7 @@ SurfMind is a cutting-edge Chrome extension designed to enhance your browsing ex
 
 ### How It Works
 - <strong>Tracking and Storage</strong>: As you browse, SurfMind tracks the websites you visit and stores the data locally in your browser's storage.
-- <strong>Data Ingestion</strong> : When you perform a search, SurfMind ingests the locally stored data and sends it to the server for processing.
+- <strong>Data Ingestion</strong> : When you perform a search, SurfMind ingests the locally stored data, the ingested data is converted into vector embeddings and sends it to the server for processing.
 - <strong>AI-Driven Search</strong> : The server utilizes advanced AI models to analyze and retrieve the most relevant websites based on your search query.
 - <strong>Efficient Retrieval</strong> : Results are promptly returned to you, providing a comprehensive overview of your browsing history related to your query.
 
