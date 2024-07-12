@@ -27,3 +27,4 @@ jobs:
           cd surfmind/surfmind-backend
           git pull origin main
           git status
+          sudo -A systemctl restart sm.service
