@@ -1,5 +1,7 @@
 const BATCH_SIZE = 100; 
 const date = new Date()
+const options = { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' };
+const formattedDate = date.toLocaleDateString('en-US', options);
 
 const saveDataLocally = async (data) => {
   try {
@@ -33,11 +35,10 @@ chrome.webNavigation.onCompleted.addListener((details) => {
         let data = [{
           url: tab.url,
           content: `${content.title} ${content.headings.join(' ')}`,
-          date:`${date.getDate()} ${date.getMonth()} ${date.getFullYear()}`
+          date:`${formattedDate} `
         }];
 
         saveDataLocally(data);
-        console.log(data)
       });
     }
   });
