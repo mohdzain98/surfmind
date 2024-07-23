@@ -4,7 +4,7 @@ const Popup = (props) => {
   const {host} = props.prop
   const [query, setQuery] = useState('');
   const [head, setHead] = useState("")
-  const [results, setResults] = useState({text:"",url:"",date:""});
+  const [results, setResults] = useState({url:"",date:""});
   const [loader, setLoader] = useState("")
   const [disable, setDisable] = useState(false)
   const [noti, setNoti] = useState("")
@@ -38,7 +38,7 @@ const Popup = (props) => {
             })
             const data = await response.json()
             setHead(data.result)
-            setResults({text:data.format.text, url:data.format.url, date:data.format.date})
+            setResults({url:data.format.url, date:data.format.date})
             setNoti("")
             setLoader("")
             setDisable(false)

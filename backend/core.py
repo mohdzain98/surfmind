@@ -12,7 +12,7 @@ from langchain.prompts.chat import (
     ChatPromptTemplate,
     SystemMessagePromptTemplate,
 )
-llm = ChatOpenAI(temperature=0, max_tokens=500)
+llm = ChatOpenAI(model='gpt-4o-mini', temperature=0, max_tokens=500)
 
 
 template_S = "You are a helpful assistant that help user find visited sites from browser history."
