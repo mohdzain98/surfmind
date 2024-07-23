@@ -21,3 +21,6 @@ SurfMind is a cutting-edge Chrome extension designed to enhance your browsing ex
 - <strong>Privacy-Focused</strong> : Your data remains private and secure, stored locally, and only shared when necessary for search operations.
 - <strong>AI Integration</strong> : Leverage state-of-the-art AI technologies to make your browsing history more accessible and useful.
 
+## Privacy Policy
+https://docschat.in/product
+
