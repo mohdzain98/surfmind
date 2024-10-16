@@ -26,8 +26,8 @@ chrome.webNavigation.onCompleted.addListener((details) => {
         function: () => {
           return {
             title: document.title,
-            headings: Array.from(document.querySelectorAll('h1')).map(h => h.innerText),
-            // paragraphs: Array.from(document.querySelectorAll('p')).map(p => p.innerText)${content.paragraphs.join(' ')}
+            headings: Array.from(document.querySelectorAll('h1, h2')).map(h => h.innerText),
+            // paragraphs: Array.from(document.querySelectorAll('p')).map(p => p.innerText)
           };
         }
       }, (results) => {
@@ -39,6 +39,7 @@ chrome.webNavigation.onCompleted.addListener((details) => {
         }];
 
         saveDataLocally(data);
+        console.log(data)
       });
     }
   });

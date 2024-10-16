@@ -23,6 +23,8 @@ const Popup = (props) => {
   const handleSearch = async(e) => {
     e.preventDefault()
     setLoader("spinner-border spinner-border-sm mx-2")
+    setHead("")
+    setResults({url:"",date:""})
     setDisable(true)
     setNoti("processing data...")
     const dataa = data.navigationData;
