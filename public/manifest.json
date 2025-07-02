@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "SurfMind - AI Powered Browser History Manager",
-  "version": "1.2",
-  "description": "Chrome extension designed to enhance your browsing experience by intelligently tracking and managing the websites you visit",
+  "name": "SurfMind - Smarter Browsing",
+  "version": "1.5",
+  "description": "Chrome extension designed to enhance your browsing experience by intelligently tracking and managing the websites you visit and bookmark",
   "permissions": [
     "tabs",
     "storage",
     "webNavigation",
     "scripting",
-    "activeTab"
+    "activeTab",
+    "bookmarks"
   ],
   "host_permissions": [
     "<all_urls>"

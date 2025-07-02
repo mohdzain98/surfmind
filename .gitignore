@@ -1,15 +1,18 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+/src/components/check_data.js
 # dependencies
 /node_modules
 /.pnp
 .pnp.js
+.vscode
 
 # testing
 /coverage
 
 # production
 /build
+build.zip
 
 # misc
 .DS_Store
