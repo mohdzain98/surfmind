@@ -1,2 +1,6 @@
-/senv
+/surfenv
 /.env
+/notebooks/*
+notebooks/
+__pycache__/
+*.py[cod]
