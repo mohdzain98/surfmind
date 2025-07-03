@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SurfMind - Smarter Browsing",
-  "version": "1.5",
-  "description": "Chrome extension designed to enhance your browsing experience by intelligently tracking and managing the websites you visit and bookmark",
+  "version": "1.51",
+  "description": "Chrome extension designed to enhance your browsing experience by intelligently managing the websites you visit and bookmark",
   "permissions": [
     "tabs",
     "storage",
