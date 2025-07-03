@@ -29,18 +29,14 @@ const Popup = (props) => {
       const uid = await initializeUserId();
       const upflag = await chrome.storage.local.get("sm-update-flag");
       if (upflag["sm-update-flag"]) {
-        console.log("upflag use effect", upflag["sm-update-flag"]);
         setUpdateFlag(true);
       }
       setData(result);
       setUserId(uid);
-      console.log(result);
-      console.log("UserID in popup:", uid);
     }
     getData();
     // eslint-disable-next-line
   }, []);
-  console.log("upflag", updateFlag);
   useEffect(() => {
     if (head) {
       const extracted = extractUrlFromHead(head);
@@ -62,7 +58,6 @@ const Popup = (props) => {
     try {
       setHistLoader(true);
       await chrome.storage.local.set({ navigationData: [] });
-      console.log("History cleared successfully.");
       setHistLoader(false);
     } catch (error) {
       console.error("Error clearing history:", error);
@@ -111,20 +106,17 @@ const Popup = (props) => {
     setDocs([]);
     const dataa = data.navigationData;
     // const dataa = hist;
-    // console.log(dataa, dataa.length);
     if (dataa && dataa.length > 0) {
       setNoti("Uploading your History...");
-      console.log("inside handlesearch", userId);
       try {
         const upload = await fetch(`${host}/save-data`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ data: dataa, userId: userId + "h" }),
+          body: JSON.stringify({ data: dataa, userId: userId + ":h" }),
         });
         const resp = await upload.json();
-        console.log("response", resp);
         if (!resp.success) {
           setNoti("Error uploading data, please try again");
           setLoader("");
@@ -139,15 +131,13 @@ const Popup = (props) => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              userId: userId,
+              userId: userId + ":h",
               data: dataa,
               query: query,
               flag: "history",
             }),
           });
           const data = await response.json();
-          console.log("response", data);
-          console.log("docs", data.docs);
           if (data.docs.length === 0) {
             setNoti("No results found for this query");
             setLoader("");
@@ -206,10 +196,7 @@ const Popup = (props) => {
   };
 
   return (
-    <div
-      className="container p-4"
-      style={{ width: "500px", marginTop: "70px" }}
-    >
+    <div className="container p-4" style={{ width: "350px" }}>
       {historyTab ? (
         <div>
           <div class="mb-3">

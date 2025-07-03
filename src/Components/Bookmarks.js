@@ -55,7 +55,6 @@ const Bookmarks = ({
     setDocs([]);
     const dataa = bookmark;
     // const dataa = bmdata;
-    console.log(dataa, dataa.length);
     if (dataa && dataa.length > 0) {
       setNoti("Uploading Your Bookmarks...");
       try {
@@ -64,10 +63,9 @@ const Bookmarks = ({
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ data: dataa, userId: userId + "b" }),
+          body: JSON.stringify({ data: dataa, userId: userId + ":b" }),
         });
         const resp = await upload.json();
-        console.log("response", resp);
         if (!resp.success) {
           setNoti("Error uploading data, please try again");
           setLoader("");
@@ -82,15 +80,13 @@ const Bookmarks = ({
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              userId: userId,
+              userId: userId + ":b",
               data: dataa,
               query: ques,
               flag: "bookmark",
             }),
           });
           const data = await response.json();
-          console.log("response", data);
-          console.log("docs", data.docs);
           if (data.docs.length === 0) {
             setNoti("No results found for this query");
             setLoader("");
