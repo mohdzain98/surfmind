@@ -14,7 +14,7 @@ const initializeUserId = async () => {
   if (!result.userId) {
     const newUserId = crypto.randomUUID();
     await chrome.storage.local.set({ userId: newUserId });
-    console.log("Generated new userId (background):", newUserId);
+    // console.log("Generated new userId (background):", newUserId);
     return newUserId;
   }
   return result.userId;
@@ -108,7 +108,7 @@ chrome.webNavigation.onCompleted.addListener((details) => {
           ];
 
           saveDataLocally(data);
-          console.log(data);
+          // console.log(data);
         }
       );
     }
