@@ -28,7 +28,7 @@ redis_client = redis.Redis(
     decode_responses=True,
 )
 
-router = APIRouter(prefix="/api", tags=["Core"])
+router = APIRouter(prefix="/v1", tags=["Core"])
 
 
 @router.post("/save-data", response_model=Dict[str, Any])
