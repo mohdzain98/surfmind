@@ -2,19 +2,22 @@ const Update = ({ handleShowUpdate }) => {
   return (
     <div>
       <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <h5 class="alert-heading">Whats New!</h5>
-        <p style={{ fontSize: "14px", margin: "0" }}>Bookmarks Now Surf Able</p>
-        <p className="text-muted" style={{ fontSize: "12px", margin: "0" }}>
-          Find your Bookmarks without knowing exact URL, just by keywords.
+        <div className="d-flex flex-column justify-content-start mb-2">
+          <h5 class="alert-heading" style={{ padding: "0px", margin: "0px" }}>
+            Whats New!
+          </h5>
+          <span style={{ fontSize: "12px" }}>v1.6</span>
+        </div>
+        <p style={{ fontSize: "14px", margin: "0" }}>
+          Streaming and Faster Response
         </p>
-        <p style={{ fontSize: "14px", margin: "2px 0 0" }}>
-          Clear History Option
+        <p style={{ fontSize: "14px", margin: "0" }}>
+          Surf Bookmarks and History
         </p>
-        <p className="text-muted" style={{ fontSize: "12px", margin: "0" }}>
-          Want a fresh start? You can now clear all saved extension history.
+        <p style={{ fontSize: "14px", margin: "0" }}>
+          Enhanced Hybrid Retrieval
         </p>
         <p style={{ fontSize: "14px", margin: "1px 0 0" }}>AI Model Upgraded</p>
-        <p style={{ fontSize: "14px", margin: "0" }}>Enhanced Retrieval</p>
         <p style={{ fontSize: "14px", margin: "0" }}>Enhanced Storage</p>
         <button
           type="button"
