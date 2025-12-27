@@ -1,0 +1,50 @@
+name: Mirror SurfMind Backend to surfmind-backend
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "backend/**"
+  workflow_dispatch:
+
+jobs:
+  mirror-backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout SurfMind main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@users.noreply.github.com"
+
+      - name: Configure SSH
+        env:
+          DEST_SSH_KEY: ${{ secrets.SURFMIND_BACKEND_DEPLOY_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "$DEST_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+          ssh -T git@github.com || true
+
+      - name: Clone destination repo
+        run: |
+          git clone git@github.com:Codebrokers111/surfmind-backend.git dest
+
+      - name: Sync backend folder
+        run: |
+          rsync -av --delete backend/ dest/
+
+      - name: Commit and push to dev branch
+        run: |
+          cd dest
+          git checkout dev || git checkout -b dev
+          git add -A
+          git commit -m "Mirror backend from SurfMind main: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" || echo "No changes to commit"
+          git push origin dev
