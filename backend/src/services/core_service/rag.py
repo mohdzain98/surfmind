@@ -4,7 +4,7 @@ Hybrid RAG implementation for SurfMind (FREE version)
 - Parent documents = full history pages
 - Child documents = chunks for retrieval
 - Hybrid retrieval = BM25 + FAISS
-- Explicit parent mapping (no deprecated retrievers)
+- Explicit parent mapping
 """
 
 import re
@@ -31,6 +31,9 @@ logger = AppLogger.get_logger(__name__)
 
 
 class HybridRAGService:
+    """Hybrid retrieval using BM25 and FAISS for parent selection.
+    Splits parent documents into chunks and merges signals.
+    """
 
     def __init__(
         self,
@@ -39,6 +42,9 @@ class HybridRAGService:
         bm25_k: int = 3,
         faiss_k: int = 3,
     ):
+        """Initialize chunking, retriever settings, and embeddings.
+        Prefers Gemini embeddings with an OpenAI fallback.
+        """
         self.llm_provider = LLMProvider()
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
@@ -55,9 +61,6 @@ class HybridRAGService:
             chunk_overlap=self.chunk_overlap,
         )
 
-    # -------------------------------------------------
-    # Document preparation
-    # -------------------------------------------------
     def _build_child_documents(
         self, parent_docs: List[Document]
     ) -> Tuple[List[Document], List[Document]]:
@@ -87,6 +90,9 @@ class HybridRAGService:
         return child_docs, parent_docs
 
     def _build_vocabulary(self, child_docs) -> Set[str]:
+        """Build a vocabulary set from child document text.
+        Uses simple alphanumeric token extraction for matching.
+        """
         vocab = set()
         for doc in child_docs:
             tokens = re.findall(r"[a-z0-9]+", doc.page_content.lower())
@@ -131,6 +137,9 @@ class HybridRAGService:
         return " ".join(expanded_terms)
 
     def _bm25_is_weak(self, bm25_hits: list[Document], query: str) -> bool:
+        """Check if BM25 hits lack clear query token matches.
+        Returns True when keyword signal appears weak.
+        """
         query_tokens = set(query.lower().split())
 
         for doc in bm25_hits:
@@ -139,10 +148,10 @@ class HybridRAGService:
                 return False
         return True
 
-    # -------------------------------------------------
-    # Retriever builders
-    # -------------------------------------------------
     def _build_bm25_retriever(self, child_docs: List[Document]) -> BM25Retriever:
+        """Create a BM25 retriever with a custom tokenizer.
+        Applies the configured k to control result count.
+        """
         bm25 = BM25Retriever.from_documents(
             child_docs, preprocess_func=self.simple_tokenizer
         )
@@ -150,15 +159,15 @@ class HybridRAGService:
         return bm25
 
     def _build_faiss_retriever(self, child_docs: List[Document]):
+        """Create a FAISS retriever for semantic similarity search.
+        Applies a score threshold and configured k value.
+        """
         vectorstore = FAISS.from_documents(child_docs, self.embeddings)
         return vectorstore.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={"score_threshold": 0.5, "k": self.faiss_k},
         )
 
-    # -------------------------------------------------
-    # Hybrid retrieval
-    # -------------------------------------------------
     def retrieve_parents(
         self,
         query: str,
@@ -183,11 +192,6 @@ class HybridRAGService:
         bm25_hits = bm25.invoke(expanded_query)
         faiss_hits = faiss.invoke(query)
 
-        cprint("\nbm25hits", "yellow")
-        print(bm25_hits)
-        cprint("\nfaisshits", "yellow")
-        print(faiss_hits)
-
         # Step 4: merge + map back to parents
         return self._map_to_parents(
             query=query,
@@ -196,9 +200,6 @@ class HybridRAGService:
             parents=parents,
         )
 
-    # -------------------------------------------------
-    # Parent mapping
-    # -------------------------------------------------
     def _map_to_parents(
         self,
         query: str,
@@ -206,22 +207,6 @@ class HybridRAGService:
         faiss_hits: List[Document],
         parents: List[Document],
     ) -> List[Document]:
-        # """
-        # Merge BM25 + FAISS results and return unique parent documents.
-        # """
-        # seen: Set[int] = set()
-        # results: List[Document] = []
-
-        # # Order matters: BM25 first (keywords), FAISS next (semantics)
-        # for doc in bm25_hits + faiss_hits:
-        #     parent_id = doc.metadata.get("parent_id")
-        #     if parent_id is None:
-        #         continue
-
-        #     if parent_id not in seen:
-        #         seen.add(parent_id)
-        #         results.append(parents[parent_id])
-        # return results
         """
         Map retrieved child docs back to parents with proper ranking.
         Only parents that appear in bm25_hits or faiss_hits are returned.
@@ -231,23 +216,22 @@ class HybridRAGService:
 
         bm25_weak = self._bm25_is_weak(bm25_hits, query)
 
-        # 1️⃣ FAISS hits (semantic signal – stronger when BM25 is weak)
+        # FAISS hits (semantic signal – stronger when BM25 is weak)
         for rank, doc in enumerate(faiss_hits):
             pid = doc.metadata.get("parent_id")
             if pid is not None:
                 scores[pid] += 3.0 / (rank + 1)
 
-        # 2️⃣ BM25 hits (keyword signal)
+        # BM25 hits (keyword signal)
         for rank, doc in enumerate(bm25_hits):
             pid = doc.metadata.get("parent_id")
             if pid is not None:
                 scores[pid] += (1.0 if bm25_weak else 2.5) / (rank + 1)
 
-        # 🚨 SAFETY CHECK
         if not scores:
             return []
 
-        # 3️⃣ Sort parents by score DESC
+        # Sort parents by score DESC
         ranked_parent_ids = sorted(
             scores.keys(),
             key=lambda pid: scores[pid],
@@ -258,13 +242,23 @@ class HybridRAGService:
 
 
 class LLMRag:
+    """LLM prompt chaining and structured parsing helpers.
+    Handles history and bookmark response variants.
+    """
+
     def __init__(self):
+        """Initialize prompts, providers, and the base LLM.
+        Keeps shared dependencies ready for chained calls.
+        """
         self.rag = HybridRAGService()
         self.prompts = Prompts()
         self.llm_provider = LLMProvider()
         self.base_llm = self.llm_provider.get("gemini")
 
     def _llm_response(self, llm, flag: str = "history") -> Runnable:
+        """Build the response chain for the specified flag.
+        Returns a runnable that produces plain text output.
+        """
         prompt_history = self.prompts.history_prompt()
         prompt_bookmark = self.prompts.bookmark_prompt()
         if flag == "history":
@@ -291,6 +285,9 @@ class LLMRag:
         return chain
 
     def structure(self, flag: str = "history") -> Runnable:
+        """Build a structured parsing chain for the given flag.
+        Uses a retrying model and a JSON output parser.
+        """
         if flag == "history":
             parser = JsonOutputParser(pydantic_object=Ans_history)
         elif flag == "bookmark":
@@ -308,6 +305,9 @@ class LLMRag:
     def _invoke_chain(
         self, context: str, date: Optional[str], url: str, flag: str, chain: Runnable
     ) -> str:
+        """Invoke a chain with the correct input mapping.
+        Includes date for history and omits it for bookmarks.
+        """
         if flag == "history":
             return chain.invoke({"context": context, "date": date, "url": url})
         return chain.invoke({"context": context, "url": url})
@@ -315,6 +315,9 @@ class LLMRag:
     def safe_invoke_llm_response(
         self, context: str, date: Optional[str], url: str, flag: str = "history"
     ) -> Tuple[Any, str]:
+        """Invoke the LLM response chain with fallback.
+        Returns the response text and model identifier used.
+        """
         try:
             chain = self._llm_response(llm=self.base_llm, flag=flag)
             result = self._invoke_chain(

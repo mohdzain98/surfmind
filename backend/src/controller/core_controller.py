@@ -18,9 +18,6 @@ logger = AppLogger.get_logger(__name__)
 
 load_dotenv()
 
-os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
-os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY")
-
 redis_host = os.getenv("REDIS_HOST")
 redis_port = os.getenv("REDIS_PORT")
 
@@ -36,6 +33,9 @@ router = APIRouter(prefix="/api", tags=["Core"])
 
 @router.post("/save-data", response_model=Dict[str, Any])
 def save_data(payload: DataRequest):
+    """Persist user history/bookmark data to Redis with a short TTL.
+    Uses the payload user_id and flag to build a stable Redis key.
+    """
     try:
         redis_key = f"user:{payload.user_id}:{payload.flag}"
         redis_client.set(redis_key, payload.json(), ex=3600)
@@ -52,6 +52,9 @@ def search(
     payload: SearchRequest,
     service: CoreRetrieval = Depends(Retrieval.get_retrieval_service),
 ) -> SearchResponse:
+    """Run a non-streaming RAG search against the cached user data.
+    Loads the stored history for the given user/flag key from Redis.
+    """
     redis_key = f"user:{payload.user_id}:{payload.flag}"
     user_data = redis_client.get(redis_key)
     history: dict = json.loads(user_data)
@@ -71,6 +74,10 @@ def search_stream(
     payload: SearchRequest,
     service: CoreRetrieval = Depends(Retrieval.get_retrieval_service),
 ):
+    """Stream RAG search progress and results via Server-Sent Events.
+    Reads user data from Redis and yields stepwise progress payloads.
+    Emits a final event with the full response or an error event.
+    """
     redis_key = f"user:{payload.user_id}:{payload.flag}"
     user_data = redis_client.get(redis_key)
     history: dict = json.loads(user_data) if user_data else {}

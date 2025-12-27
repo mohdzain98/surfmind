@@ -1,3 +1,7 @@
+"""Logging helpers for consistent console and file output.
+Provides colored formatting and a shared logger factory.
+"""
+
 import logging
 from logging import Logger
 from pathlib import Path
@@ -22,6 +26,7 @@ class ColorFormatter(logging.Formatter):
     """
 
     def format(self, record: logging.LogRecord) -> str:
+        """Format log records with level-based colors."""
         # Build a padded level name so spacing stays consistent
         padded_level = f"{record.levelname + ':':<9}"
         color = LEVEL_COLORS.get(record.levelname, "")

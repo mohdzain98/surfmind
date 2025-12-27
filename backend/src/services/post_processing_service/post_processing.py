@@ -1,3 +1,7 @@
+"""Post-processing for filtering and ranking retrieved documents.
+Work as LLM as a Judge to remove unrequired outputs from final response
+"""
+
 import ast
 from langchain_core.prompts import PromptTemplate
 from src.services.llm_service.llm_provider import LLMProvider
@@ -8,11 +12,19 @@ logger = AppLogger.get_logger(__name__)
 
 
 class PostProcessing:
+    """
+    Post-process retrieved documents using LLM relevance checks.
+    """
+
     def __init__(self):
+        """Initialize providers and utility helpers for post-processing."""
         self.llm_provider = LLMProvider()
         self.utility = Utility()
 
     def clean_docs(self, url, docs):
+        """Deduplicate documents while keeping the primary source.
+        Returns a filtered list suitable for prompt building.
+        """
         cleaned_docs = []
         cleaned_docs.append(docs[0])  # Keep the main document
         for doc in docs:
@@ -21,6 +33,9 @@ class PostProcessing:
         return cleaned_docs
 
     def join_docs(self, docs):
+        """Build a prompt-ready representation of documents.
+        Returns joined strings, document list, and index map.
+        """
         doc_strings = []
         document_list = []
         seen_sources = set()
@@ -49,6 +64,9 @@ class PostProcessing:
         return joined_docs, document_list, index_map
 
     def post_process(self, ques, url, docs):
+        """Filter documents by LLM-assessed relevance.
+        Returns a filtered list of relevant documents.
+        """
         llms = self.llm_provider.all()
         llm_gemini = llms.get("gemini")
         llm_gpt = llms.get("gpt")

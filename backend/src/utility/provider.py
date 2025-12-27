@@ -1,3 +1,7 @@
+"""Environment-backed providers for secrets and embeddings.
+Wraps cached access to API keys and embedding clients.
+"""
+
 import os
 from functools import lru_cache
 from typing import Literal
@@ -22,6 +26,9 @@ class SecretsProvider:
     @staticmethod
     @lru_cache(maxsize=1)
     def get_openai_api_key() -> str:
+        """Return the OpenAI API key from the environment.
+        Uses caching to avoid repeated lookups.
+        """
         key = os.getenv("OPENAI_API_KEY")
 
         if not key:
@@ -32,7 +39,10 @@ class SecretsProvider:
     @staticmethod
     @lru_cache(maxsize=1)
     def get_gemini_api_key() -> str:
-        key = os.getenv("GOOGLE_API_KEY")
+        """Return the Gemini API key from the environment.
+        Uses caching to avoid repeated lookups.
+        """
+        key = os.getenv("GEMINI_API_KEY")
 
         if not key:
             raise RuntimeError("GEMINI_API_KEY is not set in environment variables")

@@ -1,8 +1,5 @@
 """
 This module defines the primary application controller for the FastAPI backend.
-It is responsible for initializing the FastAPI application instance, registering
-API routers, configuring middleware (e.g., CORS), and setting up global event
-handlers.
 """
 
 from fastapi import FastAPI
