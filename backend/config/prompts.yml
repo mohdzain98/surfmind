@@ -27,7 +27,7 @@ prompt:
       URL: {url}
 
       Content:
-      {content}
+      {context}
 
       Instructions:
       - Provide a brief and accurate summary of the content.
