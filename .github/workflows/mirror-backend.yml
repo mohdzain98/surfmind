@@ -12,10 +12,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout SurfMind (read-only)
+      - name: Checkout source (read-only)
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+
+      - name: Disable source repo push (IMPORTANT)
+        run: |
+          git remote set-url --push origin DISABLED
 
       - name: Configure git
         run: |
@@ -39,7 +41,7 @@ jobs:
         run: |
           rsync -av --delete backend/ dest/
 
-      - name: Commit & push ONLY to destination
+      - name: Commit & push to destination ONLY
         run: |
           cd dest
           git checkout dev || git checkout -b dev
