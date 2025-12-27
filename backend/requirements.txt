@@ -1,8 +1,6 @@
-flask
 fastapi
 uvicorn
 pydantic-settings
-flask-cors
 python-dotenv
 langchain
 langchain_openai
