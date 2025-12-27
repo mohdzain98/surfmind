@@ -12,13 +12,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source (read-only)
+      - name: Checkout SurfMind (read-only)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false   # 🔥 THIS IS THE FIX
 
       - name: Configure git
         run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "actions@users.noreply.github.com"
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
 
       - name: Configure SSH
         env:
@@ -27,17 +30,17 @@ jobs:
           install -m 700 -d ~/.ssh
           echo "$DEST_SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
 
       - name: Clone destination repo
         run: |
           git clone git@github.com:Codebrokers111/surfmind-backend.git dest
 
-      - name: Sync backend folder into repo root
+      - name: Sync backend into repo root
         run: |
           rsync -av --delete backend/ dest/
 
-      - name: Commit & push to destination
+      - name: Commit & push to destination ONLY
         run: |
           cd dest
           git checkout dev || git checkout -b dev
