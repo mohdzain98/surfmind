@@ -12,10 +12,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout SurfMind main
+      - name: Checkout SurfMind (read-only)
         uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 0
 
       - name: Configure git
@@ -30,8 +29,7 @@ jobs:
           install -m 700 -d ~/.ssh
           echo "$DEST_SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
-          ssh -T git@github.com || true
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
 
       - name: Clone destination repo
         run: |
@@ -41,10 +39,10 @@ jobs:
         run: |
           rsync -av --delete backend/ dest/
 
-      - name: Commit and push to dev branch
+      - name: Commit & push ONLY to destination
         run: |
           cd dest
           git checkout dev || git checkout -b dev
           git add -A
-          git commit -m "Mirror backend from SurfMind main: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" || echo "No changes to commit"
+          git commit -m "Mirror backend from SurfMind main" || echo "No changes"
           git push origin dev
