@@ -1,9 +1,14 @@
+"""LLM client registry for SurfMind.
+Provides access to configured chat models.
+"""
+
 from typing import Dict
 
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.rate_limiters import InMemoryRateLimiter
 from langchain_core.language_models.chat_models import BaseChatModel
+from src.utility.provider import SecretsProvider
 from src.utility.logger import AppLogger
 
 logger = AppLogger.get_logger(__name__)
@@ -15,6 +20,9 @@ class LLMProvider:
     """
 
     def __init__(self):
+        """Initialize and register supported LLM clients.
+        Configures rate limiting and API keys for each provider.
+        """
         rate_limiter = InMemoryRateLimiter(
             requests_per_second=1, check_every_n_seconds=0.1, max_bucket_size=5
         )
@@ -24,9 +32,13 @@ class LLMProvider:
                 temperature=0.4,
                 max_tokens=500,
                 rate_limiter=rate_limiter,
+                api_key=SecretsProvider.get_openai_api_key(),
             ),
             "gemini": ChatGoogleGenerativeAI(
-                model="gemini-2.0-flash", temperature=0.3, rate_limiter=rate_limiter
+                model="gemini-2.0-flash",
+                temperature=0.3,
+                rate_limiter=rate_limiter,
+                api_key=SecretsProvider.get_gemini_api_key(),
             ),
         }
 
