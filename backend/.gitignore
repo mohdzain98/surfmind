@@ -1,4 +1,5 @@
 /surfenv
+/.smenv
 /.env
 /notebooks/*
 notebooks/

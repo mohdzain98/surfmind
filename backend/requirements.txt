@@ -1,9 +1,14 @@
 flask
+fastapi
+uvicorn
+pydantic-settings
 flask-cors
 python-dotenv
 langchain
 langchain_openai
 langchain_community
 langchain_google_genai
+rank_bm25
 faiss-cpu
 redis
+termcolor

@@ -1,0 +1,4 @@
+{
+    "python.defaultInterpreterPath": "backend/.smenv/bin/python",
+    "postman.settings.dotenv-detection-notification-visibility": false
+}
