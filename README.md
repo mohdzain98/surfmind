@@ -1,4 +1,4 @@
-<center><h1>SurfMind - Smarter Browsing</h1></center>
+<h1 align="center">SurfMind - Smarter Browsing</h1>
 
 <p align="center">
   <a href="https://github.com/mohdzain98/surfmind/releases">
