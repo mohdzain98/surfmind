@@ -15,10 +15,6 @@ jobs:
       - name: Checkout source (read-only)
         uses: actions/checkout@v4
 
-      - name: Disable source repo push (IMPORTANT)
-        run: |
-          git remote set-url --push origin DISABLED
-
       - name: Configure git
         run: |
           git config --global user.name "github-actions"
@@ -37,11 +33,11 @@ jobs:
         run: |
           git clone git@github.com:Codebrokers111/surfmind-backend.git dest
 
-      - name: Sync backend folder
+      - name: Sync backend folder into repo root
         run: |
           rsync -av --delete backend/ dest/
 
-      - name: Commit & push to destination ONLY
+      - name: Commit & push to destination
         run: |
           cd dest
           git checkout dev || git checkout -b dev
