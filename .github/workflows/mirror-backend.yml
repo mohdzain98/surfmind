@@ -16,12 +16,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false   # 🔥 THIS IS THE FIX
+          persist-credentials: false
 
       - name: Configure git
         run: |
-          git config user.name "github-actions"
-          git config user.email "actions@users.noreply.github.com"
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@users.noreply.github.com"
 
       - name: Configure SSH
         env:
@@ -32,15 +32,17 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H github.com >> ~/.ssh/known_hosts
 
-      - name: Clone destination repo
+      - name: Clone destination repo (SSH only)
         run: |
           git clone git@github.com:Codebrokers111/surfmind-backend.git dest
+          cd dest
+          git remote -v
 
       - name: Sync backend into repo root
         run: |
           rsync -av --delete backend/ dest/
 
-      - name: Commit & push to destination ONLY
+      - name: Commit & push to destination
         run: |
           cd dest
           git checkout dev || git checkout -b dev
