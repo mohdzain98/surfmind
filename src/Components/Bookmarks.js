@@ -1,15 +1,10 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
+import { userContext } from "../context/userContext";
 // import { bmdata } from "./check_data";
 
-const Bookmarks = ({
-  setDocs,
-  setHead,
-  setHistoryTab,
-  setNoti,
-  setParsed,
-  host,
-  userId,
-}) => {
+const Bookmarks = ({ host }) => {
+  const { state, setState, searchStream } = useContext(userContext);
+  const { userId } = state;
   const [ques, setQues] = useState("");
   const [loader, setLoader] = useState("");
   const [disable, setDisable] = useState(false);
@@ -48,80 +43,70 @@ const Bookmarks = ({
   const handleSearchbm = async (e) => {
     e.preventDefault();
     setLoader("spinner-border spinner-border-sm mx-2");
-    setHead("");
-    setParsed({ summary: "", url: null });
     setDisable(true);
-    setNoti("processing data...");
-    setDocs([]);
+    setState({
+      noti: "processing data...",
+      docs: [],
+      head: "",
+      parsed: { summary: "", url: null },
+    });
     const dataa = bookmark;
     // const dataa = bmdata;
     if (dataa && dataa.length > 0) {
-      setNoti("Uploading Your Bookmarks...");
+      setState({ noti: "Uploading Your Bookmarks..." });
       try {
         const upload = await fetch(`${host}/save-data`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ data: dataa, userId: userId + ":b" }),
+          body: JSON.stringify({
+            data: dataa,
+            userId: `${userId}:b`,
+            flag: "bookmark",
+          }),
         });
         const resp = await upload.json();
         if (!resp.success) {
-          setNoti("Error uploading data, please try again");
+          setState({ noti: "Error uploading data, please try again" });
           setLoader("");
           setDisable(false);
           return;
         }
         try {
-          setNoti("Surfing through your Bookmarks...");
-          const response = await fetch(`${host}/search`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              userId: userId + ":b",
-              data: dataa,
-              query: ques,
-              flag: "bookmark",
-            }),
+          await searchStream({
+            host,
+            query: ques,
+            userId,
+            flag: "bookmark",
           });
-          const data = await response.json();
-          if (data.docs.length === 0) {
-            setNoti("No results found for this query");
-            setLoader("");
-            setDisable(false);
-            return;
-          }
-          setDocs(data.docs);
-          setHead(data.result);
-          // setResults({ url: data.format.url, date: data.format.date });
-          setNoti("");
           setLoader("");
           setDisable(false);
         } catch (err) {
-          setNoti("there is a problem generating response");
+          setState({ noti: "there is a problem generating response" });
           setLoader("");
           setDisable(false);
         }
       } catch (error) {
-        setNoti("there is a problem uploading data");
+        setState({ noti: "there is a problem uploading data" });
         setLoader("");
         setDisable(false);
       }
     } else {
       setLoader("");
-      setNoti("There is no data in History");
+      setState({ noti: "There is no data in History" });
       setDisable(false);
     }
   };
 
   const handleTabBM = () => {
-    setHistoryTab(true);
-    setDocs([]);
-    setHead("");
-    setParsed({ summary: "", url: null });
-    setNoti("");
+    setState({
+      historyTab: true,
+      docs: [],
+      head: "",
+      parsed: { summary: "", url: null },
+      noti: "",
+    });
     setQues("");
   };
 

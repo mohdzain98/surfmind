@@ -1,10 +1,13 @@
-import './App.css';
-import Popup from './Components/Popup';
+import "./App.css";
+import Popup from "./components/Popup";
+import UserState from "./context/UserState";
 
 function App() {
-  const host = process.env.REACT_APP_HOST
+  const host = process.env.REACT_APP_HOST;
   return (
-    <Popup prop={{host}}/>
+    <UserState>
+      <Popup prop={{ host }} />
+    </UserState>
   );
 }
 
