@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout SurfMind (read-only)
+      - name: Checkout SurfMind
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -32,15 +32,13 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H github.com >> ~/.ssh/known_hosts
 
-      - name: Clone destination repo (SSH only)
+      - name: Clone destination repo (SSH)
         run: |
           git clone git@github.com:Codebrokers111/surfmind-backend.git dest
-          cd dest
-          git remote -v
 
-      - name: Sync backend into repo root
+      - name: Sync backend into repo root (SAFE)
         run: |
-          rsync -av --delete backend/ dest/
+          rsync -av --delete --exclude='.git' backend/ dest/
 
       - name: Commit & push to destination
         run: |
