@@ -1,3 +1,8 @@
+"""Core retrieval orchestration for SurfMind RAG flows.
+Provides synchronous and streaming pipelines for search.
+Includes a mock streamer to test UI progress handling.
+"""
+
 import time
 from typing import List, Dict, Any, Generator
 from src.services.llm_service.llm_provider import LLMProvider
@@ -10,13 +15,24 @@ logger = AppLogger.get_logger(__name__)
 
 
 class CoreRetrieval:
+    """Coordinate retrieval, LLM calls, parsing, and post-processing.
+    Builds documents from user data and delegates retrieval to RAG services.
+    """
+
     def __init__(self):
+        """Initialize shared service dependencies for the RAG pipeline.
+        Wires up LLM provider, post-processing, and retriever components.
+        """
         self.llm_client = LLMProvider()
         self.post_processing = PostProcessing()
         self.rag = HybridRAGService()
         self.llm_rag = LLMRag()
 
     def _build_parent_documents(self, history: List[dict], flag: str) -> List[Document]:
+        """Convert raw history items into parent Document objects.
+        Maps fields to metadata used by retrieval and post-processing.
+        Returns a list of parent-level documents for chunking.
+        """
         docs: List[Document] = []
         for item in history:
             docs.append(
@@ -34,6 +50,9 @@ class CoreRetrieval:
         return docs
 
     def _empty_response(self, message: str) -> SearchResponse:
+        """Create a standardized empty SearchResponse with a message.
+        Used when no history or no relevant data is found.
+        """
         return SearchResponse(
             success=False,
             result=message,
@@ -43,9 +62,16 @@ class CoreRetrieval:
         )
 
     def _stream_event(self, step: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Wrap streaming payloads in a consistent step envelope.
+        Keeps the SSE payload format stable for UI consumption.
+        Returns a JSON-serializable dictionary.
+        """
         return {"step": step, "data": data}
 
     def invoke_rag(self, data: SearchRequest, history: List[dict]) -> SearchResponse:
+        """Run the full RAG pipeline and return a final response.
+        Returns a SearchResponse ready for API consumption.
+        """
         ques = data.query
         flag = data.flag
         parent_docs = self._build_parent_documents(history=history, flag=flag)
@@ -87,6 +113,9 @@ class CoreRetrieval:
     def stream_rag(
         self, data: SearchRequest, history: List[dict]
     ) -> Generator[Dict[str, Any], None, None]:
+        """Stream progress events for each major RAG pipeline step.
+        Enables SSE clients to show intermediate status updates.
+        """
         ques = data.query
         flag = data.flag
         parent_docs = self._build_parent_documents(history=history, flag=flag)
@@ -150,9 +179,8 @@ class CoreRetrieval:
         data,
         history,
     ) -> Generator[Dict[str, Any], None, None]:
-        """
-        Mock streaming RAG for UI testing.
-        No retrieval, no embeddings, no LLM.
+        """Mock streaming RAG for UI testing without LLM dependencies.
+        Keeps latency between steps to mimic real execution timing.
         """
 
         ques = data.query
@@ -244,6 +272,12 @@ class CoreRetrieval:
 
 
 class Retrieval:
+    """Factory for providing a CoreRetrieval instance to FastAPI."""
+
     @staticmethod
     def get_retrieval_service() -> CoreRetrieval:
+        """Create a new CoreRetrieval instance for request handling.
+        Keeps dependency injection explicit and testable.
+        Separates construction from API controller code.
+        """
         return CoreRetrieval()
