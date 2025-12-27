@@ -12,17 +12,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout SurfMind
+      # 1️⃣ Checkout source repo (read-only, no credentials)
+      - name: Checkout SurfMind source
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
 
+      # 2️⃣ Configure git identity
       - name: Configure git
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@users.noreply.github.com"
 
+      # 3️⃣ Setup SSH for destination repo
       - name: Configure SSH
         env:
           DEST_SSH_KEY: ${{ secrets.SURFMIND_BACKEND_DEPLOY_KEY }}
@@ -32,18 +35,21 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H github.com >> ~/.ssh/known_hosts
 
-      - name: Clone destination repo (SSH)
+      # 4️⃣ Clone destination repo via SSH
+      - name: Clone destination repo
         run: |
           git clone git@github.com:Codebrokers111/surfmind-backend.git dest
 
-      - name: Sync backend into repo root (SAFE)
+      # 5️⃣ Sync backend → repo root (CRITICAL: exclude .git)
+      - name: Sync backend files
         run: |
           rsync -av --delete --exclude='.git' backend/ dest/
 
-      - name: Commit & push to destination
+      # 6️⃣ Commit & FORCE push (mirror semantics)
+      - name: Commit and push to dev
         run: |
           cd dest
           git checkout dev || git checkout -b dev
           git add -A
-          git commit -m "Mirror backend from SurfMind main" || echo "No changes"
-          git push origin dev
+          git commit -m "Mirror backend from SurfMind main: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" || echo "No changes to commit"
+          git push -f origin dev
