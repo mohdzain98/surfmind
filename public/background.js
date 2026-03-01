@@ -73,6 +73,10 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.webNavigation.onCompleted.addListener((details) => {
   chrome.tabs.get(details.tabId, (tab) => {
+    if (!tab || !tab.url || !tab.url.startsWith("http")) {
+      return;
+    }
+
     if (tab.url.startsWith("http")) {
       chrome.scripting.executeScript(
         {
@@ -95,14 +99,27 @@ chrome.webNavigation.onCompleted.addListener((details) => {
           },
         },
         (results) => {
+          if (chrome.runtime.lastError) {
+            console.error(
+              "Script execution failed:",
+              chrome.runtime.lastError.message
+            );
+            return;
+          }
+
+          if (!results || results.length === 0 || !results[0]?.result) {
+            return;
+          }
+
           let content = results[0].result;
+          const headings = Array.isArray(content.headings) ? content.headings : [];
+          const title = content.title || "";
+          const paragraphs = content.paragraphs || "";
           let data = [
             {
-              title: content.title,
+              title,
               url: tab.url,
-              content: `${content.title} ${content.headings.join(" ")} ${
-                content.paragraphs
-              }`,
+              content: `${title} ${headings.join(" ")} ${paragraphs}`,
               date: `${formattedDate} `,
             },
           ];
