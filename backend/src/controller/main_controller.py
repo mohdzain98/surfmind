@@ -2,10 +2,10 @@
 This module defines the primary application controller for the FastAPI backend.
 """
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 import logging
+from fastapi import FastAPI
 from src.utility.logger import AppLogger
+from fastapi.middleware.cors import CORSMiddleware
 from src.controller.core_controller import router as core_router
 
 AppLogger.init(

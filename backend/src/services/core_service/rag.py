@@ -9,19 +9,19 @@ Hybrid RAG implementation for SurfMind (FREE version)
 
 import re
 import difflib
-from termcolor import cprint
 from collections import defaultdict
 from typing import List, Tuple, Optional, Any, Dict, Set
 
 from langchain_core.documents import Document
-from langchain_core.runnables import Runnable
-from src.models.core import Ans_bookmark, Ans_history
-from langchain_core.runnables import RunnablePassthrough
+from langchain_community.callbacks import get_openai_callback
+from langchain_core.runnables import Runnable, RunnablePassthrough
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from langchain_community.retrievers import BM25Retriever
 from langchain_community.vectorstores import FAISS
 
+from src.models.ai_models import Models
+from src.models.core import Ans_bookmark, Ans_history
 from src.services.llm_service.llm_provider import LLMProvider
 from src.services.llm_service.prompt_builder import Prompts
 from src.utility.provider import EmbeddingsProvider as ef
@@ -51,10 +51,12 @@ class HybridRAGService:
         self.bm25_k = bm25_k
         self.faiss_k = faiss_k
         try:
-            self.embeddings = ef.get_embeddings("gemini")
+            self.embeddings = ef.get_embeddings(Models.default())
         except Exception:
-            logger.warning("Gemini embeddings unavailable, falling back to OpenAI")
-            self.embeddings = ef.get_embeddings("openai")
+            logger.warning(
+                f"{Models.default()} embeddings unavailable, falling back to {Models.other()}"
+            )
+            self.embeddings = ef.get_embeddings(Models.other())
 
         self.splitter = RecursiveCharacterTextSplitter(
             chunk_size=self.chunk_size,
@@ -253,7 +255,7 @@ class LLMRag:
         self.rag = HybridRAGService()
         self.prompts = Prompts()
         self.llm_provider = LLMProvider()
-        self.base_llm = self.llm_provider.get("gemini")
+        self.base_llm = self.llm_provider.get(Models.default())
 
     def _llm_response(self, llm, flag: str = "history") -> Runnable:
         """Build the response chain for the specified flag.
@@ -323,16 +325,16 @@ class LLMRag:
             result = self._invoke_chain(
                 context=context, date=date, url=url, flag=flag, chain=chain
             )
-            return result, "gemini"
+            return result, Models.default()
         except Exception as exc:
-            logger.warning("Primary LLM failed, falling back to GPT: %s", exc)
+            logger.warning("Primary LLM failed, falling back to gemini: %s", exc)
             try:
-                llm_gpt = self.llm_provider.get(name="gpt")
+                llm_gpt = self.llm_provider.get(name=Models.other())
                 chain = self._llm_response(llm=llm_gpt, flag=flag)
                 result = self._invoke_chain(
                     context=context, date=date, url=url, flag=flag, chain=chain
                 )
-                return result, "gpt"
+                return result, Models.other()
             except Exception as e:
                 logger.error("Both LLM failed")
                 raise RuntimeError("All LLM providers failed") from e

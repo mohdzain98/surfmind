@@ -6,19 +6,22 @@ const Update = ({ handleShowUpdate }) => {
           <h5 class="alert-heading" style={{ padding: "0px", margin: "0px" }}>
             Whats New!
           </h5>
-          <span style={{ fontSize: "12px" }}>v1.6</span>
+          <span style={{ fontSize: "12px" }}>v1.7</span>
         </div>
+        {/* <p style={{ fontSize: "14px", margin: "0" }}>
+          Faster streaming pipeline
+        </p> */}
         <p style={{ fontSize: "14px", margin: "0" }}>
-          Streaming and Faster Response
+          Improved result consistency
         </p>
         <p style={{ fontSize: "14px", margin: "0" }}>
-          Surf Bookmarks and History
+          Better retrieval quality
         </p>
-        <p style={{ fontSize: "14px", margin: "0" }}>
-          Enhanced Hybrid Retrieval
+        <p style={{ fontSize: "14px", margin: "1px 0 0" }}>AI Model refresh</p>
+        {/* <p style={{ fontSize: "14px", margin: "0" }}>Enhanced Storage</p> */}
+        <p className="text-danger" style={{ fontSize: "14px", margin: "0" }}>
+          Bug Fixes
         </p>
-        <p style={{ fontSize: "14px", margin: "1px 0 0" }}>AI Model Upgraded</p>
-        <p style={{ fontSize: "14px", margin: "0" }}>Enhanced Storage</p>
         <button
           type="button"
           class="btn-close"

@@ -4,8 +4,8 @@ Wraps cached access to API keys and embedding clients.
 
 import os
 from functools import lru_cache
-from typing import Literal
 from dotenv import load_dotenv
+from src.models.ai_models import Models, Embeddings
 from langchain_openai import OpenAIEmbeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from src.utility.path_finder import Finder
@@ -50,10 +50,8 @@ class SecretsProvider:
         return key
 
 
-EmbeddingProvider = Literal["openai", "gemini"]
-
 DEFAULT_OPENAI_MODEL = "text-embedding-3-small"
-DEFAULT_GEMINI_MODEL = "models/embedding-001"
+DEFAULT_GEMINI_MODEL = "models/gemini-embedding-001"
 
 
 class EmbeddingsProvider:
@@ -64,14 +62,14 @@ class EmbeddingsProvider:
     @staticmethod
     @lru_cache(maxsize=4)
     def get_embeddings(
-        provider: EmbeddingProvider = "openai",
+        provider: Models = Models.default(),
         model_name: str | None = None,
     ):
         """
         Returns a cached embeddings instance.
         """
 
-        if provider == "openai":
+        if provider == Models.GPT:
             model = model_name or DEFAULT_OPENAI_MODEL
             logger.info("Loaded OpenAI embeddings: %s", model)
             return OpenAIEmbeddings(
@@ -79,7 +77,7 @@ class EmbeddingsProvider:
                 api_key=SecretsProvider.get_openai_api_key(),
             )
 
-        if provider == "gemini":
+        if provider == Models.GEMINI:
             model = model_name or DEFAULT_GEMINI_MODEL
             logger.info("Loaded Gemini embeddings: %s", model)
             return GoogleGenerativeAIEmbeddings(

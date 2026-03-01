@@ -3,7 +3,6 @@ Provides access to configured chat models.
 """
 
 from typing import Dict
-
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.rate_limiters import InMemoryRateLimiter
@@ -28,15 +27,15 @@ class LLMProvider:
         )
         self._models: Dict[str, BaseChatModel] = {
             "gpt": ChatOpenAI(
-                model="gpt-4.1-nano",
-                temperature=0.4,
+                model="gpt-4.1-mini",
+                temperature=0.2,
                 max_tokens=500,
                 rate_limiter=rate_limiter,
                 api_key=SecretsProvider.get_openai_api_key(),
             ),
             "gemini": ChatGoogleGenerativeAI(
-                model="gemini-2.0-flash",
-                temperature=0.3,
+                model="gemini-2.5-flash",
+                temperature=0.2,
                 rate_limiter=rate_limiter,
                 api_key=SecretsProvider.get_gemini_api_key(),
             ),

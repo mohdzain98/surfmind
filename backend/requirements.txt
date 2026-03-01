@@ -10,3 +10,5 @@ rank_bm25
 faiss-cpu
 redis
 termcolor
+google-api-core
+tiktoken

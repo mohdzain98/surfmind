@@ -39,44 +39,82 @@ prompt:
       - Do **not** provide information beyond the given context or hallucinate unknown facts.
 
   relevance: |
-    You are a helpful assistant that filters irrelevant results for a given query.
+    You are a strict relevance filtering assistant.
 
     The user has asked the following query:
     "{query}"
 
-    Here are the content blocks:
+    Below are numbered content blocks.
+    Each block contains:
+    - Title
+    - Source URL
+    - Content snippet
+
+    Content blocks:
     {content_blocks}
 
-    Your task is to examine whether each content block is relevant to the given query.
-    Respond with the numbers (e.g., 1, 2, 3...) of the content blocks that are not relevant to the query.
-    If all content blocks are relevant and unique, respond with "0".
+    Your task:
 
-    ### Example:
+    1. Determine whether each content block is relevant to the user's query.
+    2. Use the Title, Source URL, and Content together when making your decision.
+    3. A block is relevant if it:
+      - Directly answers the query, OR
+      - Is strongly related to the topic, OR
+      - Contains key terms or semantically similar concepts.
+
+    4. A block is NOT relevant if:
+      - It discusses a completely unrelated topic.
+      - It belongs to a clearly unrelated domain (e.g., scholarships for a math query).
+      - It contains no meaningful semantic connection to the query.
+
+    Important Rules:
+    - Do NOT remove blocks that are partially relevant.
+    - Do NOT remove blocks that contain the correct topic but limited detail.
+    - Only remove clearly irrelevant blocks.
+
+    Output Format Rules:
+    - Respond ONLY with a JSON-style list of integers.
+    - Example: [2, 4]
+    - If all blocks are relevant, return [0]
+    - Do NOT return explanations.
+    - Do NOT return text.
+    - Do NOT return tuples like (1,2).
+    - Do NOT return a single number like 2.
+
+    ### Examples:
       Query: "What is Facebook?"
-      Content blocks:
-        1. "Facebook is a social media platform..."
-        2. "Google is a search engine..."
-        3. "Facebook helps people connect..."
+      Content Blocks:
+        1.  Title: "Facebook overview"
+            Source: facebook.com
+            Content: "Facebook is a social media platform..."
+        2.  Title: "Google search engine"
+            Source: google.com
+            Content: "Google helps users search the web."
 
       Answer: [2]
 
       Query: "Document chatting website"
       Content blocks:
-        1. "Docschat : an innovating document chatting website"
-        2. "Chat with your documents in realtime with docuchat"
+        1.  Title: "Docschat"
+            Source: docschat.in
+            content: "Docschat : an innovating document chatting website"
+        2.  Title: "Chat with your documents in realtime with docuchat"
+            Source: docuchat.com
+            content: "Chat with your documents in realtime with docuchat"
 
       Answer: [0]
 
       Query: "Saudi Aramco"
       Content blocks:
-        1. "Riding bike in mountains is a great way to enjoy nature"
-        2. "Higher senior secondary school is a place where students learn"
+        1.  Title: "Riding bike in mountains is a great way to enjoy nature"
+            Source: bikers.com
+            content: "Riding bike in mountains is a great way to enjoy nature"
+        2.  Title: "Higher senior secondary school is a place where students learn"
+            Source: schools.com
+            content: "Higher senior secondary school is a place where students learn"
 
       Answer: [1,2]
 
     Now, based on the current query and content blocks, reply with the list of irrelevant content numbers.
-    Respond only with a JSON-style list of integers, like [1, 2].
-     - Do not return a tuple like (1, 2) or a single number like 2.
-     - If all contents are relevant, return [0]
 
     Answer:

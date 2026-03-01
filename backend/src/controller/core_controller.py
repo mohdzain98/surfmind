@@ -1,5 +1,5 @@
 """
-Core API routes that mirror the legacy Flask endpoints.
+Core API routes.
 """
 
 import os
@@ -12,6 +12,8 @@ from fastapi.responses import StreamingResponse
 
 from src.models.core import DataRequest, SearchRequest, SearchResponse
 from src.services.core_service.main import Retrieval, CoreRetrieval
+from src.handlers.llm_exception_handler import llm_exc_handler
+from src.handlers.redis_exception_handler import redis_exc_handler
 from src.utility.logger import AppLogger
 
 logger = AppLogger.get_logger(__name__)
@@ -37,14 +39,25 @@ def save_data(payload: DataRequest):
     Uses the payload user_id and flag to build a stable Redis key.
     """
     try:
+        redis_client.ping()
         redis_key = f"user:{payload.user_id}:{payload.flag}"
         redis_client.set(redis_key, payload.json(), ex=3600)
 
         return {"success": True, "message": "Data saved successfully"}
 
+    except redis.ConnectionError as e:
+        logger.error(f"Failed to connect to Redis: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={"success": False, "message": redis_exc_handler.map_exception(e)},
+        ) from e
+
     except Exception as exc:
         logger.error(f"Error saving data: {exc}", "red")
-        raise HTTPException(status_code=500, detail="Failed to save user data")
+        raise HTTPException(
+            status_code=500,
+            detail={"success": False, "message": redis_exc_handler.map_exception(exc)},
+        )
 
 
 @router.post("/search")
@@ -65,7 +78,10 @@ def search(
         logger.error(exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(exc),
+            detail={
+                "success": False,
+                "message": llm_exc_handler.map_exception(exc),
+            },
         ) from exc
 
 
@@ -89,7 +105,10 @@ def search_stream(
                 yield f"data: {json.dumps(event)}\n\n"
         except Exception as exc:
             logger.error(exc)
-            error_event = {"step": "error", "data": {"message": str(exc)}}
+            error_event = {
+                "step": "error",
+                "data": {"message": llm_exc_handler.map_exception(exc=exc)},
+            }
             yield f"data: {json.dumps(error_event)}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")

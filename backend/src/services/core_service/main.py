@@ -28,7 +28,9 @@ class CoreRetrieval:
         self.rag = HybridRAGService()
         self.llm_rag = LLMRag()
 
-    def _build_parent_documents(self, history: List[dict], flag: str) -> List[Document]:
+    def _build_parent_documents(
+        self, history: List[dict[str, str]], flag: str
+    ) -> List[Document]:
         """Convert raw history items into parent Document objects.
         Maps fields to metadata used by retrieval and post-processing.
         Returns a list of parent-level documents for chunking.
@@ -39,9 +41,11 @@ class CoreRetrieval:
                 Document(
                     page_content=item.get("content", ""),
                     metadata={
-                        "source": item.get("url"),
-                        "date": item.get("date", "Unknown"),
+                        "source": item.get("url", ""),
+                        "date": item.get("date", ""),
                         "title": item.get("title", ""),
+                        "domain": item.get("domain", ""),
+                        "folder": item.get("folder", ""),
                         "type": flag,
                     },
                 )
@@ -101,6 +105,9 @@ class CoreRetrieval:
         final_docs = self.post_processing.post_process(
             ques=ques, url=source, docs=retrieved_parents
         )
+        if not final_docs:
+            logger.warning("No relevant data found after post processing")
+            return self._empty_response("No relevant data found")
         res = SearchResponse(
             success=True,
             result=result,
@@ -111,7 +118,7 @@ class CoreRetrieval:
         return res
 
     def stream_rag(
-        self, data: SearchRequest, history: List[dict]
+        self, data: SearchRequest, history: List[dict[str, str]]
     ) -> Generator[Dict[str, Any], None, None]:
         """Stream progress events for each major RAG pipeline step.
         Enables SSE clients to show intermediate status updates.
@@ -137,10 +144,24 @@ class CoreRetrieval:
             yield self._stream_event("final", res.dict())
             return
 
-        top_doc = retrieved_parents[0]
-        context = top_doc.page_content
-        source = top_doc.metadata.get("source")
-        date = top_doc.metadata.get("date")
+        validated_docs = self.post_processing.post_process(
+            ques=ques, docs=retrieved_parents
+        )
+        yield self._stream_event(
+            "post_processing",
+            {"validated_docs": len(validated_docs)},
+        )
+        if len(validated_docs) == 0:
+            res = self._empty_response(
+                message="Nothing macthed in the bookmarks related to the query"
+            )
+            yield self._stream_event("final", res.dict())
+            return
+
+        top_doc: dict = validated_docs[0]
+        context = top_doc.get("content", "")
+        source = top_doc.get("metadata", {}).get("source", "")
+        date = top_doc.get("metadata", {}).get("date", None)
 
         result, model = self.llm_rag.safe_invoke_llm_response(
             context=context, date=date, url=source, flag=flag
@@ -157,20 +178,26 @@ class CoreRetrieval:
             {"format": final_output},
         )
 
-        final_docs = self.post_processing.post_process(
-            ques=ques, url=source, docs=retrieved_parents
-        )
-        yield self._stream_event(
-            "post_processing",
-            {"validated_docs": len(final_docs)},
-        )
+        # final_docs = self.post_processing.post_process(
+        #     ques=ques, url=source, docs=retrieved_parents
+        # )
+        # yield self._stream_event(
+        #     "post_processing",
+        #     {"validated_docs": len(final_docs)},
+        # )
+
+        # if not final_docs:
+        #     logger.warning("No relevant data found after post processing")
+        #     res = self._empty_response("No relevant data found")
+        #     yield self._stream_event("final", res.model_dump())
+        #     return
 
         res = SearchResponse(
             success=True,
             result=result,
             format=final_output,
             model=model,
-            docs=final_docs,
+            docs=validated_docs,
         )
         yield self._stream_event("final", res.model_dump())
 
