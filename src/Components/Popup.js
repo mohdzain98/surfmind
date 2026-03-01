@@ -30,12 +30,14 @@ const Popup = (props) => {
   useEffect(() => {
     initializePopup(host);
   }, [host, initializePopup]);
+
   useEffect(() => {
     if (syncRequestedRef.current) return;
     if (!host || !userId || !data?.navigationData?.length) return;
     syncRequestedRef.current = true;
     syncHistory(host, data.navigationData, userId);
   }, [data, host, syncHistory, userId]);
+
   useEffect(() => {
     if (!head) {
       setState({ parsed: { summary: "", url: null } });
@@ -51,8 +53,8 @@ const Popup = (props) => {
     return match ? match[2] : null;
   };
   const handleShowUpdate = async () => {
-    await chrome.storage.local.set({ "sm-update-flag-v1.6": true });
-    await chrome.storage.local.remove("sm-update-flag");
+    await chrome.storage.local.set({ "sm-update-flag-v1.7": true });
+    await chrome.storage.local.remove("sm-update-flag-v1.6");
     setState({ updateFlag: false });
   };
 

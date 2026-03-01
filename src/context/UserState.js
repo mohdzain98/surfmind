@@ -61,21 +61,21 @@ const UserState = ({ children }) => {
         setState({ syncing: false });
       }
     },
-    [setState]
+    [setState],
   );
 
   const initializePopup = useCallback(
     async (host) => {
       const result = await chrome.storage.local.get({ navigationData: [] });
       const uid = await initializeUserId();
-      const upflag = await chrome.storage.local.get("sm-update-flag-v1.6");
+      const upflag = await chrome.storage.local.get("sm-update-flag-v1.7");
       setState({
         data: result,
         userId: uid,
-        updateFlag: Boolean(upflag["sm-update-flag-v1.6"]),
+        updateFlag: Boolean(upflag["sm-update-flag-v1.7"]),
       });
     },
-    [setState]
+    [setState],
   );
 
   const searchStream = useCallback(
@@ -173,7 +173,7 @@ const UserState = ({ children }) => {
               setState({
                 step: {
                   step,
-                  title: "Validating Results",
+                  title: "Validating Results with Query",
                   content: `${validatedDocs} validated`,
                 },
               });
@@ -182,8 +182,8 @@ const UserState = ({ children }) => {
               const finalDocs = data.docs || [];
               setState({
                 docs: finalDocs,
-                head: data.result || "",
-                format: data.format || null,
+                head: finalDocs.length === 0 ? "" : data.result || "",
+                format: finalDocs.length === 0 ? null : data.format || null,
                 loading: false,
                 disable: false,
                 noti:
@@ -222,7 +222,7 @@ const UserState = ({ children }) => {
         });
       }
     },
-    [setState]
+    [setState],
   );
 
   return (

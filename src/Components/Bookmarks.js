@@ -13,31 +13,79 @@ const Bookmarks = ({ host }) => {
   useEffect(() => {
     async function getData() {
       const result = await fetchBookmarks();
+      console.log("bookmarks", result);
       setBookmarks(result);
     }
     getData();
     // eslint-disable-next-line
   }, []);
 
-  const fetchBookmarks = async () => {
-    const all = [];
-    chrome.bookmarks.getTree((nodes) => {
-      const traverse = (nodeList) => {
-        for (const node of nodeList) {
-          if (node.url && node.url.startsWith("http")) {
-            all.push({
-              url: node.url,
-              content: node.title, // or you can fetch page later
-            });
-          }
-          if (node.children) traverse(node.children);
+  // const fetchBookmarks = async () => {
+  //   const all = [];
+  //   chrome.bookmarks.getTree((nodes) => {
+  //     const traverse = (nodeList) => {
+  //       for (const node of nodeList) {
+  //         if (node.url && node.url.startsWith("http")) {
+  //           all.push({
+  //             url: node.url,
+  //             content: node.title, // or you can fetch page later
+  //           });
+  //         }
+  //         if (node.children) traverse(node.children);
+  //       }
+  //     };
+
+  //     traverse(nodes);
+  //     // setBookmarks(all);
+  //   });
+  //   return all;
+  // };
+  const fetchBookmarks = () => {
+    return new Promise((resolve) => {
+      const all = [];
+
+      const normalizeUrl = (url) => {
+        try {
+          const u = new URL(url);
+          u.search = "";
+          u.hash = "";
+          return u.toString().replace(/\/$/, "");
+        } catch {
+          return url;
         }
       };
 
-      traverse(nodes);
-      // setBookmarks(all);
+      chrome.bookmarks.getTree((nodes) => {
+        const traverse = (nodeList, folderPath = []) => {
+          for (const node of nodeList) {
+            const currentPath = node.title
+              ? [...folderPath, node.title]
+              : folderPath;
+
+            if (node.url && /^https?:\/\//.test(node.url)) {
+              const normalized = normalizeUrl(node.url);
+              const domain = new URL(normalized).hostname;
+
+              all.push({
+                url: normalized,
+                title: node.title,
+                content: node.title,
+                folder: folderPath.join(" / "),
+                domain,
+                date: node.dateAdded,
+              });
+            }
+
+            if (node.children) {
+              traverse(node.children, currentPath);
+            }
+          }
+        };
+
+        traverse(nodes);
+        resolve(all);
+      });
     });
-    return all;
   };
 
   const handleSearchbm = async (e) => {
@@ -51,6 +99,7 @@ const Bookmarks = ({ host }) => {
       parsed: { summary: "", url: null },
     });
     const dataa = bookmark;
+    console.log(dataa);
     // const dataa = bmdata;
     if (dataa && dataa.length > 0) {
       setState({ noti: "Uploading Your Bookmarks..." });
