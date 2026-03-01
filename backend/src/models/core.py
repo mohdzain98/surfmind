@@ -3,7 +3,7 @@ Defines Pydantic schemas used across controllers and services.
 """
 
 from pydantic import BaseModel, Field
-from typing import Dict, Any, List
+from typing import List
 
 
 class Document:
@@ -49,7 +49,10 @@ class HistoryItem(BaseModel):
 
     url: str
     content: str
-    date: str | None = None
+    date: str | int | None = None
+    domain: str = None
+    folder: str = None
+    title: str = None
 
 
 class DataRequest(BaseModel):

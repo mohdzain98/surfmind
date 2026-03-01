@@ -3,8 +3,11 @@ Work as LLM as a Judge to remove unrequired outputs from final response
 """
 
 import ast
+from typing import Any, List
 from langchain_core.prompts import PromptTemplate
 from src.services.llm_service.llm_provider import LLMProvider
+from src.models.core import Document
+from src.models.ai_models import Models
 from src.utility.utils import Utility
 from src.utility.logger import AppLogger
 
@@ -36,12 +39,13 @@ class PostProcessing:
         """Build a prompt-ready representation of documents.
         Returns joined strings, document list, and index map.
         """
+
         doc_strings = []
         document_list = []
         seen_sources = set()
-        doc_number = 1  # For visible numbering in prompt
+        doc_number = 1
 
-        index_map = {}  # Map visible number → document_list index
+        index_map = {}
 
         for doc in docs:
             source = doc.metadata.get("source")
@@ -51,26 +55,38 @@ class PostProcessing:
             seen_sources.add(source)
 
             content = doc.page_content[:300].replace("\n", " ")
+            title = doc.metadata.get("title", "")
+            title = title.strip() if title and title.strip() else content
 
-            # Store the mapping: visible_number => actual_index in document_list
+            # Store mapping
             index_map[doc_number] = len(document_list)
 
-            doc_strings.append(f'{doc_number}. "{content}"')
-            document_list.append({"content": content, "metadata": doc.metadata})
+            # 🔥 Add source & title
+            block = (
+                f"{doc_number}. "
+                f'Title: "{title}"\n'
+                f"Source: {source}\n"
+                f'Content: "{content}"'
+            )
 
+            doc_strings.append(block)
+            document_list.append({"content": content, "metadata": doc.metadata})
             doc_number += 1
 
         joined_docs = "\n\n".join(doc_strings)
+
         return joined_docs, document_list, index_map
 
-    def post_process(self, ques, url, docs):
+    def post_process(self, ques: str, docs: List[Document]) -> list[dict[str, Any]]:
         """Filter documents by LLM-assessed relevance.
         Returns a filtered list of relevant documents.
         """
         llms = self.llm_provider.all()
-        llm_gemini = llms.get("gemini")
-        llm_gpt = llms.get("gpt")
-        cleaned_docs = self.clean_docs(url, docs)
+        llm_gemini = llms.get(Models.GEMINI)
+        llm_gpt = llms.get(Models.GPT)
+        top_doc = docs[0]
+        source = top_doc.metadata.get("source")
+        cleaned_docs = self.clean_docs(source, docs)
         joined_docs, whole_doc, index_map = self.join_docs(cleaned_docs)
         prompts = self.utility.load_prompts()
         relevant_prompt = prompts["prompt"]["relevance"]

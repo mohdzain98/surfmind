@@ -113,6 +113,11 @@ class AppLogger:
     @staticmethod
     def get_logger(name: Optional[str] = None) -> Logger:
         """
-        Get a named logger. Call this in any module instead of logging.getLogger().
+        Get a named logger.
+        Strips full module path to keep only last segment.
         """
-        return logging.getLogger(name if name is not None else __name__)
+        logger_name = name if name is not None else __name__
+
+        # Keep only last part of dotted path
+        short_name = logger_name.split(".")[-1]
+        return logging.getLogger(short_name)
