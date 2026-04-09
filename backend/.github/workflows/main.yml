@@ -1,20 +1,14 @@
 name: Deploy
 
-# Controls when the action will run. 
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
   push:
     branches: [ main ]
-    paths-ignore: 'README.md'
+    paths-ignore: ["README.md"]
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   build:
-    # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
     - name: Deploy using ssh
       uses: appleboy/ssh-action@master
@@ -24,9 +18,35 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: 22
         script: |
-          cd surfmind/surfmind-backend
-          git pull origin main
-          git status
+          set -e
+
+          cd surfmind/surfmind-backend || exit 1
+
+          echo "Fetching latest code..."
+          git fetch origin
+
+          echo "Resetting to origin/main..."
+          git reset --hard origin/main
+
+          echo "Cleaning untracked files (excluding persistent data)..."
+          git clean -fd -e data/ -e logs/ -e senv/
+
+          echo "Activating virtual environment..."
           source senv/bin/activate
-          pip install -r requirements.txt
-          sudo -A systemctl restart sm.service
+
+          echo "Checking dependencies..."
+          if [ ! -f requirements.lock ] || ! cmp -s requirements.txt requirements.lock; then
+            echo "Installing dependencies..."
+            pip install -r requirements.txt
+            cp requirements.txt requirements.lock
+          else
+            echo "Dependencies unchanged. Skipping install."
+          fi
+
+          echo "Reloading service (zero downtime)..."
+          sudo systemctl restart surfmind.service || {
+            echo "Reload failed. Restarting service..."
+            sudo systemctl restart surfmind.service
+          }
+
+          echo "Deployment completed successfully."
