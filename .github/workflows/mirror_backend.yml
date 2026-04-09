@@ -38,4 +38,4 @@ jobs:
 
       - name: Push backend history to destination
         run: |
-          git push -f git@github.com:Codebrokers111/surfmind-backend.git backend-split:main
+          git push -f git@github.com:mohdzain98/surfmind-backend.git backend-split:main
