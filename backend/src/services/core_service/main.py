@@ -4,7 +4,6 @@ Includes a mock streamer to test UI progress handling.
 """
 
 import time
-from rich import print as rprint
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any, Generator
 from src.services.llm_service.llm_provider import LLMProvider
@@ -260,9 +259,7 @@ class CoreRetrieval:
                 logger.warning("Post-processing failed for corpus: %s", exc)
                 return []
 
-        rprint("Validating history parents...", history_parents)
         validated_history = _safe_post_process(history_parents)
-        rprint("Validating bookmark parents...", bookmark_parents)
         validated_bookmarks = _safe_post_process(bookmark_parents)
 
         # Merge: history results first, then bookmarks (Popup.js re-splits by metadata.type)
