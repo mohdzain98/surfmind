@@ -36,12 +36,20 @@ router = APIRouter(prefix="/v1", tags=["Core"])
 @router.post("/save-data", response_model=Dict[str, Any])
 def save_data(payload: DataRequest):
     """Persist user history/bookmark data to Redis with a short TTL.
-    Uses the payload user_id and flag to build a stable Redis key.
+    For flag='combined', stores history and bookmarks under separate sub-keys.
+    Uses the payload user_id and flag to build stable Redis keys.
     """
     try:
         redis_client.ping()
-        redis_key = f"user:{payload.user_id}:{payload.flag}"
-        redis_client.set(redis_key, payload.json(), ex=3600)
+
+        if payload.flag == "combined":
+            history_payload = {"data": [item.dict() for item in payload.data]}
+            bookmark_payload = {"data": [item.dict() for item in payload.bookmarks]}
+            redis_client.set(f"user:{payload.user_id}:ch", json.dumps(history_payload), ex=3600)
+            redis_client.set(f"user:{payload.user_id}:cb", json.dumps(bookmark_payload), ex=3600)
+        else:
+            redis_key = f"user:{payload.user_id}:{payload.flag}"
+            redis_client.set(redis_key, payload.json(), ex=3600)
 
         return {"success": True, "message": "Data saved successfully"}
 
@@ -91,17 +99,30 @@ def search_stream(
     service: CoreRetrieval = Depends(Retrieval.get_retrieval_service),
 ):
     """Stream RAG search progress and results via Server-Sent Events.
+    For flag='combined', loads history and bookmarks from separate Redis sub-keys.
     Reads user data from Redis and yields stepwise progress payloads.
     Emits a final event with the full response or an error event.
     """
-    redis_key = f"user:{payload.user_id}:{payload.flag}"
-    user_data = redis_client.get(redis_key)
-    history: dict = json.loads(user_data) if user_data else {}
+    if payload.flag == "combined":
+        history_raw = redis_client.get(f"user:{payload.user_id}:ch")
+        bookmark_raw = redis_client.get(f"user:{payload.user_id}:cb")
+        history_data = json.loads(history_raw).get("data", []) if history_raw else []
+        bookmark_data = json.loads(bookmark_raw).get("data", []) if bookmark_raw else []
+    else:
+        redis_key = f"user:{payload.user_id}:{payload.flag}"
+        user_data = redis_client.get(redis_key)
+        history_data = json.loads(user_data).get("data", []) if user_data else []
+        bookmark_data = []
 
     def event_stream():
         try:
-            history_data = history.get("data", [])
-            for event in service.stream_rag(data=payload, history=history_data):
+            if payload.flag == "combined":
+                gen = service.stream_combined_rag(
+                    data=payload, history=history_data, bookmarks=bookmark_data
+                )
+            else:
+                gen = service.stream_rag(data=payload, history=history_data)
+            for event in gen:
                 yield f"data: {json.dumps(event)}\n\n"
         except Exception as exc:
             logger.error(exc)

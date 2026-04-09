@@ -3,7 +3,7 @@ import { userContext } from "./userContext";
 import { initializeUserId } from "../components/UserId";
 
 const initialState = {
-  historyTab: true,
+  activeTab: "history", // "history" | "bookmark" | "combined"
   query: "",
   head: "",
   parsed: { summary: "", url: null },
@@ -37,6 +37,50 @@ const UserState = ({ children }) => {
     dispatch({ type: "SET_STATE", payload });
   }, []);
 
+  const syncCombined = useCallback(
+    async (host, historyData, bookmarkData, userId) => {
+      const cappedHistory = historyData.slice(-50);
+      const sortedBookmarks = [...bookmarkData].sort((a, b) => b.date - a.date);
+      const halfCount = Math.ceil(sortedBookmarks.length / 2);
+      const cappedBookmarks = sortedBookmarks.slice(0, halfCount);
+      try {
+        await fetch(`${host}/save-data`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            data: cappedHistory,
+            userId: `${userId}:c`,
+            flag: "combined",
+            bookmarks: cappedBookmarks,
+          }),
+        });
+      } catch (error) {
+        setState({ noti: "There is a problem syncing combined data" });
+      }
+    },
+    [setState],
+  );
+
+  const syncBookmarks = useCallback(
+    async (host, bookmarkData, userId) => {
+      if (!bookmarkData || bookmarkData.length === 0) return;
+      try {
+        await fetch(`${host}/save-data`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            data: bookmarkData,
+            userId: `${userId}:b`,
+            flag: "bookmark",
+          }),
+        });
+      } catch (error) {
+        setState({ noti: "There is a problem syncing bookmarks" });
+      }
+    },
+    [setState],
+  );
+
   const syncHistory = useCallback(
     async (host, historyData, userId) => {
       if (!historyData || historyData.length === 0) {
@@ -68,11 +112,11 @@ const UserState = ({ children }) => {
     async (host) => {
       const result = await chrome.storage.local.get({ navigationData: [] });
       const uid = await initializeUserId();
-      const upflag = await chrome.storage.local.get("sm-update-flag-v1.7");
+      const upflag = await chrome.storage.local.get("sm-update-flag-v1.75");
       setState({
         data: result,
         userId: uid,
-        updateFlag: Boolean(upflag["sm-update-flag-v1.7"]),
+        updateFlag: Boolean(upflag["sm-update-flag-v1.75"]),
       });
     },
     [setState],
@@ -97,7 +141,7 @@ const UserState = ({ children }) => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            userId: `${userId}:${flag === "history" ? "h" : "b"}`,
+            userId: `${userId}:${flag === "history" ? "h" : flag === "bookmark" ? "b" : "c"}`,
             query,
             flag,
           }),
@@ -227,7 +271,7 @@ const UserState = ({ children }) => {
 
   return (
     <userContext.Provider
-      value={{ state, setState, initializePopup, syncHistory, searchStream }}
+      value={{ state, setState, initializePopup, syncHistory, syncBookmarks, syncCombined, searchStream }}
     >
       {children}
     </userContext.Provider>

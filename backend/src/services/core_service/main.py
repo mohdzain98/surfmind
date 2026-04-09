@@ -4,6 +4,8 @@ Includes a mock streamer to test UI progress handling.
 """
 
 import time
+from rich import print as rprint
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any, Generator
 from src.services.llm_service.llm_provider import LLMProvider
 from src.models.core import Document, SearchRequest, SearchResponse
@@ -191,6 +193,102 @@ class CoreRetrieval:
         #     res = self._empty_response("No relevant data found")
         #     yield self._stream_event("final", res.model_dump())
         #     return
+
+        res = SearchResponse(
+            success=True,
+            result=result,
+            format=final_output,
+            model=model,
+            docs=validated_docs,
+        )
+        yield self._stream_event("final", res.model_dump())
+
+    def stream_combined_rag(
+        self, data: SearchRequest, history: List[dict], bookmarks: List[dict]
+    ) -> Generator[Dict[str, Any], None, None]:
+        """Stream combined history+bookmark search progress via SSE.
+        Runs retrieval independently on each corpus so both sources are
+        guaranteed representation (k results each), then interleaves them
+        before post-processing.
+        """
+        ques = data.query
+        history_docs = self._build_parent_documents(history=history, flag="history")
+        bookmark_docs = self._build_parent_documents(history=bookmarks, flag="bookmark")
+
+        if not history_docs and not bookmark_docs:
+            res = self._empty_response("No data found for combined search")
+            yield self._stream_event("final", res.dict())
+            return
+
+        # Retrieve independently so each corpus gets its own k=3 slots,
+        # preventing history from crowding out bookmarks.
+        def _safe_retrieve(docs):
+            if not docs:
+                return []
+            try:
+                return self.rag.retrieve_parents(query=ques, parent_docs=docs)
+            except Exception as exc:
+                logger.warning("Retrieval failed for corpus: %s", exc)
+                return []
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            hist_future = executor.submit(_safe_retrieve, history_docs)
+            bm_future = executor.submit(_safe_retrieve, bookmark_docs)
+            history_parents = hist_future.result()
+            bookmark_parents = bm_future.result()
+
+        total_retrieved = len(history_parents) + len(bookmark_parents)
+        yield self._stream_event("retrieved_parents", {"count": total_retrieved})
+
+        if not history_parents and not bookmark_parents:
+            res = self._empty_response("No relevant data found")
+            yield self._stream_event("final", res.dict())
+            return
+
+        # Post-process each source independently and sequentially.
+        # Bookmark content is sparse (title only), so judging it alongside
+        # richer history results causes the LLM to unfairly drop bookmarks.
+        # Separate evaluation gives each source a fair relevance check.
+        # Sequential (not parallel) to avoid simultaneous LLM calls hitting
+        # rate limits — each corpus is ≤3 docs so the latency cost is small.
+        def _safe_post_process(docs):
+            if not docs:
+                return []
+            try:
+                return self.post_processing.post_process(ques=ques, docs=docs)
+            except Exception as exc:
+                logger.warning("Post-processing failed for corpus: %s", exc)
+                return []
+
+        rprint("Validating history parents...", history_parents)
+        validated_history = _safe_post_process(history_parents)
+        rprint("Validating bookmark parents...", bookmark_parents)
+        validated_bookmarks = _safe_post_process(bookmark_parents)
+
+        # Merge: history results first, then bookmarks (Popup.js re-splits by metadata.type)
+        validated_docs = validated_history + validated_bookmarks
+        yield self._stream_event(
+            "post_processing", {"validated_docs": len(validated_docs)}
+        )
+
+        if not validated_docs:
+            res = self._empty_response("No relevant data found after filtering")
+            yield self._stream_event("final", res.dict())
+            return
+
+        top_doc: dict = validated_docs[0]
+        context = top_doc.get("content", "")
+        source = top_doc.get("metadata", {}).get("source", "")
+        date = top_doc.get("metadata", {}).get("date", None)
+
+        result, model = self.llm_rag.safe_invoke_llm_response(
+            context=context, date=date, url=source, flag="combined"
+        )
+        yield self._stream_event("llm_response", {"text": result, "model": model})
+
+        pchain = self.llm_rag.structure(flag="combined")
+        final_output = pchain.invoke({"content": result})
+        yield self._stream_event("output_parser", {"format": final_output})
 
         res = SearchResponse(
             success=True,

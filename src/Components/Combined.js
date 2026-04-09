@@ -1,11 +1,11 @@
 import { useContext, useEffect, useState } from "react";
-import { Search, Bookmark } from "lucide-react";
+import { Search, GitMerge } from "lucide-react";
 import { userContext } from "../context/userContext";
 
-const Bookmarks = ({ host }) => {
-  const { state, setState, searchStream, syncBookmarks } =
+const Combined = ({ host }) => {
+  const { state, setState, searchStream, syncCombined } =
     useContext(userContext);
-  const { userId } = state;
+  const { userId, data } = state;
   const [ques, setQues] = useState("");
   const [loader, setLoader] = useState("");
   const [disable, setDisable] = useState(false);
@@ -16,7 +16,8 @@ const Bookmarks = ({ host }) => {
       const result = await fetchBookmarks();
       setBookmarks(result);
       if (userId && host) {
-        await syncBookmarks(host, result, userId);
+        const historyData = data.navigationData || [];
+        await syncCombined(host, historyData, result, userId);
       }
     }
     getData();
@@ -73,8 +74,8 @@ const Bookmarks = ({ host }) => {
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!bookmark || bookmark.length === 0) {
-      setState({ noti: "No bookmarks found" });
+    if ((data.navigationData || []).length === 0 && bookmark.length === 0) {
+      setState({ noti: "No history or bookmarks found" });
       return;
     }
 
@@ -88,9 +89,9 @@ const Bookmarks = ({ host }) => {
     });
 
     try {
-      await searchStream({ host, query: ques, userId, flag: "bookmark" });
+      await searchStream({ host, query: ques, userId, flag: "combined" });
     } catch {
-      setState({ noti: "There is a problem with bookmark search" });
+      setState({ noti: "There is a problem with combined search" });
     } finally {
       setLoader("");
       setDisable(false);
@@ -101,30 +102,34 @@ const Bookmarks = ({ host }) => {
     <div>
       <div className="mb-3">
         <label
-          htmlFor="bmInput"
+          htmlFor="combinedInput"
           className="form-label text-muted d-flex align-items-center gap-1"
           style={{ fontSize: "14px" }}
         >
-          <Bookmark size={14} className="text-danger" />
-          Search Your <span className="text-danger">Bookmarks</span>
+          <GitMerge size={14} className="text-success" />
+          Search <span className="text-success">History + Bookmarks</span>
         </label>
         <input
           type="text"
           className="form-control"
-          id="bmInput"
+          id="combinedInput"
           value={ques}
           onChange={(e) => setQues(e.target.value)}
-          placeholder="Search Bookmarks"
-          aria-describedby="bmHelp"
+          placeholder="Search across history and bookmarks"
+          aria-describedby="combinedHelp"
           style={{ fontSize: "14px" }}
         />
-        <div id="bmHelp" className="form-text" style={{ fontSize: "12px" }}>
-          Type Keywords for better results
+        <div
+          id="combinedHelp"
+          className="form-text"
+          style={{ fontSize: "12px" }}
+        >
+          Searches last 50 history items + half your bookmarks (newest first)
         </div>
       </div>
       <button
         type="submit"
-        className="btn btn-danger btn-sm d-inline-flex align-items-center gap-1"
+        className="btn btn-success btn-sm d-inline-flex align-items-center gap-1"
         style={{ borderRadius: "10px" }}
         disabled={disable || ques === ""}
         onClick={handleSearch}
@@ -139,4 +144,4 @@ const Bookmarks = ({ host }) => {
   );
 };
 
-export default Bookmarks;
+export default Combined;

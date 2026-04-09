@@ -10,6 +10,7 @@ Hybrid RAG implementation for SurfMind (FREE version)
 import re
 import difflib
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Tuple, Optional, Any, Dict, Set
 
 from langchain_core.documents import Document
@@ -21,7 +22,7 @@ from langchain_community.retrievers import BM25Retriever
 from langchain_community.vectorstores import FAISS
 
 from src.models.ai_models import Models
-from src.models.core import Ans_bookmark, Ans_history
+from src.models.core import Ans_bookmark, Ans_combined, Ans_history
 from src.services.llm_service.llm_provider import LLMProvider
 from src.services.llm_service.prompt_builder import Prompts
 from src.utility.provider import EmbeddingsProvider as ef
@@ -186,13 +187,20 @@ class HybridRAGService:
         vocabulary = self._build_vocabulary(child_docs)
         expanded_query = self.expand_query_typo_tolerant(query, vocabulary)
 
-        # Step 2: build retrievers
-        bm25 = self._build_bm25_retriever(child_docs)
-        faiss = self._build_faiss_retriever(child_docs)
+        # Step 2 & 3: build retrievers and invoke in parallel
+        def _run_bm25():
+            bm25 = self._build_bm25_retriever(child_docs)
+            return bm25.invoke(expanded_query)
 
-        # Step 3: retrieve child docs
-        bm25_hits = bm25.invoke(expanded_query)
-        faiss_hits = faiss.invoke(query)
+        def _run_faiss():
+            faiss = self._build_faiss_retriever(child_docs)
+            return faiss.invoke(query)
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            bm25_future = executor.submit(_run_bm25)
+            faiss_future = executor.submit(_run_faiss)
+            bm25_hits = bm25_future.result()
+            faiss_hits = faiss_future.result()
 
         # Step 4: merge + map back to parents
         return self._map_to_parents(
@@ -261,23 +269,35 @@ class LLMRag:
         """Build the response chain for the specified flag.
         Returns a runnable that produces plain text output.
         """
-        prompt_history = self.prompts.history_prompt()
-        prompt_bookmark = self.prompts.bookmark_prompt()
         if flag == "history":
+            prompt = self.prompts.history_prompt()
             chain = (
                 {
                     "context": RunnablePassthrough(),
                     "url": RunnablePassthrough(),
                     "date": RunnablePassthrough(),
                 }
-                | prompt_history
+                | prompt
                 | llm
                 | StrOutputParser()
             )
         elif flag == "bookmark":
+            prompt = self.prompts.bookmark_prompt()
             chain = (
                 {"context": RunnablePassthrough(), "url": RunnablePassthrough()}
-                | prompt_bookmark
+                | prompt
+                | llm
+                | StrOutputParser()
+            )
+        elif flag == "combined":
+            prompt = self.prompts.combined_prompt()
+            chain = (
+                {
+                    "context": RunnablePassthrough(),
+                    "url": RunnablePassthrough(),
+                    "date": RunnablePassthrough(),
+                }
+                | prompt
                 | llm
                 | StrOutputParser()
             )
@@ -294,6 +314,8 @@ class LLMRag:
             parser = JsonOutputParser(pydantic_object=Ans_history)
         elif flag == "bookmark":
             parser = JsonOutputParser(pydantic_object=Ans_bookmark)
+        elif flag == "combined":
+            parser = JsonOutputParser(pydantic_object=Ans_combined)
         else:
             raise ValueError(f"Unknown flag '{flag}'")
         promptParser = self.prompts.parser_prompt(parser, flag)
@@ -308,9 +330,9 @@ class LLMRag:
         self, context: str, date: Optional[str], url: str, flag: str, chain: Runnable
     ) -> str:
         """Invoke a chain with the correct input mapping.
-        Includes date for history and omits it for bookmarks.
+        Includes date for history/combined and omits it for bookmarks.
         """
-        if flag == "history":
+        if flag in ("history", "combined"):
             return chain.invoke({"context": context, "date": date, "url": url})
         return chain.invoke({"context": context, "url": url})
 
