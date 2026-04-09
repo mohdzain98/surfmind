@@ -3,7 +3,7 @@ Defines Pydantic schemas used across controllers and services.
 """
 
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
 
 
 class Document:
@@ -42,6 +42,16 @@ class Ans_bookmark(BaseModel):
     url: str = Field(description="the url of the context")
 
 
+class Ans_combined(BaseModel):
+    """Structured output schema for combined history+bookmark responses.
+    Captures the URL, optional date, and source type.
+    """
+
+    url: str = Field(description="the url of the context")
+    date: Optional[str] = Field(default=None, description="the date of the context if available")
+    source_type: str = Field(description="the source type: history or bookmark")
+
+
 class HistoryItem(BaseModel):
     """Schema for a single history record in client payloads.
     Contains URL, content, and optional date.
@@ -58,11 +68,13 @@ class HistoryItem(BaseModel):
 class DataRequest(BaseModel):
     """Request schema for saving user data to cache.
     Includes user identity, flag type, and history items.
+    For flag="combined", bookmarks field carries the bookmark items.
     """
 
     user_id: str = Field(alias="userId")
     flag: str = Field(default="history")
     data: List[HistoryItem]
+    bookmarks: List[HistoryItem] = []
 
 
 class SearchRequest(BaseModel):

@@ -38,8 +38,29 @@ prompt:
       - If the content is unknown or empty, reply with: **"Kindly adjust your search for better result."**
       - Do **not** provide information beyond the given context or hallucinate unknown facts.
 
+  combined:
+    system: |
+      You are a helpful assistant that helps users find sites from their browser history and bookmarks. The content provided is retrieved from both sources according to the query. You provide a summary based on the content and URL provided, and indicate whether the result is from history or a bookmark.
+    user: |
+      Generate a short summary based on the provided context. Include the corresponding URL and indicate whether it is from browser history or a bookmark.
+      Context date: {date}
+      URL: {url}
+
+      Content:
+      {context}
+
+      Instructions:
+      - Provide a brief and accurate summary of the context.
+      - Mention whether this result is from browser history or bookmarks.
+      - If you recognize the content, include meaningful information about it.
+        Example:
+          - context: "Facebook"
+          - response: "Facebook is a social media platform that allows users to connect with others, share media, and stay updated. Founded in 2004 by Mark Zuckerberg, it is one of the largest networks globally."
+      - If the content is unknown or empty, reply with: **"Kindly adjust your search for better result."**
+      - Do **not** provide information beyond the given context or hallucinate unknown facts.
+
   relevance: |
-    You are a strict relevance filtering assistant.
+    You are a relevance filtering assistant.
 
     The user has asked the following query:
     "{query}"
@@ -49,6 +70,10 @@ prompt:
     - Title
     - Source URL
     - Content snippet
+
+    Note: Some blocks may come from bookmarks, where the content is only the page title.
+    For such blocks, judge relevance using the Title and Source URL — do NOT penalise a
+    block just because its content is short or sparse.
 
     Content blocks:
     {content_blocks}
@@ -60,12 +85,12 @@ prompt:
     3. A block is relevant if it:
       - Directly answers the query, OR
       - Is strongly related to the topic, OR
-      - Contains key terms or semantically similar concepts.
+      - Contains key terms or semantically similar concepts in the Title or URL.
 
     4. A block is NOT relevant if:
       - It discusses a completely unrelated topic.
       - It belongs to a clearly unrelated domain (e.g., scholarships for a math query).
-      - It contains no meaningful semantic connection to the query.
+      - Neither the Title, URL, nor Content has any connection to the query.
 
     Important Rules:
     - Do NOT remove blocks that are partially relevant.
