@@ -1,31 +1,32 @@
+import { ArrowRight } from "lucide-react";
+
 const Update = ({ handleShowUpdate }) => {
   return (
     <div>
-      <div class="alert alert-success alert-dismissible fade show" role="alert">
+      <div
+        className="alert alert-success alert-dismissible fade show mt-3"
+        role="alert"
+      >
         <div className="d-flex flex-column justify-content-start mb-2">
-          <h5 class="alert-heading" style={{ padding: "0px", margin: "0px" }}>
-            Whats New!
+          <h5
+            className="alert-heading"
+            style={{ padding: "0px", margin: "0px" }}
+          >
+            What's New!
           </h5>
-          <span style={{ fontSize: "12px" }}>v1.7</span>
+          <span style={{ fontSize: "12px" }}>v1.75</span>
         </div>
-        {/* <p style={{ fontSize: "14px", margin: "0" }}>
-          Faster streaming pipeline
-        </p> */}
-        <p style={{ fontSize: "14px", margin: "0" }}>
-          Improved result consistency
+        <p className="d-flex align-items-start gap-1" style={{ fontSize: "13px", margin: "0 0 4px" }}>
+          <ArrowRight size={14} className="mt-1 flex-shrink-0 text-success" />
+          <span><strong>Combined Mode — </strong>Search history <strong>and</strong> bookmarks at once</span>
         </p>
-        <p style={{ fontSize: "14px", margin: "0" }}>
-          Better retrieval quality
-        </p>
-        <p style={{ fontSize: "14px", margin: "1px 0 0" }}>AI Model refresh</p>
-        {/* <p style={{ fontSize: "14px", margin: "0" }}>Enhanced Storage</p> */}
-        <p className="text-danger" style={{ fontSize: "14px", margin: "0" }}>
-          Bug Fixes
+        <p className="d-flex align-items-start gap-1" style={{ fontSize: "13px", margin: "0" }}>
+          <ArrowRight size={14} className="mt-1 flex-shrink-0 text-success" />
+          <span>Faster search with smarter result filtering</span>
         </p>
         <button
           type="button"
-          class="btn-close"
-          data-bs-dismiss="alert"
+          className="btn-close"
           aria-label="Close"
           onClick={handleShowUpdate}
         ></button>
