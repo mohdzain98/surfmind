@@ -1,0 +1,25 @@
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+include = '\.pyi?$'
+extend-exclude = '''
+(
+  ^/build
+  | ^/node_modules
+)
+'''
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+extend-exclude = [
+  "build",
+  "node_modules",
+]
+
+[tool.ruff.lint]
+select = [
+  "E",
+  "F",
+  "I",
+]
