@@ -13,12 +13,12 @@ class Models(str, Enum):
     @classmethod
     def default(cls) -> "Models":
         """Return the default model provider."""
-        return cls.GPT
+        return cls.GEMINI
 
     @classmethod
     def other(cls) -> "Models":
         """Return the alternative model provider."""
-        return cls.GEMINI
+        return cls.GPT
 
 
 class Embeddings(str, Enum):

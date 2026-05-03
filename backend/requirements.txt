@@ -12,3 +12,4 @@ redis
 termcolor
 google-api-core
 tiktoken
+pre-commit

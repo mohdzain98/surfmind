@@ -7,26 +7,25 @@ Hybrid RAG implementation for SurfMind (FREE version)
 - Explicit parent mapping
 """
 
-import re
 import difflib
+import re
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Tuple, Optional, Any, Dict, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
-from langchain_core.documents import Document
-from langchain_community.callbacks import get_openai_callback
-from langchain_core.runnables import Runnable, RunnablePassthrough
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from langchain_community.retrievers import BM25Retriever
 from langchain_community.vectorstores import FAISS
+from langchain_core.documents import Document
+from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
+from langchain_core.runnables import Runnable, RunnablePassthrough
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from src.models.ai_models import Models
 from src.models.core import Ans_bookmark, Ans_combined, Ans_history
 from src.services.llm_service.llm_provider import LLMProvider
 from src.services.llm_service.prompt_builder import Prompts
-from src.utility.provider import EmbeddingsProvider as ef
 from src.utility.logger import AppLogger
+from src.utility.provider import EmbeddingsProvider as ef
 
 logger = AppLogger.get_logger(__name__)
 
@@ -55,7 +54,9 @@ class HybridRAGService:
             self.embeddings = ef.get_embeddings(Models.default())
         except Exception:
             logger.warning(
-                f"{Models.default()} embeddings unavailable, falling back to {Models.other()}"
+                "%s embeddings unavailable, falling back to %s",
+                Models.default(),
+                Models.other(),
             )
             self.embeddings = ef.get_embeddings(Models.other())
 
@@ -302,7 +303,7 @@ class LLMRag:
                 | StrOutputParser()
             )
         else:
-            logger.error(f"unknown flag")
+            logger.error("unknown flag")
             raise ValueError(f"Unknown flag '{flag}'")
         return chain
 
@@ -320,7 +321,7 @@ class LLMRag:
             raise ValueError(f"Unknown flag '{flag}'")
         promptParser = self.prompts.parser_prompt(parser, flag)
         model_with_retry = self.base_llm.with_retry(
-            stop_after_attempt=6,
+            stop_after_attempt=3,
             wait_exponential_jitter=True,
         )
         pchain = promptParser | model_with_retry | parser
