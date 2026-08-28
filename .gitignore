@@ -9,6 +9,8 @@
 # testing
 /coverage
 /backend/data
+docs/tasks
+docs/contracts
 
 # production
 /build
