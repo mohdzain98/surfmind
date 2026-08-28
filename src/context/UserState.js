@@ -1,9 +1,34 @@
-import React, { useCallback, useReducer } from "react";
+import React, { useCallback, useEffect, useReducer } from "react";
 import { userContext } from "./userContext";
 import { initializeUserId } from "../components/UserId";
+import { createBrowserIdentity } from "../services/syncApi";
+import { flushBeforeSearch } from "../services/searchSync";
+import {
+  LEGACY_UPDATE_VERSIONS,
+  UPDATE_PREVIOUS_VERSION_KEY,
+  UPDATE_VERSION_KEY,
+  getStoredUpdateVersion,
+  getUpdateNotice,
+} from "../services/updateVersion";
+
+const parsePositiveInteger = (value, fallback) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const syncConfig = {
+  syncCountThreshold: parsePositiveInteger(
+    process.env.REACT_APP_SYNC_COUNT_THRESHOLD,
+    25,
+  ),
+  syncTimeSafetyNetMin: parsePositiveInteger(
+    process.env.REACT_APP_SYNC_TIME_SAFETY_NET_MIN,
+    240,
+  ),
+};
 
 const initialState = {
-  activeTab: "history", // "history" | "bookmark" | "combined"
+  activeTab: "history", // "history" | "bookmark" | "combined" | "settings"
   query: "",
   head: "",
   parsed: { summary: "", url: null },
@@ -14,10 +39,14 @@ const initialState = {
   data: { navigationData: [] },
   docs: [],
   userId: "",
-  updateFlag: false,
+  updateFlag: true,
+  updateNotice: null,
+  updateReady: false,
+  updateVersion: "",
   syncing: false,
   format: null,
   step: null,
+  thoughts: [],
   finalReceived: false,
 };
 
@@ -37,111 +66,135 @@ const UserState = ({ children }) => {
     dispatch({ type: "SET_STATE", payload });
   }, []);
 
-  const syncCombined = useCallback(
-    async (host, historyData, bookmarkData, userId) => {
-      const cappedHistory = historyData.slice(-50);
-      const sortedBookmarks = [...bookmarkData].sort((a, b) => b.date - a.date);
-      const halfCount = Math.ceil(sortedBookmarks.length / 2);
-      const cappedBookmarks = sortedBookmarks.slice(0, halfCount);
-      try {
-        await fetch(`${host}/save-data`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            data: cappedHistory,
-            userId: `${userId}:c`,
-            flag: "combined",
-            bookmarks: cappedBookmarks,
-          }),
-        });
-      } catch (error) {
-        setState({ noti: "There is a problem syncing combined data" });
-      }
-    },
-    [setState],
-  );
+  useEffect(() => {
+    const handleStorageChange = (changes, areaName) => {
+      if (areaName !== "local" || !changes.navigationData) return;
+      setState({
+        data: { navigationData: changes.navigationData.newValue || [] },
+      });
+    };
 
-  const syncBookmarks = useCallback(
-    async (host, bookmarkData, userId) => {
-      if (!bookmarkData || bookmarkData.length === 0) return;
-      try {
-        await fetch(`${host}/save-data`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            data: bookmarkData,
-            userId: `${userId}:b`,
-            flag: "bookmark",
-          }),
-        });
-      } catch (error) {
-        setState({ noti: "There is a problem syncing bookmarks" });
-      }
-    },
-    [setState],
-  );
+    chrome.storage.onChanged.addListener(handleStorageChange);
+    return () => chrome.storage.onChanged.removeListener(handleStorageChange);
+  }, [setState]);
 
-  const syncHistory = useCallback(
-    async (host, historyData, userId) => {
-      if (!historyData || historyData.length === 0) {
-        setState({ syncing: false });
-        return;
-      }
+  const flushHistory = useCallback(async (host) => {
+    const result = await chrome.runtime.sendMessage({
+      action: "maybeSyncHistory",
+      force: true,
+      reason: "pre-query",
+      host,
+    });
+    if (!result?.success) {
+      throw new Error(result?.error || "History sync failed");
+    }
+    return result;
+  }, []);
 
-      setState({ syncing: true });
-      try {
-        await fetch(`${host}/save-data`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            data: historyData,
-            userId: `${userId}:h`,
-            flag: "history",
-          }),
-        });
-      } catch (error) {
-        setState({ noti: "There is a problem syncing data" });
-      } finally {
-        setState({ syncing: false });
-      }
-    },
-    [setState],
-  );
+  const flushBookmarks = useCallback(async (host, reason = "manual") => {
+    const result = await chrome.runtime.sendMessage({
+      action: "maybeSyncBookmarks",
+      reason,
+      host,
+    });
+    if (!result?.success) {
+      throw new Error(result?.error || "Bookmark sync failed");
+    }
+    return result;
+  }, []);
 
   const initializePopup = useCallback(
     async (host) => {
-      const result = await chrome.storage.local.get({ navigationData: [] });
-      const uid = await initializeUserId();
-      const upflag = await chrome.storage.local.get("sm-update-flag-v1.75");
+      const currentVersion = chrome.runtime.getManifest().version;
+      const updateDefaults = {
+        [UPDATE_VERSION_KEY]: "",
+        [UPDATE_PREVIOUS_VERSION_KEY]: "",
+        ...Object.fromEntries(
+          LEGACY_UPDATE_VERSIONS.map(({ key }) => [key, false]),
+        ),
+      };
+      const [result, uid, storedUpdate] = await Promise.all([
+        chrome.storage.local.get({ navigationData: [] }),
+        initializeUserId(),
+        chrome.storage.local.get(updateDefaults),
+      ]);
+      const storedVersion = getStoredUpdateVersion(storedUpdate);
+      const updateNotice = getUpdateNotice(storedVersion, currentVersion);
+      await chrome.storage.local.set({
+        ...(host ? { apiHost: host } : {}),
+        ...syncConfig,
+      });
+      const pendingSync = chrome.runtime.sendMessage({
+        action: "maybeSyncHistory",
+        reason: "count",
+        host,
+      });
       setState({
         data: result,
         userId: uid,
-        updateFlag: Boolean(upflag["sm-update-flag-v1.75"]),
+        updateFlag: updateNotice === null,
+        updateNotice,
+        updateReady: true,
+        updateVersion: currentVersion,
       });
+      await pendingSync;
     },
     [setState],
   );
 
   const searchStream = useCallback(
     async ({ host, query, userId, flag }) => {
+      let thoughtSequence = 0;
+      let thoughts = [];
+      const appendThought = (message, currentStep = null, statePatch = {}) => {
+        const previous = thoughts[thoughts.length - 1];
+        if (previous?.message !== message) {
+          thoughts = [
+            ...thoughts,
+            {
+              id: `search-thought-${thoughtSequence}`,
+              message,
+              step: currentStep,
+            },
+          ];
+          thoughtSequence += 1;
+        }
+        setState({
+          ...statePatch,
+          noti: message,
+          step: currentStep,
+          thoughts,
+        });
+      };
+
       setState({
         loading: true,
         disable: true,
-        noti: "Retrieving sources...",
+        noti: "",
         docs: [],
         head: "",
         parsed: { summary: "", url: null },
         format: null,
         step: null,
+        thoughts: [],
         finalReceived: false,
       });
 
       try {
+        appendThought("Syncing recent history...", null, { syncing: true });
+        await flushBeforeSearch({
+          flag,
+          host,
+          flushHistory,
+          flushBookmarks,
+        });
+        appendThought("Retrieving sources...", null, { syncing: false });
+
         const response = await fetch(`${host}/search-stream`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            userId: `${userId}:${flag === "history" ? "h" : flag === "bookmark" ? "b" : "c"}`,
+            ...createBrowserIdentity(userId),
             query,
             flag,
           }),
@@ -180,72 +233,62 @@ const UserState = ({ children }) => {
 
             if (step === "retrieved_parents") {
               const count = data.count || 0;
-              setState({
-                step: {
-                  step,
-                  title: "Retrieved Sources",
-                  content: `${count} sources`,
-                },
-              });
-              setState({ noti: `Retrieved ${count} sources...` });
+              const currentStep = {
+                step,
+                title: "Retrieved Sources",
+                content: `${count} sources`,
+              };
+              appendThought(`Retrieved ${count} sources...`, currentStep);
             } else if (step === "llm_response") {
-              setState({
-                step: {
-                  step,
-                  title: "LLM Response",
-                  content: data.text || "",
-                },
-              });
-              setState({
-                // head: data.text || "",
-                noti: "Generating response...",
-              });
+              const currentStep = {
+                step,
+                title: "LLM Response",
+                content: data.text || "",
+              };
+              appendThought("Generating response...", currentStep);
             } else if (step === "output_parser") {
-              setState({
-                step: {
-                  step,
-                  title: "Structuring Output",
-                  content: data.format || {},
-                },
-              });
-              setState({
-                // format: data.format || null,
-                noti: "Structuring output...",
-              });
+              const currentStep = {
+                step,
+                title: "Structuring Output",
+                content: data.format || {},
+              };
+              appendThought("Structuring output...", currentStep);
             } else if (step === "post_processing") {
               const validatedDocs = data.validated_docs || 0;
-              setState({
-                step: {
-                  step,
-                  title: "Validating Results with Query",
-                  content: `${validatedDocs} validated`,
-                },
-              });
-              setState({ noti: "Validating results..." });
+              const currentStep = {
+                step,
+                title: "Validating Results with Query",
+                content: `${validatedDocs} validated`,
+              };
+              appendThought("Validating results...", currentStep);
             } else if (step === "final") {
               const finalDocs = data.docs || [];
               setState({
                 docs: finalDocs,
-                head: finalDocs.length === 0 ? "" : data.result || "",
+                head:
+                  data.result ||
+                  (finalDocs.length === 0
+                    ? "No results found for this query."
+                    : ""),
                 format: finalDocs.length === 0 ? null : data.format || null,
                 loading: false,
                 disable: false,
-                noti:
-                  finalDocs.length === 0
-                    ? "No results found for this query"
-                    : "",
+                noti: "",
                 step: null,
+                thoughts,
                 finalReceived: true,
               });
               return;
             } else if (step === "error") {
-              setState({
-                noti: data.message || "There is a problem generating response",
-                loading: false,
-                disable: false,
-                step: null,
-                finalReceived: true,
-              });
+              appendThought(
+                data.message || "There is a problem generating response",
+                null,
+                {
+                  loading: false,
+                  disable: false,
+                  finalReceived: true,
+                },
+              );
               return;
             }
           }
@@ -257,21 +300,62 @@ const UserState = ({ children }) => {
           step: null,
         });
       } catch (error) {
-        setState({
-          noti: "There is a problem generating response",
-          loading: false,
-          disable: false,
-          step: null,
-          finalReceived: true,
-        });
+        appendThought(
+          error.message || "There is a problem generating response",
+          null,
+          {
+            syncing: false,
+            loading: false,
+            disable: false,
+            finalReceived: true,
+          },
+        );
       }
     },
-    [setState],
+    [flushBookmarks, flushHistory, setState],
+  );
+
+  const refreshAfterPairing = useCallback(
+    async (host, action) => {
+      setState({
+        docs: [],
+        head: "",
+        parsed: { summary: "", url: null },
+        format: null,
+        step: null,
+        finalReceived: false,
+        syncing: true,
+        noti:
+          action === "paired"
+            ? "Browser linked. Shared history is ready to search."
+            : "Browser unlinked. New visits will use its separate history.",
+      });
+      try {
+        await flushHistory(host);
+      } catch (error) {
+        setState({
+          noti:
+            action === "paired"
+              ? "Browser linked. Recent local history will retry syncing automatically."
+              : "Browser unlinked. Recent local history will retry syncing automatically.",
+        });
+      } finally {
+        setState({ syncing: false });
+      }
+    },
+    [flushHistory, setState],
   );
 
   return (
     <userContext.Provider
-      value={{ state, setState, initializePopup, syncHistory, syncBookmarks, syncCombined, searchStream }}
+      value={{
+        state,
+        setState,
+        initializePopup,
+        flushBookmarks,
+        searchStream,
+        refreshAfterPairing,
+      }}
     >
       {children}
     </userContext.Provider>
