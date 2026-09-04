@@ -23,7 +23,11 @@ import SearchThought from "./SearchThought";
 import SourceCard from "./SourceCard";
 import { userContext } from "../context/userContext";
 import { truncateUrl, truncateUrlsInText } from "../services/displayText";
-import { PRIVACY_POLICY_URL, TERMS_URL } from "../services/privacy";
+import {
+  CONTACT_URL,
+  PRIVACY_POLICY_URL,
+  TERMS_URL,
+} from "../services/privacy";
 import {
   LEGACY_UPDATE_VERSIONS,
   UPDATE_PREVIOUS_VERSION_KEY,
@@ -603,21 +607,6 @@ const Popup = (props) => {
             </button>
           ) : null}
 
-          {!hasSearchActivity && activeTab !== "settings" ? (
-            <footer
-              className="idle-privacy-footer"
-              aria-label="Legal information"
-            >
-              <a href={PRIVACY_POLICY_URL} target="_blank" rel="noreferrer">
-                Privacy
-              </a>
-              <span aria-hidden="true">·</span>
-              <a href={TERMS_URL} target="_blank" rel="noreferrer">
-                Terms
-              </a>
-            </footer>
-          ) : null}
-
           {updateNotice === "minor" ? (
             <Update
               severity="minor"
@@ -626,6 +615,20 @@ const Popup = (props) => {
           ) : null}
         </>
       )}
+
+      <footer className="app-footer" aria-label="SurfMind links">
+        <a href={PRIVACY_POLICY_URL} target="_blank" rel="noreferrer">
+          Privacy
+        </a>
+        <span aria-hidden="true">·</span>
+        <a href={TERMS_URL} target="_blank" rel="noreferrer">
+          Terms
+        </a>
+        <span aria-hidden="true">·</span>
+        <a href={CONTACT_URL} target="_blank" rel="noreferrer">
+          Contact
+        </a>
+      </footer>
     </main>
   );
 };

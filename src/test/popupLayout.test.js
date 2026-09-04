@@ -115,6 +115,13 @@ test("keeps the initial search UI centered with mode and recent searches below",
     "target",
     "_blank",
   );
+  expect(screen.getByRole("link", { name: "Contact" })).toHaveAttribute(
+    "href",
+    "https://surfmind.docschat.in/contact",
+  );
+  expect(screen.getByRole("contentinfo", { name: "SurfMind links" })).toHaveClass(
+    "app-footer",
+  );
   expect(
     input.compareDocumentPosition(modeButton) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();

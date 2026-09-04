@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { ChevronRight, History, Link2, ShieldCheck } from "lucide-react";
-import { PRIVACY_POLICY_URL, TERMS_URL } from "../services/privacy";
 
 const SYNC_STATUS_KEY = "crossBrowserSyncStatus";
 const SOLO_STATUS = { isLinked: false, browserCount: 1 };
@@ -110,15 +109,6 @@ const SettingsHome = ({ onOpenSync, onOpenHistory, onOpenPrivacy }) => {
         </button>
       </div>
 
-      <nav className="settings-legal-links" aria-label="Legal information">
-        <a href={PRIVACY_POLICY_URL} target="_blank" rel="noreferrer">
-          Privacy Policy
-        </a>
-        <span aria-hidden="true">·</span>
-        <a href={TERMS_URL} target="_blank" rel="noreferrer">
-          Terms of Service
-        </a>
-      </nav>
     </section>
   );
 };

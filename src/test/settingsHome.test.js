@@ -50,5 +50,5 @@ test("shows sync first, saved history, privacy last, and stored summaries", asyn
   ).toBeTruthy();
   await waitFor(() => expect(syncTile).toHaveTextContent("2 browsers linked"));
   await waitFor(() => expect(historyTile).toHaveTextContent("1 page saved"));
-  expect(screen.getByRole("link", { name: "Privacy Policy" })).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Privacy Policy" })).not.toBeInTheDocument();
 });

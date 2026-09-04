@@ -2,6 +2,7 @@ import { initializeUserId } from "../components/UserId";
 
 export const PRIVACY_POLICY_URL = "https://surfmind.docschat.in/privacy";
 export const TERMS_URL = "https://surfmind.docschat.in/terms";
+export const CONTACT_URL = "https://surfmind.docschat.in/contact";
 
 const getErrorMessage = (payload, fallback) => {
   if (typeof payload?.detail === "string") return payload.detail;
