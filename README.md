@@ -8,6 +8,12 @@
     <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="license"/>
   </a>
   <img src="https://img.shields.io/badge/chrome-extension-brightgreen" alt="chrome extension"/>
+  <a href="https://surfmind.docschat.in/">
+    <img src="https://img.shields.io/badge/website-SurfMind-blueviolet" alt="SurfMind website"/>
+  </a>
+  <a href="https://surfmind.docschat.in/privacy">
+    <img src="https://img.shields.io/badge/privacy-policy-blue" alt="Privacy Policy"/>
+  </a>
 </p>
 
 ### Overview
@@ -52,12 +58,6 @@ SurfMind is a Chrome extension designed to enhance your browsing experience by i
 ## Changelog
 
 [![Changelog](https://img.shields.io/badge/changelog-CHANGELOG.md-blue)](./CHANGELOG.md)
-
-## Privacy Policy
-
-<a href="https://surfmind.docschat.in/privacy" target="_blank" rel="noreferrer">
-  <img src="https://img.shields.io/badge/Privacy%20Policy-View-blue" alt="Privacy Policy"/>
-</a>
 
 ## License
 
