@@ -92,12 +92,10 @@ const Popup = (props) => {
 
   const handleShowUpdate = async () => {
     await chrome.storage.local.set({ [UPDATE_VERSION_KEY]: updateVersion });
-    await chrome.storage.local.remove(
-      [
-        UPDATE_PREVIOUS_VERSION_KEY,
-        ...LEGACY_UPDATE_VERSIONS.map(({ key }) => key),
-      ],
-    );
+    await chrome.storage.local.remove([
+      UPDATE_PREVIOUS_VERSION_KEY,
+      ...LEGACY_UPDATE_VERSIONS.map(({ key }) => key),
+    ]);
     setState({ updateFlag: true, updateNotice: null });
   };
 
@@ -230,12 +228,7 @@ const Popup = (props) => {
   }
 
   if (updateNotice === "major") {
-    return (
-      <Update
-        severity="major"
-        handleShowUpdate={handleShowUpdate}
-      />
-    );
+    return <Update severity="major" handleShowUpdate={handleShowUpdate} />;
   }
 
   return (
@@ -608,10 +601,7 @@ const Popup = (props) => {
           ) : null}
 
           {updateNotice === "minor" ? (
-            <Update
-              severity="minor"
-              handleShowUpdate={handleShowUpdate}
-            />
+            <Update severity="minor" handleShowUpdate={handleShowUpdate} />
           ) : null}
         </>
       )}

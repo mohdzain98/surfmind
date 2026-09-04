@@ -4,7 +4,6 @@ export const initializeUserId = async () => {
   if (!result.userId) {
     const newUserId = crypto.randomUUID();
     await chrome.storage.local.set({ userId: newUserId });
-    console.log("Generated new userId:", newUserId);
     return newUserId;
   }
 

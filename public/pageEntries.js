@@ -20,7 +20,10 @@
       const existing = pagesByUrl.get(url);
       if (existing) {
         existing.entries.push(entry);
-        existing.latestTimestamp = Math.max(existing.latestTimestamp, timestamp);
+        existing.latestTimestamp = Math.max(
+          existing.latestTimestamp,
+          timestamp
+        );
         existing.lastIndex = index;
         return;
       }
@@ -36,7 +39,7 @@
     return Array.from(pagesByUrl.values()).sort(
       (left, right) =>
         left.latestTimestamp - right.latestTimestamp ||
-        left.lastIndex - right.lastIndex,
+        left.lastIndex - right.lastIndex
     );
   };
 

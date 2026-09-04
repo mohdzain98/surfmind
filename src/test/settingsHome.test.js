@@ -30,11 +30,11 @@ test("shows sync first, saved history, privacy last, and stored summaries", asyn
       onOpenSync={jest.fn()}
       onOpenHistory={jest.fn()}
       onOpenPrivacy={jest.fn()}
-    />,
+    />
   );
 
   expect(
-    screen.getByText("Manage how SurfMind syncs and stores your browsing data."),
+    screen.getByText("Manage how SurfMind syncs and stores your browsing data.")
   ).toHaveClass("settings-home-subtitle");
 
   const syncTile = screen.getByRole("button", { name: /Cross-browser Sync/ });
@@ -42,13 +42,15 @@ test("shows sync first, saved history, privacy last, and stored summaries", asyn
   const privacyTile = screen.getByRole("button", { name: /Privacy/ });
   expect(
     syncTile.compareDocumentPosition(privacyTile) &
-      Node.DOCUMENT_POSITION_FOLLOWING,
+      Node.DOCUMENT_POSITION_FOLLOWING
   ).toBeTruthy();
   expect(
     historyTile.compareDocumentPosition(privacyTile) &
-      Node.DOCUMENT_POSITION_FOLLOWING,
+      Node.DOCUMENT_POSITION_FOLLOWING
   ).toBeTruthy();
   await waitFor(() => expect(syncTile).toHaveTextContent("2 browsers linked"));
   await waitFor(() => expect(historyTile).toHaveTextContent("1 page saved"));
-  expect(screen.queryByRole("link", { name: "Privacy Policy" })).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("link", { name: "Privacy Policy" })
+  ).not.toBeInTheDocument();
 });

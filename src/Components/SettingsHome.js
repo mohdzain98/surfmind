@@ -89,11 +89,7 @@ const SettingsHome = ({ onOpenSync, onOpenHistory, onOpenPrivacy }) => {
           />
         </button>
 
-        <button
-          type="button"
-          className="settings-tile"
-          onClick={onOpenPrivacy}
-        >
+        <button type="button" className="settings-tile" onClick={onOpenPrivacy}>
           <span className="settings-tile-icon is-privacy" aria-hidden="true">
             <ShieldCheck size={18} />
           </span>
@@ -108,7 +104,6 @@ const SettingsHome = ({ onOpenSync, onOpenHistory, onOpenPrivacy }) => {
           />
         </button>
       </div>
-
     </section>
   );
 };

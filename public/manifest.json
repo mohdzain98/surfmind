@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SurfMind - Smarter Browsing",
-  "version": "1.80.0",
-  "version_name": "1.8.0",
+  "version": "1.80.1",
+  "version_name": "1.8.1",
   "minimum_chrome_version": "114",
   "description": "Chrome extension designed to enhance your browsing experience by intelligently managing the websites you visit and bookmark",
   "permissions": [
@@ -14,9 +14,7 @@
     "sidePanel",
     "unlimitedStorage"
   ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
+  "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
   },
@@ -28,14 +26,8 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "readability.js",
-        "structuredExtraction.js",
-        "content.js"
-      ]
+      "matches": ["<all_urls>"],
+      "js": ["readability.js", "structuredExtraction.js", "content.js"]
     }
   ],
   "icons": {

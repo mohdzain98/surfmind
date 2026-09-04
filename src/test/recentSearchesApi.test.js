@@ -31,12 +31,12 @@ test("fetches five recent searches with the stable browser identity", async () =
           },
         ],
       },
-    }),
+    })
   );
 
   const result = await fetchRecentSearches(
     "https://api.example.com/v1",
-    "browser-123",
+    "browser-123"
   );
 
   expect(fetch).toHaveBeenCalledWith(
@@ -46,7 +46,7 @@ test("fetches five recent searches with the stable browser identity", async () =
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ browser_uuid: "browser-123", limit: 5 }),
       signal: undefined,
-    },
+    }
   );
   expect(result[0]).toMatchObject({
     id: "search-1",
@@ -63,7 +63,7 @@ test("normalizes alternate fields and malformed source snapshots", () => {
       result: "Answer",
       docs: "not-json",
       createdAt: "today",
-    }),
+    })
   ).toMatchObject({
     mode: "bookmark",
     answer: "Answer",
@@ -76,6 +76,6 @@ test("rejects failed requests for the UI to handle silently", async () => {
   fetch.mockResolvedValue(jsonResponse({}, 500));
 
   await expect(
-    fetchRecentSearches("https://api.example.com/v1", "browser-123"),
+    fetchRecentSearches("https://api.example.com/v1", "browser-123")
   ).rejects.toThrow("Could not load recent searches");
 });

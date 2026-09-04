@@ -52,7 +52,7 @@ const entry = (index, capturedAt = 10_000) => ({
 
 test("heavy-user path syncs when 25 unsynced pages accumulate", async () => {
   const entries = Array.from({ length: COUNT_THRESHOLD }, (_, index) =>
-    entry(index),
+    entry(index)
   );
   const { sync, fetchImpl, getStorage } = createHarness({ entries });
 
@@ -74,7 +74,11 @@ test("count threshold counts pages instead of sections", async () => {
 
   const result = await sync.maybeSync({ reason: "count" });
 
-  expect(result).toMatchObject({ success: true, synced: 0, skipped: "threshold" });
+  expect(result).toMatchObject({
+    success: true,
+    synced: 0,
+    skipped: "threshold",
+  });
   expect(fetchImpl).not.toHaveBeenCalled();
 });
 
@@ -172,13 +176,15 @@ test("sends each URL and heading path only once per batch", async () => {
     date: new Date(10_000).toISOString(),
     synced: false,
   };
-  const entries = ["First paragraph.", "Second paragraph.", "Third paragraph."].map(
-    (content, index) => ({
-      ...shared,
-      content,
-      captureId: `paragraph-${index}`,
-    }),
-  );
+  const entries = [
+    "First paragraph.",
+    "Second paragraph.",
+    "Third paragraph.",
+  ].map((content, index) => ({
+    ...shared,
+    content,
+    captureId: `paragraph-${index}`,
+  }));
   const { sync, fetchImpl, getStorage } = createHarness({ entries });
 
   await sync.maybeSync({ force: true, reason: "pre-query" });

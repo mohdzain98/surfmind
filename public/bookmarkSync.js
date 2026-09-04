@@ -70,7 +70,9 @@
                   bookmark,
                 })
               : [];
-          bookmarks.push(...(extractedEntries.length ? extractedEntries : [bookmark]));
+          bookmarks.push(
+            ...(extractedEntries.length ? extractedEntries : [bookmark])
+          );
         }
 
         if (node.children) traverse(node.children, currentPath);
@@ -86,7 +88,6 @@
     fetchImpl,
     now = () => Date.now(),
     createId = () => crypto.randomUUID(),
-    logger = console,
   }) => {
     let syncInFlight = null;
     let markQueue = Promise.resolve();
@@ -96,7 +97,9 @@
         chromeApi.bookmarks.getTree((nodes) => {
           const runtimeError = chromeApi.runtime?.lastError;
           if (runtimeError) {
-            reject(new Error(runtimeError.message || "Could not read bookmarks"));
+            reject(
+              new Error(runtimeError.message || "Could not read bookmarks")
+            );
             return;
           }
           resolve(nodes);
@@ -127,7 +130,11 @@
       const dirtyVersion = stored.bookmarksDirtyVersion;
       const apiHost = host || stored.apiHost;
       if (!apiHost) {
-        return { success: false, synced: 0, error: "API host is not configured" };
+        return {
+          success: false,
+          synced: 0,
+          error: "API host is not configured",
+        };
       }
 
       let userId = stored.userId;
@@ -142,7 +149,6 @@
         browser_uuid: userId,
         flag: "bookmark",
       };
-      logger.log("[SurfMind] Bookmark /save-data payload", requestPayload);
       const response = await fetchImpl(`${apiHost}/save-data`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -187,15 +193,17 @@
     };
 
     const markDirty = () => {
-      markQueue = markQueue.catch(() => {}).then(async () => {
-        const stored = await chromeApi.storage.local.get({
-          bookmarksDirtyVersion: 0,
+      markQueue = markQueue
+        .catch(() => {})
+        .then(async () => {
+          const stored = await chromeApi.storage.local.get({
+            bookmarksDirtyVersion: 0,
+          });
+          await chromeApi.storage.local.set({
+            bookmarksDirty: true,
+            bookmarksDirtyVersion: stored.bookmarksDirtyVersion + 1,
+          });
         });
-        await chromeApi.storage.local.set({
-          bookmarksDirty: true,
-          bookmarksDirtyVersion: stored.bookmarksDirtyVersion + 1,
-        });
-      });
       return markQueue;
     };
 
@@ -204,52 +212,41 @@
       if (!normalizedExtraction) return Promise.resolve(false);
       const normalizedUrl = normalizeUrl(url);
 
-      markQueue = markQueue.catch(() => {}).then(async () => {
-        const stored = await chromeApi.storage.local.get({
-          [EXTRACTED_CONTENT_KEY]: {},
-          bookmarksDirtyVersion: 0,
+      markQueue = markQueue
+        .catch(() => {})
+        .then(async () => {
+          const stored = await chromeApi.storage.local.get({
+            [EXTRACTED_CONTENT_KEY]: {},
+            bookmarksDirtyVersion: 0,
+          });
+          await chromeApi.storage.local.set({
+            [EXTRACTED_CONTENT_KEY]: {
+              ...stored[EXTRACTED_CONTENT_KEY],
+              [normalizedUrl]: normalizedExtraction,
+            },
+            bookmarksDirty: true,
+            bookmarksDirtyVersion: stored.bookmarksDirtyVersion + 1,
+          });
         });
-        await chromeApi.storage.local.set({
-          [EXTRACTED_CONTENT_KEY]: {
-            ...stored[EXTRACTED_CONTENT_KEY],
-            [normalizedUrl]: normalizedExtraction,
-          },
-          bookmarksDirty: true,
-          bookmarksDirtyVersion: stored.bookmarksDirtyVersion + 1,
-        });
-      });
       return markQueue.then(() => true);
     };
 
     const captureCreatedBookmark = async (
       bookmark,
-      { getActiveTab, extractFromTab },
+      { getActiveTab, extractFromTab }
     ) => {
       await markDirty();
       if (!bookmark?.url || !/^https?:\/\//.test(bookmark.url)) {
-        logger.log("[SurfMind] Bookmark ignored for content extraction", {
-          bookmark,
-          reason: "unsupported-url",
-        });
         return { captured: false, reason: "unsupported-url" };
       }
 
       const activeTab = await getActiveTab();
       if (activeTab?.id == null || activeTab.url !== bookmark.url) {
-        logger.log("[SurfMind] Bookmark saved with title-only fallback", {
-          bookmark,
-          reason: "bookmarked page is not the active tab",
-        });
         return { captured: false, reason: "tab-not-active" };
       }
 
       const extraction = await extractFromTab(activeTab.id);
       const stored = await attachExtractedContent(bookmark.url, extraction);
-      logger.log("[SurfMind] Bookmark content saved locally", {
-        bookmark,
-        storageKey: normalizeUrl(bookmark.url),
-        extraction: sanitizeExtraction(extraction),
-      });
       return {
         captured: stored,
         reason: stored ? "live-tab" : "empty-extraction",

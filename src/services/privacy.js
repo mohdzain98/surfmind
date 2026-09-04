@@ -30,7 +30,7 @@ export const deleteHistoryData = (host, browserUuid) =>
     host,
     browserUuid,
     "/user/history",
-    "Could not clear your history",
+    "Could not clear your history"
   );
 
 export const deleteAllData = (host, browserUuid) =>
@@ -38,7 +38,7 @@ export const deleteAllData = (host, browserUuid) =>
     host,
     browserUuid,
     "/user/data",
-    "Could not clear your SurfMind data",
+    "Could not clear your SurfMind data"
   );
 
 export const clearHistoryLocal = () =>

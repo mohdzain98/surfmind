@@ -20,8 +20,8 @@ test("counts distinct pages instead of section rows", () => {
 test("retains the latest 100 complete pages", () => {
   const entries = Array.from({ length: 101 }, (_, pageIndex) =>
     Array.from({ length: pageIndex === 100 ? 120 : 2 }, (_, sectionIndex) =>
-      section(pageIndex, sectionIndex),
-    ),
+      section(pageIndex, sectionIndex)
+    )
   ).flat();
 
   const retained = selectRecentPages(entries, 100);
@@ -30,15 +30,15 @@ test("retains the latest 100 complete pages", () => {
   expect(retainedUrls.size).toBe(100);
   expect(retainedUrls.has("https://example.com/page-0")).toBe(false);
   expect(
-    retained.filter((entry) => entry.url === "https://example.com/page-100"),
+    retained.filter((entry) => entry.url === "https://example.com/page-100")
   ).toHaveLength(120);
 });
 
 test("combined selection never splits a page at the 50-page boundary", () => {
   const entries = Array.from({ length: 51 }, (_, pageIndex) =>
-    Array.from({ length: pageIndex % 3 + 1 }, (_, sectionIndex) =>
-      section(pageIndex, sectionIndex),
-    ),
+    Array.from({ length: (pageIndex % 3) + 1 }, (_, sectionIndex) =>
+      section(pageIndex, sectionIndex)
+    )
   ).flat();
 
   const selected = selectRecentPages(entries, 50);
@@ -47,8 +47,8 @@ test("combined selection never splits a page at the 50-page boundary", () => {
   expect(selected.some((entry) => entry.url.endsWith("page-0"))).toBe(false);
   for (let pageIndex = 1; pageIndex <= 50; pageIndex += 1) {
     expect(
-      selected.filter((entry) => entry.url.endsWith(`page-${pageIndex}`)),
-    ).toHaveLength(pageIndex % 3 + 1);
+      selected.filter((entry) => entry.url.endsWith(`page-${pageIndex}`))
+    ).toHaveLength((pageIndex % 3) + 1);
   }
 });
 

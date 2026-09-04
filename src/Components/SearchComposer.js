@@ -23,7 +23,7 @@ const SearchComposer = ({
     textarea.style.height = "auto";
     const nextHeight = Math.min(
       Math.max(textarea.scrollHeight, MIN_TEXTAREA_HEIGHT),
-      MAX_TEXTAREA_HEIGHT,
+      MAX_TEXTAREA_HEIGHT
     );
     textarea.style.height = `${nextHeight}px`;
     textarea.style.overflowY =

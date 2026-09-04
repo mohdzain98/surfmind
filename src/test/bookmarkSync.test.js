@@ -50,19 +50,16 @@ const createHarness = ({
     },
   };
   const fetchImpl = jest.fn(async () => ({ ok: responseOk, status: 500 }));
-  const logger = { log: jest.fn() };
   const sync = createBookmarkSync({
     chromeApi,
     fetchImpl,
     now: () => 50_000,
-    logger,
   });
 
   return {
     sync,
     chromeApi,
     fetchImpl,
-    logger,
     getStorage: () => storage,
   };
 };
@@ -158,7 +155,7 @@ test("pre-search flush immediately syncs dirty bookmarks", async () => {
 });
 
 test("captures content only when the new bookmark matches the active tab", async () => {
-  const { sync, getStorage, logger } = createHarness();
+  const { sync, getStorage } = createHarness();
   const extraction = {
     title: "Vector guide",
     extractionMethod: "readability",
@@ -180,26 +177,19 @@ test("captures content only when the new bookmark matches the active tab", async
         url: "https://example.com/vector?q=old#section",
       }),
       extractFromTab,
-    },
+    }
   );
 
   expect(result).toEqual({ captured: true, reason: "live-tab" });
   expect(extractFromTab).toHaveBeenCalledWith(7);
   expect(
-    getStorage()[EXTRACTED_CONTENT_KEY]["https://example.com/vector"],
+    getStorage()[EXTRACTED_CONTENT_KEY]["https://example.com/vector"]
   ).toEqual(extraction);
   expect(getStorage().bookmarksDirty).toBe(true);
-  expect(logger.log).toHaveBeenCalledWith(
-    "[SurfMind] Bookmark content saved locally",
-    expect.objectContaining({
-      storageKey: "https://example.com/vector",
-      extraction,
-    }),
-  );
 });
 
 test("keeps the flat title payload when the bookmarked page is not active", async () => {
-  const { sync, fetchImpl, logger } = createHarness();
+  const { sync, fetchImpl } = createHarness();
   const extractFromTab = jest.fn();
 
   const captureResult = await sync.captureCreatedBookmark(
@@ -210,7 +200,7 @@ test("keeps the flat title payload when the bookmarked page is not active", asyn
         url: "chrome://bookmarks/",
       }),
       extractFromTab,
-    },
+    }
   );
   await sync.syncIfDirty({ reason: "pre-query" });
 
@@ -228,16 +218,6 @@ test("keeps the flat title payload when the bookmarked page is not active", asyn
     },
   ]);
   expect(payload.data[0]).not.toHaveProperty("needs_server_extraction");
-  expect(logger.log).toHaveBeenCalledWith(
-    "[SurfMind] Bookmark saved with title-only fallback",
-    expect.objectContaining({
-      reason: "bookmarked page is not the active tab",
-    }),
-  );
-  expect(logger.log).toHaveBeenCalledWith(
-    "[SurfMind] Bookmark /save-data payload",
-    payload,
-  );
 });
 
 test("sends cached live-tab content in the next bookmark sync", async () => {
@@ -274,7 +254,10 @@ test("sends cached live-tab content in the next bookmark sync", async () => {
 });
 
 test("failed bookmark uploads remain dirty for a later retry", async () => {
-  const { sync, getStorage } = createHarness({ dirty: true, responseOk: false });
+  const { sync, getStorage } = createHarness({
+    dirty: true,
+    responseOk: false,
+  });
 
   const result = await sync.syncIfDirty({ reason: "time" });
 

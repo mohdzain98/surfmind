@@ -22,7 +22,7 @@ export const normalizeRecentSearch = (search, index = 0) => ({
 export const fetchRecentSearches = async (
   host,
   browserUuid,
-  { limit = 5, signal } = {},
+  { limit = 5, signal } = {}
 ) => {
   const response = await fetch(`${host}/recent-searches`, {
     method: "POST",
