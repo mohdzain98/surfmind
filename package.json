@@ -1,6 +1,6 @@
 {
   "name": "surfmind",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "private": true,
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
@@ -16,10 +16,14 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
+    "prepare": "husky",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "postbuild": "cp node_modules/@mozilla/readability/Readability.js build/readability.js && cp node_modules/@mozilla/readability/LICENSE.md build/readability.LICENSE.md",
     "test": "react-scripts test",
+    "lint": "eslint src public/*.js --ignore-pattern 'src/test/**' --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "eject": "react-scripts eject",
     "build:ext": "npm run build",
     "package:ext": "bash scripts/package-extension.sh"
@@ -30,8 +34,30 @@
       "react-app/jest"
     ],
     "env": {
-      "webextensions": true
-    }
+      "webextensions": true,
+      "es2021": true
+    },
+    "overrides": [
+      {
+        "files": [
+          "public/*.js"
+        ],
+        "env": {
+          "browser": true,
+          "worker": true
+        },
+        "globals": {
+          "Readability": "readonly",
+          "SurfMindBookmarkSync": "readonly",
+          "SurfMindHistorySync": "readonly",
+          "SurfMindPageEntries": "readonly",
+          "SurfMindStructuredExtraction": "readonly"
+        },
+        "rules": {
+          "no-restricted-globals": "off"
+        }
+      }
+    ]
   },
   "browserslist": {
     "production": [
@@ -44,5 +70,13 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.9.6"
+  },
+  "lint-staged": {
+    "*.{css,html,js,jsx,json,md,yaml,yml}": "prettier --write"
   }
 }

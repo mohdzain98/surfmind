@@ -102,11 +102,7 @@ const SyncSettings = ({ host, browserUuid, onPairingChanged }) => {
     setBusyAction("redeem");
     setMessage(null);
     try {
-      const nextStatus = await redeemSyncCode(
-        host,
-        browserUuid,
-        redeemCode,
-      );
+      const nextStatus = await redeemSyncCode(host, browserUuid, redeemCode);
       await persistStatus(nextStatus);
       setRedeemCode("");
       setMessage({
@@ -290,7 +286,9 @@ const SyncSettings = ({ host, browserUuid, onPairingChanged }) => {
           <button
             type="submit"
             className="btn btn-success btn-sm mt-2"
-            disabled={isBusy || redeemCode.length !== 8 || !host || !browserUuid}
+            disabled={
+              isBusy || redeemCode.length !== 8 || !host || !browserUuid
+            }
           >
             <Link2 size={13} aria-hidden="true" />
             {busyAction === "redeem" ? "Linking…" : "Link this browser"}

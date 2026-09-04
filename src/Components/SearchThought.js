@@ -99,7 +99,7 @@ const SearchThought = ({
           {entries.map((thought, index) => {
             const { Icon, type } = getThoughtMeta(
               thought.step,
-              thought.message,
+              thought.message
             );
             const isCurrent = index === entries.length - 1;
             return (

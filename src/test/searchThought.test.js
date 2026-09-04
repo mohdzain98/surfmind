@@ -16,14 +16,11 @@ test.each([
   "Syncing recent history...",
   "Structuring output...",
   "No results found for this query",
-])(
-  "does not show the internal phase: %s",
-  (message) => {
-    const { container } = render(<SearchThought message={message} />);
+])("does not show the internal phase: %s", (message) => {
+  const { container } = render(<SearchThought message={message} />);
 
-    expect(container).toBeEmptyDOMElement();
-  },
-);
+  expect(container).toBeEmptyDOMElement();
+});
 
 test("keeps previous messages and marks only the latest as current", () => {
   render(
@@ -41,17 +38,17 @@ test("keeps previous messages and marks only the latest as current", () => {
           step: { step: "llm_response" },
         },
       ]}
-    />,
+    />
   );
 
   expect(screen.getByText("Retrieved 2 sources...")).toBeInTheDocument();
   expect(screen.getByText("Generating response...")).toBeInTheDocument();
   expect(screen.getAllByRole("status")).toHaveLength(1);
   expect(screen.getByRole("status")).toHaveTextContent(
-    "Generating response...",
+    "Generating response..."
   );
   expect(
-    screen.getByRole("button", { name: "Searching history" }),
+    screen.getByRole("button", { name: "Searching history" })
   ).toHaveAttribute("aria-expanded", "true");
 });
 
@@ -72,11 +69,11 @@ test("collapses the completed sequence when the final answer is ready", () => {
           step: { step: "post_processing" },
         },
       ]}
-    />,
+    />
   );
 
   expect(
-    screen.getByRole("button", { name: "Searching history" }),
+    screen.getByRole("button", { name: "Searching history" })
   ).toHaveAttribute("aria-expanded", "false");
   expect(screen.queryByText("Retrieved 2 sources...")).not.toBeInTheDocument();
   expect(screen.queryByText("Validating results...")).not.toBeInTheDocument();
@@ -99,7 +96,7 @@ test("uses a mode label and lets the sequence collapse", () => {
           step: { step: "llm_response" },
         },
       ]}
-    />,
+    />
   );
 
   const toggle = screen.getByRole("button", { name: "Searching bookmarks" });

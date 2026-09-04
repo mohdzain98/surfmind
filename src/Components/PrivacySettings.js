@@ -60,7 +60,10 @@ const PrivacySettings = ({
       await deleteHistoryData(host, browserUuid);
       await clearHistoryLocal();
       setDialog(null);
-      setMessage({ tone: "success", text: "Your SurfMind history was cleared." });
+      setMessage({
+        tone: "success",
+        text: "Your SurfMind history was cleared.",
+      });
       await onHistoryCleared?.();
     } catch (error) {
       setMessage({ tone: "danger", text: error.message });
@@ -88,7 +91,10 @@ const PrivacySettings = ({
   const actionsDisabled = busy || !host || !browserUuid;
 
   return (
-    <section className="privacy-settings" aria-labelledby="privacy-settings-title">
+    <section
+      className="privacy-settings"
+      aria-labelledby="privacy-settings-title"
+    >
       <div className="privacy-settings-heading">
         <h2 id="privacy-settings-title" className="h6 mb-1">
           Privacy
@@ -120,9 +126,7 @@ const PrivacySettings = ({
       <div className="privacy-action privacy-action-all">
         <div>
           <h3>Clear All Data</h3>
-          <p>
-            Removes history, bookmarks, and recent searches.
-          </p>
+          <p>Removes history, bookmarks, and recent searches.</p>
         </div>
         <button
           type="button"
@@ -136,7 +140,10 @@ const PrivacySettings = ({
       </div>
 
       {message ? (
-        <div className={`alert alert-${message.tone} py-2 mt-3 mb-0`} role="status">
+        <div
+          className={`alert alert-${message.tone} py-2 mt-3 mb-0`}
+          role="status"
+        >
           {message.text}
         </div>
       ) : null}
@@ -173,7 +180,10 @@ const PrivacySettings = ({
           onConfirm={dialog === "all" ? handleClearAll : handleClearHistory}
         >
           {dialog === "all" ? (
-            <label className="privacy-confirm-label" htmlFor="clear-data-confirm">
+            <label
+              className="privacy-confirm-label"
+              htmlFor="clear-data-confirm"
+            >
               Type <strong>CLEAR</strong> to confirm
               <input
                 id="clear-data-confirm"

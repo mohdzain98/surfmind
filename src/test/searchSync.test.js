@@ -25,8 +25,8 @@ test.each([
     if (bookmarkCalls) {
       expect(flushes.flushBookmarks).toHaveBeenCalledWith(
         "https://api.example.com/v1",
-        "pre-query",
+        "pre-query"
       );
     }
-  },
+  }
 );

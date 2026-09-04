@@ -23,8 +23,7 @@
   min-height: 100vh;
   padding: clamp(1.25rem, 5vw, 2.5rem);
   background:
-    radial-gradient(circle at 50% 0%, #eef2ff 0, transparent 45%),
-    #fff;
+    radial-gradient(circle at 50% 0%, #eef2ff 0, transparent 45%), #fff;
   place-items: center;
 }
 

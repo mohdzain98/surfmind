@@ -43,7 +43,7 @@ test("loads on mount and expands only one stored result without refetching", asy
     <RecentSearches
       host="https://api.example.com/v1"
       browserUuid="browser-123"
-    />,
+    />
   );
 
   const firstTrigger = await screen.findByRole("button", {
@@ -54,7 +54,9 @@ test("loads on mount and expands only one stored result without refetching", asy
 
   fireEvent.click(firstTrigger);
   expect(screen.getByText("First stored answer")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "example.com" })).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "example.com" })
+  ).toBeInTheDocument();
   expect(screen.getByText("2h ago")).toBeInTheDocument();
   expect(firstTrigger.closest("article")).toHaveClass("mode-history");
 
@@ -72,7 +74,7 @@ test("renders a useful empty state and fails silently", async () => {
     <RecentSearches
       host="https://api.example.com/v1"
       browserUuid="browser-123"
-    />,
+    />
   );
 
   await waitFor(() => {

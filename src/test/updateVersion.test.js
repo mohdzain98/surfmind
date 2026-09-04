@@ -19,10 +19,10 @@ test("migrates the newest acknowledged legacy update flag", () => {
     getStoredUpdateVersion({
       "sm-update-flag-v1.76": true,
       "sm-update-flag-v1.7": true,
-    }),
+    })
   ).toBe("1.76.0");
   expect(
-    getStoredUpdateVersion({ "sm-update-previous-version": "1.76.0" }),
+    getStoredUpdateVersion({ "sm-update-previous-version": "1.76.0" })
   ).toBe("1.76.0");
   expect(getStoredUpdateVersion({})).toBe("0.0.0");
 });

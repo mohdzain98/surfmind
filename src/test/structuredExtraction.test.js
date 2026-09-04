@@ -18,7 +18,7 @@ test("builds nested heading paths from cleaned article content", () => {
       <h2>Docker Setup</h2><p>Run the container.</p>
       <h2>Local Setup</h2><p>Run it locally.</p>
     `,
-    "Docs",
+    "Docs"
   );
 
   expect(sections).toEqual([
@@ -50,7 +50,7 @@ test("joins all paragraphs under a heading into one section", () => {
       <p>Second paragraph.</p>
       <p>Third paragraph.</p>
     `,
-    "Paper",
+    "Paper"
   );
 
   expect(sections).toEqual([
@@ -70,7 +70,7 @@ test("coalesces repeated heading paths into one section", () => {
       <h1>Abstract</h1><p>First part.</p>
       <h1>Abstract</h1><p>Second part.</p>
     `,
-    "Paper",
+    "Paper"
   );
 
   expect(sections).toHaveLength(1);
@@ -94,9 +94,9 @@ test("uses Readability and keeps full section text beyond the old snippet", () =
   expect(extraction.extractionMethod).toBe("readability");
   expect(extraction.sections.length).toBeGreaterThan(1);
   expect(extraction.sections[0].text.length).toBeGreaterThan(100);
-  expect(extraction.sections.map((section) => section.text).join(" ")).not.toContain(
-    "Navigation should be removed",
-  );
+  expect(
+    extraction.sections.map((section) => section.text).join(" ")
+  ).not.toContain("Navigation should be removed");
 });
 
 test("falls back to one page section when Readability cannot parse", () => {

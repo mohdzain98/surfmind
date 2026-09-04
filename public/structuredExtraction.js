@@ -72,11 +72,12 @@
   const getFallbackText = (documentRef) => {
     const clone = documentRef.cloneNode(true);
     for (const element of clone.querySelectorAll(
-      "script, style, noscript, nav, footer, aside, form, dialog",
+      "script, style, noscript, nav, footer, aside, form, dialog"
     )) {
       element.remove();
     }
-    const main = clone.querySelector("main, article, [role='main']") || clone.body;
+    const main =
+      clone.querySelector("main, article, [role='main']") || clone.body;
     return normalizeText(main?.textContent);
   };
 
@@ -93,14 +94,14 @@
 
     try {
       const article = new ReadabilityConstructor(
-        documentRef.cloneNode(true),
+        documentRef.cloneNode(true)
       ).parse();
       if (article?.content) {
         const title = normalizeText(article.title) || fallbackTitle;
         const sections = buildHeadingSections(
           documentRef,
           article.content,
-          title,
+          title
         );
         if (sections.length > 1) {
           return {
@@ -120,14 +121,17 @@
         }
       }
     } catch (error) {
-      console.warn("Readability extraction failed; using page fallback.", error);
+      console.warn(
+        "Readability extraction failed; using page fallback.",
+        error
+      );
     }
 
     return {
       title: fallbackTitle,
       sections: createSingleSection(
         fallbackTitle,
-        getFallbackText(documentRef),
+        getFallbackText(documentRef)
       ),
       extractionMethod: "dom-fallback",
     };

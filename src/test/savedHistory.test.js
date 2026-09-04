@@ -40,7 +40,7 @@ test("groups locally saved sections into one page per URL", () => {
       { url: "https://example.com", content: "One" },
       { url: "https://example.com", content: "Two" },
       { url: "https://openai.com", content: "Three" },
-    ]),
+    ])
   ).toHaveLength(2);
 });
 
@@ -48,7 +48,7 @@ test("shows saved pages and reveals their locally stored sections", async () => 
   render(<SavedHistory />);
 
   expect(
-    await screen.findByText("1–1 of 1 page stored locally"),
+    await screen.findByText("1–1 of 1 page stored locally")
   ).toBeInTheDocument();
   const page = screen.getByText("Example article");
   expect(page).toBeInTheDocument();
@@ -75,7 +75,7 @@ test("paginates locally saved history at 50 pages", async () => {
   render(<SavedHistory />);
 
   expect(
-    await screen.findByText("1–50 of 51 pages stored locally"),
+    await screen.findByText("1–50 of 51 pages stored locally")
   ).toBeInTheDocument();
   expect(screen.getByText("Saved page 50")).toBeInTheDocument();
   expect(screen.queryByText("Saved page 0")).not.toBeInTheDocument();
@@ -83,7 +83,9 @@ test("paginates locally saved history at 50 pages", async () => {
 
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
 
-  expect(screen.getByText("51–51 of 51 pages stored locally")).toBeInTheDocument();
+  expect(
+    screen.getByText("51–51 of 51 pages stored locally")
+  ).toBeInTheDocument();
   expect(screen.getByText("Saved page 0")).toBeInTheDocument();
   expect(screen.queryByText("Saved page 50")).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();

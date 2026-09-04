@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import PrivacySettings from "../components/PrivacySettings";
 import {
   clearAllDataLocal,
@@ -35,7 +41,7 @@ const renderPrivacy = ({ linked = false, ...props } = {}) => {
       host="https://api.example.com/v1"
       browserUuid="browser-123"
       {...props}
-    />,
+    />
   );
 };
 
@@ -53,8 +59,12 @@ test("confirms scoped history deletion before clearing local history", async () 
 
   fireEvent.click(screen.getByRole("button", { name: "Clear History" }));
   const dialog = screen.getByRole("dialog", { name: "Clear your history?" });
-  expect(dialog).toHaveTextContent("Bookmarks and recent searches are not affected");
-  fireEvent.click(within(dialog).getByRole("button", { name: "Clear History" }));
+  expect(dialog).toHaveTextContent(
+    "Bookmarks and recent searches are not affected"
+  );
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: "Clear History" })
+  );
 
   await waitFor(() => {
     expect(deleteHistoryData).toHaveBeenCalledTimes(1);
@@ -68,7 +78,7 @@ test("requires CLEAR and warns linked users before a full wipe", async () => {
   renderPrivacy({ linked: true, onAllDataCleared });
 
   await waitFor(() =>
-    expect(chrome.storage.local.get).toHaveBeenCalledTimes(1),
+    expect(chrome.storage.local.get).toHaveBeenCalledTimes(1)
   );
   fireEvent.click(screen.getByRole("button", { name: /Clear All Data/ }));
   const dialog = screen.getByRole("dialog", { name: "Clear all your data?" });
@@ -100,7 +110,7 @@ test("does not clear local data when the backend deletion fails", async () => {
     target: { value: "CLEAR" },
   });
   fireEvent.click(
-    within(dialog).getByRole("button", { name: "Clear All Data" }),
+    within(dialog).getByRole("button", { name: "Clear All Data" })
   );
 
   expect(await screen.findByText("Delete request failed")).toBeInTheDocument();
@@ -110,7 +120,13 @@ test("does not clear local data when the backend deletion fails", async () => {
 test("keeps legal links off the privacy detail page", () => {
   renderPrivacy();
 
-  expect(screen.queryByRole("link", { name: "Privacy Policy" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("link", { name: "Terms of Service" })).not.toBeInTheDocument();
-  expect(document.querySelector(".privacy-settings-icon")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("link", { name: "Privacy Policy" })
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("link", { name: "Terms of Service" })
+  ).not.toBeInTheDocument();
+  expect(
+    document.querySelector(".privacy-settings-icon")
+  ).not.toBeInTheDocument();
 });

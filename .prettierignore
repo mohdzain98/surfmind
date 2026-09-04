@@ -1,0 +1,7 @@
+node_modules
+build
+dist
+playwright-report
+.hydrogen
+public/css/bootstrap.min.css
+public/js/bootstrap.bundle.min.js

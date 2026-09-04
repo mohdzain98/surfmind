@@ -20,11 +20,13 @@ test("uses a textarea and embedded send action without a search button", () => {
   const textarea = screen.getByRole("textbox");
   expect(textarea).toHaveAttribute("rows", "1");
   expect(textarea).toHaveStyle({ height: "64px", overflowY: "hidden" });
-  expect(textarea.closest("form")).toHaveClass(
-    "mode-history",
-  );
-  expect(screen.getByRole("button", { name: "Send search" })).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: /^Search$/ })).not.toBeInTheDocument();
+  expect(textarea.closest("form")).toHaveClass("mode-history");
+  expect(
+    screen.getByRole("button", { name: "Send search" })
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: /^Search$/ })
+  ).not.toBeInTheDocument();
 });
 
 test("submits on Enter and keeps Shift+Enter for multiline input", () => {

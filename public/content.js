@@ -4,7 +4,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   try {
     const extraction = SurfMindStructuredExtraction.extractStructuredContent(
       document,
-      Readability,
+      Readability
     );
     sendResponse({ success: true, extraction });
   } catch (error) {
@@ -12,4 +12,3 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   return false;
 });
-  

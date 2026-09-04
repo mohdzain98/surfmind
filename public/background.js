@@ -2,7 +2,7 @@ importScripts(
   "pageEntries.js",
   "historySync.js",
   "structuredExtraction.js",
-  "bookmarkSync.js",
+  "bookmarkSync.js"
 );
 
 const HISTORY_LIMIT = 100;
@@ -31,7 +31,6 @@ const initializeUserId = async () => {
   if (!result.userId) {
     const newUserId = crypto.randomUUID();
     await chrome.storage.local.set({ userId: newUserId });
-    // console.log("Generated new userId (background):", newUserId);
     return newUserId;
   }
   return result.userId;
@@ -56,7 +55,7 @@ const saveDataLocally = async (data) => {
 
     const updatedData = SurfMindPageEntries.selectRecentPages(
       Array.from(urlMap.values()),
-      HISTORY_LIMIT,
+      HISTORY_LIMIT
     );
 
     await chrome.storage.local.set({ navigationData: updatedData });
@@ -118,13 +117,13 @@ const extractContentFromTab = (tabId) =>
             new Error(
               runtimeError?.message ||
                 response?.error ||
-                "Could not extract bookmark content",
-            ),
+                "Could not extract bookmark content"
+            )
           );
           return;
         }
         resolve(response.extraction);
-      },
+      }
     );
   });
 
@@ -200,7 +199,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     ])
       .then(([, result]) => sendResponse(result))
       .catch((error) =>
-        sendResponse({ success: false, synced: 0, error: error.message }),
+        sendResponse({ success: false, synced: 0, error: error.message })
       );
     return true;
   }
@@ -217,7 +216,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   ])
     .then(([, result]) => sendResponse(result))
     .catch((error) =>
-      sendResponse({ success: false, synced: 0, error: error.message }),
+      sendResponse({ success: false, synced: 0, error: error.message })
     );
   return true;
 });
@@ -238,7 +237,7 @@ chrome.webNavigation.onCompleted.addListener((details) => {
           if (chrome.runtime.lastError || !response?.success) {
             console.warn(
               "Structured extraction unavailable:",
-              chrome.runtime.lastError?.message || response?.error,
+              chrome.runtime.lastError?.message || response?.error
             );
             return;
           }
@@ -251,7 +250,7 @@ chrome.webNavigation.onCompleted.addListener((details) => {
           });
 
           if (data.length > 0) queueCapturedData(data);
-        },
+        }
       );
     }
   });

@@ -11,7 +11,7 @@ export const truncateUrl = (value, maxLength = 52) => {
 
 export const truncateUrlsInText = (value, maxLength = 52) =>
   String(value || "").replace(URL_PATTERN, (url) =>
-    truncateUrl(url, maxLength),
+    truncateUrl(url, maxLength)
   );
 
 export const formatRelativeTime = (value, now = Date.now()) => {

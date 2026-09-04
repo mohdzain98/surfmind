@@ -34,12 +34,12 @@ test("generates and normalizes an expiring eight-character code", async () => {
     jsonResponse({
       code: "ab12-cd34",
       expires_in_seconds: 600,
-    }),
+    })
   );
 
   const result = await generateSyncCode(
     "https://api.example.com/v1",
-    "browser-123",
+    "browser-123"
   );
 
   expect(fetch).toHaveBeenCalledWith(
@@ -47,19 +47,19 @@ test("generates and normalizes an expiring eight-character code", async () => {
     expect.objectContaining({
       method: "POST",
       body: JSON.stringify({ browser_uuid: "browser-123" }),
-    }),
+    })
   );
   expect(result).toMatchObject({ code: "AB12CD34", expiresAt: 601_000 });
 });
 
 test("redeems a code and surfaces backend validation messages", async () => {
   fetch.mockResolvedValueOnce(
-    jsonResponse({ linked_browser_count: 2, tier: "free" }),
+    jsonResponse({ linked_browser_count: 2, tier: "free" })
   );
   const status = await redeemSyncCode(
     "https://api.example.com/v1",
     "browser-456",
-    "ab12cd34",
+    "ab12cd34"
   );
 
   expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
@@ -69,26 +69,22 @@ test("redeems a code and surfaces backend validation messages", async () => {
   expect(status).toMatchObject({ isLinked: true, browserCount: 2 });
 
   fetch.mockResolvedValueOnce(
-    jsonResponse({ detail: { message: "Sync code has expired" } }, 410),
+    jsonResponse({ detail: { message: "Sync code has expired" } }, 410)
   );
   await expect(
-    redeemSyncCode(
-      "https://api.example.com/v1",
-      "browser-456",
-      "AB12CD34",
-    ),
+    redeemSyncCode("https://api.example.com/v1", "browser-456", "AB12CD34")
   ).rejects.toThrow("Sync code has expired");
 });
 
 test("unlinks a browser and gracefully handles an unavailable status route", async () => {
   fetch.mockResolvedValueOnce(jsonResponse({ tier: "free" }));
   await expect(
-    unlinkBrowser("https://api.example.com/v1", "browser-456"),
+    unlinkBrowser("https://api.example.com/v1", "browser-456")
   ).resolves.toMatchObject({ isLinked: false, browserCount: 1 });
 
   fetch.mockResolvedValueOnce(jsonResponse({}, 404));
   await expect(
-    getSyncStatus("https://api.example.com/v1", "browser-456"),
+    getSyncStatus("https://api.example.com/v1", "browser-456")
   ).resolves.toBeNull();
   expect(fetch).toHaveBeenLastCalledWith(
     "https://api.example.com/v1/sync/status",
@@ -96,7 +92,7 @@ test("unlinks a browser and gracefully handles an unavailable status route", asy
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ browser_uuid: "browser-456" }),
-    },
+    }
   );
 });
 

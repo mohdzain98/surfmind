@@ -40,7 +40,7 @@ export const groupSavedHistory = (entries = []) => {
   });
 
   return Array.from(pages.values()).sort(
-    (left, right) => right.timestamp - left.timestamp,
+    (left, right) => right.timestamp - left.timestamp
   );
 };
 
@@ -92,12 +92,12 @@ const SavedHistory = () => {
 
   const totalPages = Math.max(
     1,
-    Math.ceil(pages.length / SAVED_HISTORY_PAGE_SIZE),
+    Math.ceil(pages.length / SAVED_HISTORY_PAGE_SIZE)
   );
   const pageStart = (currentPage - 1) * SAVED_HISTORY_PAGE_SIZE;
   const visiblePages = pages.slice(
     pageStart,
-    pageStart + SAVED_HISTORY_PAGE_SIZE,
+    pageStart + SAVED_HISTORY_PAGE_SIZE
   );
 
   return (
@@ -125,8 +125,10 @@ const SavedHistory = () => {
       ) : (
         <div className="saved-history-list">
           <p className="saved-history-count">
-            {pageStart + 1}–{Math.min(pageStart + SAVED_HISTORY_PAGE_SIZE, pages.length)} of{" "}
-            {pages.length} {pages.length === 1 ? "page" : "pages"} stored locally
+            {pageStart + 1}–
+            {Math.min(pageStart + SAVED_HISTORY_PAGE_SIZE, pages.length)} of{" "}
+            {pages.length} {pages.length === 1 ? "page" : "pages"} stored
+            locally
           </p>
           {visiblePages.map((page) => (
             <details className="saved-history-item" key={page.url}>
@@ -160,7 +162,10 @@ const SavedHistory = () => {
             </details>
           ))}
           {totalPages > 1 ? (
-            <nav className="saved-history-pagination" aria-label="Saved history pages">
+            <nav
+              className="saved-history-pagination"
+              aria-label="Saved history pages"
+            >
               <button
                 type="button"
                 onClick={() => setCurrentPage((page) => page - 1)}

@@ -14,11 +14,11 @@
   const resolveSyncConfig = (stored = {}) => {
     const countThreshold = parsePositiveInteger(
       stored.syncCountThreshold,
-      COUNT_THRESHOLD,
+      COUNT_THRESHOLD
     );
     const timeSafetyNetMin = parsePositiveInteger(
       stored.syncTimeSafetyNetMin,
-      TIME_SAFETY_NET_MIN,
+      TIME_SAFETY_NET_MIN
     );
     return {
       countThreshold,
@@ -40,7 +40,7 @@
 
     for (const entry of entries) {
       const sectionKey = `${entry.url || ""}\u0000${JSON.stringify(
-        entry.heading_path || [],
+        entry.heading_path || []
       )}`;
       const existing = entriesBySection.get(sectionKey);
       if (!existing) {
@@ -51,7 +51,8 @@
       if (existing.capturedAt !== entry.capturedAt) {
         const existingTime = Number(existing.capturedAt) || 0;
         const entryTime = Number(entry.capturedAt) || 0;
-        if (entryTime >= existingTime) entriesBySection.set(sectionKey, { ...entry });
+        if (entryTime >= existingTime)
+          entriesBySection.set(sectionKey, { ...entry });
         continue;
       }
 
@@ -120,7 +121,7 @@
       }
 
       const oldestCapture = Math.min(
-        ...unsynced.map((entry) => entry.capturedAt),
+        ...unsynced.map((entry) => entry.capturedAt)
       );
       const countReady =
         pageEntries.countDistinctPages(unsynced) >= syncConfig.countThreshold;
@@ -133,7 +134,11 @@
 
       const apiHost = host || stored.apiHost;
       if (!apiHost) {
-        return { success: false, synced: 0, error: "API host is not configured" };
+        return {
+          success: false,
+          synced: 0,
+          error: "API host is not configured",
+        };
       }
 
       let userId = stored.userId;
@@ -163,7 +168,7 @@
       const syncedIds = new Set(unsynced.map((entry) => entry.captureId));
       const latest = await chromeApi.storage.local.get({ navigationData: [] });
       const updatedHistory = latest.navigationData.map((entry) =>
-        syncedIds.has(entry.captureId) ? { ...entry, synced: true } : entry,
+        syncedIds.has(entry.captureId) ? { ...entry, synced: true } : entry
       );
       const completedAt = now();
       await chromeApi.storage.local.set({
@@ -171,7 +176,11 @@
         lastSyncTime: completedAt,
       });
 
-      return { success: true, synced: unsynced.length, lastSyncTime: completedAt };
+      return {
+        success: true,
+        synced: unsynced.length,
+        lastSyncTime: completedAt,
+      };
     };
 
     const maybeSync = (options = {}) => {

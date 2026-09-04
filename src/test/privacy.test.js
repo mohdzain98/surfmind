@@ -33,12 +33,12 @@ test("uses distinct deletion endpoints with the current identity", async () => {
   expect(fetch).toHaveBeenNthCalledWith(
     1,
     "https://api.example.com/v1/user/history?user_id=browser-123",
-    { method: "DELETE" },
+    { method: "DELETE" }
   );
   expect(fetch).toHaveBeenNthCalledWith(
     2,
     "https://api.example.com/v1/user/data?user_id=browser-123",
-    { method: "DELETE" },
+    { method: "DELETE" }
   );
 });
 
@@ -58,6 +58,6 @@ test("full local clear regenerates a fresh browser identity", async () => {
   expect(chrome.storage.local.clear).toHaveBeenCalledTimes(1);
   expect(initializeUserId).toHaveBeenCalledTimes(1);
   expect(chrome.storage.local.clear.mock.invocationCallOrder[0]).toBeLessThan(
-    initializeUserId.mock.invocationCallOrder[0],
+    initializeUserId.mock.invocationCallOrder[0]
   );
 });

@@ -19,11 +19,11 @@ const parsePositiveInteger = (value, fallback) => {
 const syncConfig = {
   syncCountThreshold: parsePositiveInteger(
     process.env.REACT_APP_SYNC_COUNT_THRESHOLD,
-    25,
+    25
   ),
   syncTimeSafetyNetMin: parsePositiveInteger(
     process.env.REACT_APP_SYNC_TIME_SAFETY_NET_MIN,
-    240,
+    240
   ),
 };
 
@@ -110,7 +110,7 @@ const UserState = ({ children }) => {
         [UPDATE_VERSION_KEY]: "",
         [UPDATE_PREVIOUS_VERSION_KEY]: "",
         ...Object.fromEntries(
-          LEGACY_UPDATE_VERSIONS.map(({ key }) => [key, false]),
+          LEGACY_UPDATE_VERSIONS.map(({ key }) => [key, false])
         ),
       };
       const [result, uid, storedUpdate] = await Promise.all([
@@ -139,7 +139,7 @@ const UserState = ({ children }) => {
       });
       await pendingSync;
     },
-    [setState],
+    [setState]
   );
 
   const searchStream = useCallback(
@@ -287,7 +287,7 @@ const UserState = ({ children }) => {
                   loading: false,
                   disable: false,
                   finalReceived: true,
-                },
+                }
               );
               return;
             }
@@ -308,11 +308,11 @@ const UserState = ({ children }) => {
             loading: false,
             disable: false,
             finalReceived: true,
-          },
+          }
         );
       }
     },
-    [flushBookmarks, flushHistory, setState],
+    [flushBookmarks, flushHistory, setState]
   );
 
   const refreshAfterPairing = useCallback(
@@ -343,7 +343,7 @@ const UserState = ({ children }) => {
         setState({ syncing: false });
       }
     },
-    [flushHistory, setState],
+    [flushHistory, setState]
   );
 
   return (
