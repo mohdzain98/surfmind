@@ -15,6 +15,7 @@ docs/contracts
 # production
 /build
 build.zip
+surfmind-*.zip
 
 # misc
 .DS_Store
