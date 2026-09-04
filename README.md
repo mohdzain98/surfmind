@@ -45,8 +45,6 @@ SurfMind is a Chrome extension designed to enhance your browsing experience by i
 
 ### Architecture
 
-### Architecture
-
 - <strong>Extension</strong>: Tracks navigation and bookmarks, stores locally, and triggers search from a persistent side-panel UI
 - <strong>Backend API</strong>: Receives saved data (`/v1/save-data`) and streams step-by-step search progress (`/v1/search-stream`)
 - <strong>Retrieval Pipeline</strong>: Hybrid retrieval (BM25 + pgvector), LLM response, structured parsing, and post-processing
