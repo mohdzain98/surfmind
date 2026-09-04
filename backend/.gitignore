@@ -1,7 +1,0 @@
-/surfenv
-/.smenv
-/.env
-/notebooks/*
-notebooks/
-__pycache__/
-*.py[cod]

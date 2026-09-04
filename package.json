@@ -1,8 +1,9 @@
 {
   "name": "surfmind",
-  "version": "0.1.0",
+  "version": "1.8.0",
   "private": true,
   "dependencies": {
+    "@mozilla/readability": "^0.6.0",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
@@ -17,9 +18,11 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "postbuild": "cp node_modules/@mozilla/readability/Readability.js build/readability.js && cp node_modules/@mozilla/readability/LICENSE.md build/readability.LICENSE.md",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "build:ext": "react-scripts build && cp public/manifest.json build/ && cp public/background.js build/ && cp public/content.js build/"
+    "build:ext": "npm run build",
+    "package:ext": "bash scripts/package-extension.sh"
   },
   "eslintConfig": {
     "extends": [

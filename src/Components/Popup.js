@@ -1,50 +1,85 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
-  Search,
-  Trash2,
+  ArrowLeft,
   History,
   Bookmark,
+  ChevronRight,
+  Clock3,
   GitMerge,
-  ArrowRight,
+  Settings,
+  Sparkles,
+  Trash2,
 } from "lucide-react";
 import Bookmarks from "./Bookmarks";
 import Combined from "./Combined";
 import Update from "./Update";
+import SyncSettings from "./SyncSettings";
+import PrivacySettings from "./PrivacySettings";
+import SettingsHome from "./SettingsHome";
+import SavedHistory from "./SavedHistory";
+import RecentSearches from "./RecentSearches";
+import SearchComposer from "./SearchComposer";
+import SearchThought from "./SearchThought";
+import SourceCard from "./SourceCard";
 import { userContext } from "../context/userContext";
+import { truncateUrl, truncateUrlsInText } from "../services/displayText";
+import {
+  CONTACT_URL,
+  PRIVACY_POLICY_URL,
+  TERMS_URL,
+} from "../services/privacy";
+import {
+  LEGACY_UPDATE_VERSIONS,
+  UPDATE_PREVIOUS_VERSION_KEY,
+  UPDATE_VERSION_KEY,
+} from "../services/updateVersion";
+
+const WELCOME_LINES = [
+  "Hi, what would you like to rediscover today?",
+  "Let’s find what you saw before.",
+  "Forgot where you found it? Just ask.",
+  "Your history remembers. What are we looking for?",
+  "Bookmarks saved it. SurfMind can bring it back.",
+  "A past page is only one question away.",
+  "Somewhere in your history, this is waiting.",
+  "You've seen it before. Let's go find it.",
+  "One search away from that page you lost.",
+  "Ask, and your browsing does the rest.",
+  "That tab you closed too soon? Still here.",
+  "What did you read that you can't quite place?",
+];
 
 const Popup = (props) => {
   const { host } = props.prop;
-  const { state, setState, initializePopup, searchStream, syncHistory } =
-    useContext(userContext);
+  const {
+    state,
+    setState,
+    initializePopup,
+    searchStream,
+    refreshAfterPairing,
+  } = useContext(userContext);
   const {
     activeTab,
     query,
     head,
     parsed,
     loading,
-    histLoader,
     disable,
     noti,
-    data,
     docs,
     userId,
     updateFlag,
+    updateNotice,
+    updateReady,
+    updateVersion,
     syncing,
     step,
+    thoughts = [],
     finalReceived,
   } = state;
-  const syncRequestedRef = useRef(false);
-
   useEffect(() => {
     initializePopup(host);
   }, [host, initializePopup]);
-
-  useEffect(() => {
-    if (syncRequestedRef.current) return;
-    if (!host || !userId || !data?.navigationData?.length) return;
-    syncRequestedRef.current = true;
-    syncHistory(host, data.navigationData, userId);
-  }, [data, host, syncHistory, userId]);
 
   useEffect(() => {
     if (!head) {
@@ -55,27 +90,15 @@ const Popup = (props) => {
     setState({ parsed: extracted });
   }, [head, setState]);
 
-  const extractDomainName = (url) => {
-    // eslint-disable-next-line
-    const match = url.match(/https?:\/\/(www\.)?([^\.]+)/);
-    return match ? match[2] : null;
-  };
-
   const handleShowUpdate = async () => {
-    await chrome.storage.local.set({ "sm-update-flag-v1.75": true });
-    await chrome.storage.local.remove("sm-update-flag-v1.7");
-    setState({ updateFlag: true });
-  };
-
-  const clearAllHistory = async () => {
-    try {
-      setState({ histLoader: true });
-      await chrome.storage.local.set({ navigationData: [] });
-      setState({ histLoader: false });
-    } catch (error) {
-      console.error("Error clearing history:", error);
-      setState({ histLoader: false });
-    }
+    await chrome.storage.local.set({ [UPDATE_VERSION_KEY]: updateVersion });
+    await chrome.storage.local.remove(
+      [
+        UPDATE_PREVIOUS_VERSION_KEY,
+        ...LEGACY_UPDATE_VERSIONS.map(({ key }) => key),
+      ],
+    );
+    setState({ updateFlag: true, updateNotice: null });
   };
 
   const extractUrlFromHead = (head) => {
@@ -83,45 +106,25 @@ const Popup = (props) => {
       return { summary: head || "", url: null };
     const [summary, urlRaw] = head.split("URL:");
     const url = urlRaw.trim();
-    const displayUrl = url.length > 50 ? url.slice(0, 50) + "..." : url;
-    return { summary: summary.trim(), url: displayUrl };
+    return { summary: summary.trim(), url };
   };
 
-  function getDaysAgo(searchDateStr) {
-    const today = new Date();
-    const searchDate = new Date(searchDateStr);
-    today.setHours(0, 0, 0, 0);
-    searchDate.setHours(0, 0, 0, 0);
-    const diffTime = today - searchDate;
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "1 day ago";
-    return `${diffDays} days ago`;
-  }
-
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    const dataa = data.navigationData;
-    if (!dataa || dataa.length === 0) {
-      setState({ noti: "There is no data in History", disable: false });
-      return;
-    }
+  const handleSearch = async () => {
     await searchStream({ host, query, userId, flag: "history" });
   };
 
-  const handleClearAllHistory = async () => {
-    await clearAllHistory();
-    setState({
-      docs: [],
-      head: "",
-      parsed: { summary: "", url: null },
-      noti: "History Cleared Successfully",
-      query: "",
-      data: { navigationData: [] },
-    });
-  };
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [lastSearchTab, setLastSearchTab] = useState("history");
+  const [showRecentPage, setShowRecentPage] = useState(false);
+  const [settingsView, setSettingsView] = useState("home");
+  const [welcomeLine] = useState(
+    () => WELCOME_LINES[Math.floor(Math.random() * WELCOME_LINES.length)]
+  );
 
   const handleTabChange = (tab) => {
+    setShowRecentPage(false);
+    setSettingsView("home");
+    if (tab !== "settings") setLastSearchTab(tab);
     setState({
       activeTab: tab,
       docs: [],
@@ -129,17 +132,62 @@ const Popup = (props) => {
       parsed: { summary: "", url: null },
       noti: "",
       query: "",
+      loading: false,
+      step: null,
+      thoughts: [],
+      finalReceived: false,
     });
   };
 
-  const getShortUrl = (url) => {
-    if (url.length > 30) {
-      return url.replace("https://", "").slice(0, 15) + "...." + url.slice(-8);
-    }
-    return url.replace("https://", "");
+  const handleSettingsToggle = () => {
+    setDropdownOpen(false);
+    setSettingsView("home");
+    handleTabChange(activeTab === "settings" ? lastSearchTab : "settings");
   };
 
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const handleClearSearch = () => {
+    setShowRecentPage(false);
+    setState({
+      docs: [],
+      head: "",
+      parsed: { summary: "", url: null },
+      noti: "",
+      query: "",
+      loading: false,
+      disable: false,
+      syncing: false,
+      step: null,
+      thoughts: [],
+      finalReceived: false,
+    });
+  };
+
+  const handleHistoryCleared = () => {
+    setState({ data: { navigationData: [] } });
+  };
+
+  const handleAllDataCleared = (nextUserId) => {
+    setShowRecentPage(false);
+    setState({
+      activeTab: "history",
+      query: "",
+      head: "",
+      parsed: { summary: "", url: null },
+      loading: false,
+      disable: false,
+      noti: "",
+      data: { navigationData: [] },
+      docs: [],
+      userId: nextUserId,
+      updateFlag: true,
+      updateNotice: null,
+      updateReady: true,
+      syncing: false,
+      step: null,
+      thoughts: [],
+      finalReceived: false,
+    });
+  };
 
   const tabLabel = {
     history: "History",
@@ -156,336 +204,432 @@ const Popup = (props) => {
   const historyDocs = docs.filter((d) => d.metadata?.type === "history");
   const bookmarkDocs = docs.filter((d) => d.metadata?.type === "bookmark");
   const isCombined = activeTab === "combined";
+  const hasSearchActivity = Boolean(
+    loading || syncing || step || finalReceived || head || docs.length
+  );
+  const hasCompletedAnswer = Boolean(
+    finalReceived && (parsed.summary || parsed.url)
+  );
+  const hasEmptyHistoryAnswer = Boolean(
+    activeTab === "history" &&
+    /\bno history data found\b/i.test(parsed.summary || "")
+  );
+  const showRecentSearches = Boolean(
+    activeTab !== "settings" && !hasSearchActivity
+  );
+  const showRecentSearchLink = Boolean(
+    activeTab !== "settings" && hasCompletedAnswer
+  );
 
-  const DocCard = ({ doc, showDate }) => {
-    const domain =
-      doc.metadata.source && extractDomainName(doc.metadata.source);
+  if (!updateReady) {
     return (
-      <div
-        className="bg-light p-2 border rounded mt-1"
-        style={{ cursor: "pointer" }}
-        onClick={() => chrome.tabs.create({ url: doc.metadata.source })}
-        title={doc.metadata.source}
-      >
-        <p style={{ margin: "0", padding: "0", fontSize: "13px" }}>
-          {domain ? domain.charAt(0).toUpperCase() + domain.slice(1) : ""}
-          {doc.metadata.title?.length > 0 ? ` | ${doc.metadata.title}` : ""}
-        </p>
-        <div className="d-flex">
-          <p
-            className="text-muted flex-grow-1"
-            style={{ fontSize: "12px", margin: "0", padding: "0" }}
-          >
-            {getShortUrl(doc.metadata.source)}
-          </p>
-          {showDate && doc.metadata.date && (
-            <p
-              className="text-muted"
-              style={{ fontSize: "12px", margin: "0", padding: "0" }}
-            >
-              {getDaysAgo(doc.metadata.date)}
-            </p>
-          )}
-        </div>
-      </div>
+      <main className="update-loading" aria-label="Loading SurfMind">
+        <Sparkles size={22} aria-hidden="true" />
+      </main>
     );
-  };
+  }
+
+  if (updateNotice === "major") {
+    return (
+      <Update
+        severity="major"
+        handleShowUpdate={handleShowUpdate}
+      />
+    );
+  }
 
   return (
-    <div className="container p-4" style={{ width: "350px" }}>
+    <main
+      className={`container-fluid side-panel-shell ${
+        hasSearchActivity ? "has-search-activity" : "is-search-empty"
+      } ${showRecentPage ? "is-recent-page" : ""}`}
+    >
       {/* ── Header ── */}
-      <div className="d-flex align-items-center mb-3">
-        <span className="flex-grow-1">
-          <span
-            className="fw-bold"
-            style={{
-              fontSize: "16px",
-              display: "inline-block",
-              background: "linear-gradient(90deg, #0d6efd, #6f42c1)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            SurfMind
-            {syncing && (
-              <span
-                className="badge bg-info text-dark ms-2"
-                style={{ fontSize: "10px", WebkitTextFillColor: "initial" }}
-              >
-                Syncing
-              </span>
-            )}
-          </span>
-        </span>
-
-        {/* ── Tab dropdown ── */}
-        <div className="position-relative">
-          {/* NEW badge — tied to updateFlag so it disappears when user dismisses the Update box */}
-          {!updateFlag && (
-            <span
-              className="badge bg-danger position-absolute"
-              style={{
-                fontSize: "9px",
-                borderRadius: "4px",
-                top: "-7px",
-                right: "-7px",
-                zIndex: 2,
-              }}
+      <div className="panel-nav d-flex align-items-center mb-3">
+        <div className="flex-grow-1">
+          {showRecentPage ? (
+            <button
+              type="button"
+              className="panel-back-button"
+              onClick={() => setShowRecentPage(false)}
+              aria-label="Back to answer"
             >
-              NEW
+              <ArrowLeft size={17} aria-hidden="true" />
+              Back
+            </button>
+          ) : activeTab === "settings" ? (
+            <button
+              type="button"
+              className="panel-back-button"
+              onClick={
+                settingsView === "home"
+                  ? handleSettingsToggle
+                  : () => setSettingsView("home")
+              }
+              aria-label={
+                settingsView === "home" ? "Back to search" : "Back to settings"
+              }
+            >
+              <ArrowLeft size={17} aria-hidden="true" />
+              Back
+            </button>
+          ) : (
+            <span className="panel-brand">
+              {hasSearchActivity ? "SurfMind" : "SM"}
             </span>
           )}
-          <button
-            className={`btn btn-sm btn-outline-${tabColor[activeTab]} dropdown-toggle d-flex align-items-center gap-1`}
-            style={{ borderRadius: "6px", minWidth: "105px", fontSize: "13px" }}
-            onClick={() => setDropdownOpen((o) => !o)}
-          >
-            {activeTab === "history" && <History size={13} />}
-            {activeTab === "bookmark" && <Bookmark size={13} />}
-            {activeTab === "combined" && <GitMerge size={13} />}
-            {tabLabel[activeTab]}
-          </button>
-          {dropdownOpen && (
-            <>
-              {/* backdrop to close on outside click */}
-              <div
-                className="position-fixed top-0 start-0 w-100 h-100"
-                style={{ zIndex: 100 }}
-                onClick={() => setDropdownOpen(false)}
+          {syncing ? (
+            <span className="badge bg-info text-dark ms-2 syncing-badge">
+              Syncing
+            </span>
+          ) : null}
+        </div>
+
+        <button
+          type="button"
+          className={`settings-button ${activeTab === "settings" ? "is-active" : ""}`}
+          onClick={handleSettingsToggle}
+          aria-label={
+            activeTab === "settings" ? "Return to search" : "Open settings"
+          }
+          title={activeTab === "settings" ? "Return to search" : "Settings"}
+        >
+          <Settings size={18} aria-hidden="true" />
+        </button>
+      </div>
+
+      {showRecentPage ? (
+        <div className="recent-searches-page">
+          <RecentSearches host={host} browserUuid={userId} />
+        </div>
+      ) : (
+        <>
+          {activeTab !== "settings" && !hasSearchActivity ? (
+            <section
+              className="search-welcome"
+              aria-labelledby="surfmind-welcome"
+            >
+              <div className="search-welcome-icon" aria-hidden="true">
+                <Sparkles size={26} />
+              </div>
+              <h1 id="surfmind-welcome">SurfMind</h1>
+              <p className="search-welcome-tagline">
+                Smarter browsing starts here.
+              </p>
+              <div className="search-welcome-divider" aria-hidden="true">
+                <span />
+              </div>
+              <p className="search-welcome-line">{welcomeLine}</p>
+            </section>
+          ) : null}
+
+          {/* ── Views ── */}
+          {activeTab === "history" && (
+            <div className="search-controls">
+              <SearchComposer
+                id="history-search"
+                value={query}
+                onChange={(value) => setState({ query: value })}
+                onSubmit={handleSearch}
+                placeholder="Ask SurfMind about your history…"
+                mode="history"
+                disabled={disable}
+                loading={loading}
               />
-              <ul
-                className="dropdown-menu show shadow"
+            </div>
+          )}
+
+          {activeTab === "bookmark" && (
+            <div className="search-controls">
+              <Bookmarks host={host} />
+            </div>
+          )}
+          {activeTab === "combined" && (
+            <div className="search-controls">
+              <Combined host={host} />
+            </div>
+          )}
+          {activeTab === "settings" && (
+            <div className="settings-page">
+              {settingsView === "home" ? (
+                <SettingsHome
+                  onOpenSync={() => setSettingsView("sync")}
+                  onOpenHistory={() => setSettingsView("history")}
+                  onOpenPrivacy={() => setSettingsView("privacy")}
+                />
+              ) : null}
+              {settingsView === "sync" ? (
+                <div className="settings-detail">
+                  <SyncSettings
+                    host={host}
+                    browserUuid={userId}
+                    onPairingChanged={(action) =>
+                      refreshAfterPairing(host, action)
+                    }
+                  />
+                </div>
+              ) : null}
+              {settingsView === "history" ? (
+                <div className="settings-detail">
+                  <SavedHistory />
+                </div>
+              ) : null}
+              {settingsView === "privacy" ? (
+                <div className="settings-detail">
+                  <PrivacySettings
+                    host={host}
+                    browserUuid={userId}
+                    onHistoryCleared={handleHistoryCleared}
+                    onAllDataCleared={handleAllDataCleared}
+                  />
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          {activeTab !== "settings" ? (
+            <div className="search-mode-selector position-relative mt-3 d-flex justify-content-between align-items-center">
+              <div className="position-relative">
+                {!updateFlag ? (
+                  <span className="mode-new-badge badge bg-danger">NEW</span>
+                ) : null}
+                <button
+                  type="button"
+                  className={`btn btn-sm btn-outline-${tabColor[activeTab]} dropdown-toggle d-flex align-items-center gap-1`}
+                  onClick={() => setDropdownOpen((open) => !open)}
+                  aria-expanded={dropdownOpen}
+                >
+                  {activeTab === "history" ? <History size={13} /> : null}
+                  {activeTab === "bookmark" ? <Bookmark size={13} /> : null}
+                  {activeTab === "combined" ? <GitMerge size={13} /> : null}
+                  {tabLabel[activeTab]}
+                </button>
+                {dropdownOpen ? (
+                  <>
+                    <div
+                      className="position-fixed top-0 start-0 w-100 h-100"
+                      style={{ zIndex: 100 }}
+                      onClick={() => setDropdownOpen(false)}
+                    />
+                    <ul className="dropdown-menu dropdown-menu-end show shadow search-mode-menu">
+                      <li>
+                        <button
+                          type="button"
+                          className="dropdown-item d-flex align-items-center gap-2"
+                          onClick={() => {
+                            handleTabChange("history");
+                            setDropdownOpen(false);
+                          }}
+                        >
+                          <History size={14} className="text-primary" /> History
+                        </button>
+                      </li>
+                      <li>
+                        <button
+                          type="button"
+                          className="dropdown-item d-flex align-items-center gap-2"
+                          onClick={() => {
+                            handleTabChange("bookmark");
+                            setDropdownOpen(false);
+                          }}
+                        >
+                          <Bookmark size={14} className="text-danger" />{" "}
+                          Bookmarks
+                        </button>
+                      </li>
+                      <li>
+                        <button
+                          type="button"
+                          className="dropdown-item d-flex align-items-center gap-2"
+                          onClick={() => {
+                            handleTabChange("combined");
+                            setDropdownOpen(false);
+                          }}
+                        >
+                          <GitMerge size={14} className="text-success" />{" "}
+                          Combined
+                        </button>
+                      </li>
+                    </ul>
+                  </>
+                ) : null}
+              </div>
+              {hasSearchActivity ? (
+                <button
+                  type="button"
+                  className="search-clear-button"
+                  onClick={handleClearSearch}
+                >
+                  <Trash2 size={14} aria-hidden="true" />
+                  Clear
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* ── Current streamed thought ── */}
+          {activeTab !== "settings" ? (
+            <SearchThought
+              message={noti}
+              step={step}
+              thoughts={thoughts}
+              mode={activeTab}
+              complete={hasCompletedAnswer}
+            />
+          ) : null}
+
+          {/* ── Final answer card ── */}
+          {finalReceived && (parsed.summary || parsed.url) && (
+            <div
+              className="answer-card border rounded p-3 mt-2"
+              style={{ backgroundColor: "#f8f9ff", borderColor: "#d0d8ff" }}
+            >
+              <p
+                className="text-muted mb-1"
                 style={{
-                  position: "absolute",
-                  right: 0,
-                  left: "auto",
-                  top: "calc(100% + 4px)",
-                  zIndex: 1050,
-                  borderRadius: "6px",
-                  minWidth: "130px",
-                  border: "1.5px solid #dee2e6",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  letterSpacing: "0.5px",
                 }}
               >
-                <li>
-                  <button
-                    className="dropdown-item rounded-top d-flex align-items-center gap-2"
-                    onClick={() => {
-                      handleTabChange("history");
-                      setDropdownOpen(false);
-                    }}
-                  >
-                    <History size={14} className="text-primary" /> History
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="dropdown-item d-flex align-items-center gap-2"
-                    onClick={() => {
-                      handleTabChange("bookmark");
-                      setDropdownOpen(false);
-                    }}
-                  >
-                    <Bookmark size={14} className="text-danger" /> Bookmarks
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="dropdown-item rounded-bottom d-flex align-items-center gap-2"
-                    onClick={() => {
-                      handleTabChange("combined");
-                      setDropdownOpen(false);
-                    }}
-                  >
-                    <GitMerge size={14} className="text-success" /> Combined
-                    <span
-                      className="badge bg-success ms-auto"
-                      style={{ fontSize: "9px" }}
-                    >
-                      New
-                    </span>
-                  </button>
-                </li>
-              </ul>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* ── Views ── */}
-      {activeTab === "history" && (
-        <div>
-          <div className="mb-3">
-            <label
-              htmlFor="exampleInput"
-              className="form-label text-muted d-flex align-items-center gap-1"
-              style={{ fontSize: "14px" }}
-            >
-              <History size={14} className="text-primary" />
-              Search Your <span className="text-primary">History</span>
-            </label>
-            <input
-              type="text"
-              className="form-control"
-              id="exampleInput"
-              value={query}
-              onChange={(e) => setState({ query: e.target.value })}
-              placeholder="Search History"
-              aria-describedby="textHelp"
-            />
-            <div className="form-text" style={{ fontSize: "12px" }}>
-              Type Keywords for better results
+                ANSWER
+              </p>
+              <p
+                className="answer-text"
+                style={{ fontSize: "13px", margin: "0 0 6px 0" }}
+              >
+                {hasEmptyHistoryAnswer
+                  ? "SurfMind hasn’t saved any searchable visits yet."
+                  : truncateUrlsInText(parsed.summary)}
+              </p>
+              {hasEmptyHistoryAnswer ? (
+                <p className="answer-context mb-0">
+                  Your existing Chrome history isn’t imported automatically.
+                  SurfMind builds its own searchable history from pages you
+                  visit after installing it.
+                </p>
+              ) : null}
+              {parsed.url && (
+                <a
+                  href={parsed.url}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    chrome.tabs.create({ url: parsed.url });
+                  }}
+                  className="answer-url"
+                  style={{ fontSize: "12px" }}
+                >
+                  {truncateUrl(parsed.url)}
+                </a>
+              )}
             </div>
-          </div>
-          <button
-            type="submit"
-            className="btn btn-primary btn-sm d-inline-flex align-items-center gap-1"
-            style={{ borderRadius: "10px" }}
-            disabled={disable || query === ""}
-            onClick={handleSearch}
-          >
-            <Search size={13} />
-            Search
-            {loading && (
-              <span className="spinner-border spinner-border-sm ms-1"></span>
-            )}
-          </button>
-          <button
-            type="button"
-            className="btn btn-outline-primary btn-sm ms-2 d-inline-flex align-items-center gap-1"
-            style={{ borderRadius: "10px" }}
-            onClick={handleClearAllHistory}
-          >
-            <Trash2 size={13} />
-            Clear
-            {histLoader && (
-              <span className="spinner-border spinner-border-sm ms-1"></span>
-            )}
-          </button>
-        </div>
-      )}
-
-      {activeTab === "bookmark" && <Bookmarks host={host} />}
-      {activeTab === "combined" && <Combined host={host} />}
-
-      {/* ── Streaming step indicator ── */}
-      <p className="m-2" style={{ fontSize: "12px" }}>
-        {noti}
-      </p>
-      {!finalReceived && step && (
-        <div className="mt-2">
-          <details className="mb-2">
-            <summary
-              className="text-muted"
-              style={{ fontSize: "12px", cursor: "pointer" }}
-            >
-              {step.title}
-            </summary>
-            <pre
-              className="bg-light border rounded p-2 mt-1"
-              style={{ fontSize: "12px", whiteSpace: "pre-wrap" }}
-            >
-              {typeof step.content === "string"
-                ? step.content
-                : JSON.stringify(step.content, null, 2)}
-            </pre>
-          </details>
-        </div>
-      )}
-
-      {/* ── Final answer card ── */}
-      {finalReceived && (parsed.summary || parsed.url) && (
-        <div
-          className="border rounded p-3 mt-2"
-          style={{ backgroundColor: "#f8f9ff", borderColor: "#d0d8ff" }}
-        >
-          <p
-            className="text-muted mb-1"
-            style={{
-              fontSize: "11px",
-              fontWeight: 600,
-              letterSpacing: "0.5px",
-            }}
-          >
-            ANSWER
-          </p>
-          <p style={{ fontSize: "13px", margin: "0 0 6px 0" }}>
-            {parsed.summary}
-          </p>
-          {parsed.url && (
-            <a
-              href={parsed.url}
-              onClick={(e) => {
-                e.preventDefault();
-                chrome.tabs.create({ url: parsed.url });
-              }}
-              style={{ fontSize: "12px", wordBreak: "break-all" }}
-            >
-              {parsed.url}
-            </a>
           )}
-        </div>
+
+          {/* ── Matched sources ── */}
+          <div className="mt-2">
+            {/* Combined view: split by source type */}
+            {isCombined && docs.length > 0 && (
+              <div>
+                {historyDocs.length > 0 && (
+                  <div className="mt-2">
+                    <p
+                      className="text-muted mb-1"
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      FROM HISTORY
+                    </p>
+                    {historyDocs.map((doc, i) => (
+                      <SourceCard key={i} doc={doc} showDate={true} />
+                    ))}
+                  </div>
+                )}
+                {bookmarkDocs.length > 0 && (
+                  <div className="mt-2">
+                    <p
+                      className="text-muted mb-1"
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      FROM BOOKMARKS
+                    </p>
+                    {bookmarkDocs.map((doc, i) => (
+                      <SourceCard key={i} doc={doc} showDate={false} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* History / Bookmark view: flat list */}
+            {!isCombined && docs.length > 0 && (
+              <div>
+                <p
+                  className="fst-italic text-muted mb-1"
+                  style={{ fontSize: "13px" }}
+                >
+                  Matched Sources
+                </p>
+                {docs.map((doc, i) => (
+                  <SourceCard
+                    key={i}
+                    doc={doc}
+                    showDate={activeTab === "history"}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {showRecentSearches ? (
+            <RecentSearches host={host} browserUuid={userId} />
+          ) : null}
+
+          {showRecentSearchLink ? (
+            <button
+              type="button"
+              className="recent-searches-link"
+              onClick={() => setShowRecentPage(true)}
+            >
+              <Clock3 size={15} aria-hidden="true" />
+              <span>Recent Searches</span>
+              <ChevronRight
+                size={15}
+                className="recent-searches-link-arrow"
+                aria-hidden="true"
+              />
+            </button>
+          ) : null}
+
+          {updateNotice === "minor" ? (
+            <Update
+              severity="minor"
+              handleShowUpdate={handleShowUpdate}
+            />
+          ) : null}
+        </>
       )}
 
-      {/* ── Matched sources ── */}
-      <div className="mt-2">
-        {/* Combined view: split by source type */}
-        {isCombined && docs.length > 0 && (
-          <div>
-            {historyDocs.length > 0 && (
-              <div className="mt-2">
-                <p
-                  className="text-muted mb-1"
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    letterSpacing: "0.5px",
-                  }}
-                >
-                  FROM HISTORY
-                </p>
-                {historyDocs.map((doc, i) => (
-                  <DocCard key={i} doc={doc} showDate={true} />
-                ))}
-              </div>
-            )}
-            {bookmarkDocs.length > 0 && (
-              <div className="mt-2">
-                <p
-                  className="text-muted mb-1"
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    letterSpacing: "0.5px",
-                  }}
-                >
-                  FROM BOOKMARKS
-                </p>
-                {bookmarkDocs.map((doc, i) => (
-                  <DocCard key={i} doc={doc} showDate={false} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* History / Bookmark view: flat list */}
-        {!isCombined && docs.length > 0 && (
-          <div>
-            <p
-              className="fst-italic text-muted mb-1"
-              style={{ fontSize: "13px" }}
-            >
-              Matched Sources
-            </p>
-            {docs.map((doc, i) => (
-              <DocCard key={i} doc={doc} showDate={activeTab === "history"} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {!updateFlag && <Update handleShowUpdate={handleShowUpdate} />}
-    </div>
+      <footer className="app-footer" aria-label="SurfMind links">
+        <a href={PRIVACY_POLICY_URL} target="_blank" rel="noreferrer">
+          Privacy
+        </a>
+        <span aria-hidden="true">·</span>
+        <a href={TERMS_URL} target="_blank" rel="noreferrer">
+          Terms
+        </a>
+        <span aria-hidden="true">·</span>
+        <a href={CONTACT_URL} target="_blank" rel="noreferrer">
+          Contact
+        </a>
+      </footer>
+    </main>
   );
 };
 
