@@ -1,6 +1,21 @@
 (function attachBookmarkSync(globalScope) {
   const SAFETY_NET_MIN = 360;
   const EXTRACTED_CONTENT_KEY = "bookmarkExtractedContent";
+  const DATA_SCHEMA_VERSION_KEY = "dataSchemaVersion";
+  const BOOKMARK_DATA_SCHEMA_VERSION_KEY = "bookmarkDataSchemaVersion";
+
+  const normalizeDataSchemaVersion = (value) => {
+    if (value === null || value === undefined || value === "") return null;
+    const normalized = Number(value);
+    return Number.isFinite(normalized) ? normalized : null;
+  };
+
+  const readDataSchemaVersion = (payload) => {
+    const data = payload?.data || payload || {};
+    return normalizeDataSchemaVersion(
+      data.dataSchemaVersion ?? data.data_schema_version
+    );
+  };
 
   const normalizeUrl = (url) => {
     try {
@@ -92,6 +107,17 @@
     let syncInFlight = null;
     let markQueue = Promise.resolve();
 
+    const fetchDataSchemaVersion = async (host, browserUuid) => {
+      const response = await fetchImpl(`${host}/sync/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ browser_uuid: browserUuid }),
+      });
+      if (!response.ok) return null;
+      const payload = await response.json();
+      return readDataSchemaVersion(payload);
+    };
+
     const getBookmarkTree = () =>
       new Promise((resolve, reject) => {
         chromeApi.bookmarks.getTree((nodes) => {
@@ -116,19 +142,56 @@
 
     const performSync = async ({ host = "" } = {}) => {
       await markQueue;
-      const stored = await chromeApi.storage.local.get({
+      let stored = await chromeApi.storage.local.get({
         bookmarksDirty: false,
         bookmarksDirtyVersion: 0,
         apiHost: "",
         userId: "",
+        [DATA_SCHEMA_VERSION_KEY]: null,
+        [BOOKMARK_DATA_SCHEMA_VERSION_KEY]: null,
       });
+
+      const apiHost = host || stored.apiHost;
+      let userId = stored.userId;
+      if (!userId && stored.bookmarksDirty) {
+        userId = createId();
+        await chromeApi.storage.local.set({ userId });
+      }
+
+      let remoteDataSchemaVersion = null;
+      if (apiHost && userId) {
+        try {
+          remoteDataSchemaVersion = await fetchDataSchemaVersion(
+            apiHost,
+            userId
+          );
+        } catch {
+          remoteDataSchemaVersion = null;
+        }
+
+        if (
+          remoteDataSchemaVersion !== null &&
+          remoteDataSchemaVersion !==
+            normalizeDataSchemaVersion(stored[BOOKMARK_DATA_SCHEMA_VERSION_KEY])
+        ) {
+          await markDirty();
+          await markQueue;
+          stored = await chromeApi.storage.local.get({
+            bookmarksDirty: false,
+            bookmarksDirtyVersion: 0,
+            apiHost: "",
+            userId,
+            [DATA_SCHEMA_VERSION_KEY]: null,
+            [BOOKMARK_DATA_SCHEMA_VERSION_KEY]: null,
+          });
+        }
+      }
 
       if (!stored.bookmarksDirty) {
         return { success: true, synced: 0, skipped: "clean" };
       }
 
       const dirtyVersion = stored.bookmarksDirtyVersion;
-      const apiHost = host || stored.apiHost;
       if (!apiHost) {
         return {
           success: false,
@@ -137,7 +200,6 @@
         };
       }
 
-      let userId = stored.userId;
       if (!userId) {
         userId = createId();
         await chromeApi.storage.local.set({ userId });
@@ -169,6 +231,10 @@
       });
       const completedAt = now();
       const stateUpdate = { lastBookmarkSyncTime: completedAt };
+      if (remoteDataSchemaVersion !== null) {
+        stateUpdate[DATA_SCHEMA_VERSION_KEY] = remoteDataSchemaVersion;
+        stateUpdate[BOOKMARK_DATA_SCHEMA_VERSION_KEY] = remoteDataSchemaVersion;
+      }
       if (latest.bookmarksDirtyVersion === dirtyVersion) {
         stateUpdate.bookmarksDirty = false;
       }
@@ -265,6 +331,10 @@
   const exported = {
     SAFETY_NET_MIN,
     EXTRACTED_CONTENT_KEY,
+    DATA_SCHEMA_VERSION_KEY,
+    BOOKMARK_DATA_SCHEMA_VERSION_KEY,
+    normalizeDataSchemaVersion,
+    readDataSchemaVersion,
     normalizeUrl,
     sanitizeExtraction,
     flattenBookmarks,
