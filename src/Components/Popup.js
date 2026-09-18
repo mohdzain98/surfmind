@@ -21,6 +21,7 @@ import RecentSearches from "./RecentSearches";
 import SearchComposer from "./SearchComposer";
 import SearchThought from "./SearchThought";
 import SourceCard from "./SourceCard";
+import RatePromptBanner from "./RatePromptBanner";
 import { userContext } from "../context/userContext";
 import { truncateUrl, truncateUrlsInText } from "../services/displayText";
 import {
@@ -33,6 +34,11 @@ import {
   UPDATE_PREVIOUS_VERSION_KEY,
   UPDATE_VERSION_KEY,
 } from "../services/updateVersion";
+import {
+  claimRatePrompt,
+  CWS_REVIEW_URL,
+  permanentlyDismissRatePrompt,
+} from "../services/ratePrompt";
 
 const WELCOME_LINES = [
   "Hi, what would you like to rediscover today?",
@@ -115,11 +121,13 @@ const Popup = (props) => {
   const [lastSearchTab, setLastSearchTab] = useState("history");
   const [showRecentPage, setShowRecentPage] = useState(false);
   const [settingsView, setSettingsView] = useState("home");
+  const [showRatePrompt, setShowRatePrompt] = useState(false);
   const [welcomeLine] = useState(
     () => WELCOME_LINES[Math.floor(Math.random() * WELCOME_LINES.length)]
   );
 
   const handleTabChange = (tab) => {
+    setShowRatePrompt(false);
     setShowRecentPage(false);
     setSettingsView("home");
     if (tab !== "settings") setLastSearchTab(tab);
@@ -144,6 +152,7 @@ const Popup = (props) => {
   };
 
   const handleClearSearch = () => {
+    setShowRatePrompt(false);
     setShowRecentPage(false);
     setState({
       docs: [],
@@ -165,6 +174,7 @@ const Popup = (props) => {
   };
 
   const handleAllDataCleared = (nextUserId) => {
+    setShowRatePrompt(false);
     setShowRecentPage(false);
     setState({
       activeTab: "history",
@@ -218,6 +228,33 @@ const Popup = (props) => {
   const showRecentSearchLink = Boolean(
     activeTab !== "settings" && hasCompletedAnswer
   );
+
+  const handleSourceOpen = async () => {
+    try {
+      if (await claimRatePrompt()) setShowRatePrompt(true);
+    } catch {
+      // Opening a matched source should still work if prompt storage fails.
+    }
+  };
+
+  const handleRateNow = async () => {
+    setShowRatePrompt(false);
+    chrome.tabs.create({ url: CWS_REVIEW_URL });
+    try {
+      await permanentlyDismissRatePrompt();
+    } catch {
+      // The Web Store action should not be blocked by a storage failure.
+    }
+  };
+
+  const handleRateDismiss = async () => {
+    setShowRatePrompt(false);
+    try {
+      await permanentlyDismissRatePrompt();
+    } catch {
+      // The banner remains dismissible if storage is temporarily unavailable.
+    }
+  };
 
   if (!updateReady) {
     return (
@@ -471,6 +508,15 @@ const Popup = (props) => {
             />
           ) : null}
 
+          {showRatePrompt ? (
+            <RatePromptBanner
+              mode={activeTab}
+              onRate={handleRateNow}
+              onLater={() => setShowRatePrompt(false)}
+              onDismiss={handleRateDismiss}
+            />
+          ) : null}
+
           {/* ── Final answer card ── */}
           {finalReceived && (parsed.summary || parsed.url) && (
             <div
@@ -536,7 +582,12 @@ const Popup = (props) => {
                       FROM HISTORY
                     </p>
                     {historyDocs.map((doc, i) => (
-                      <SourceCard key={i} doc={doc} showDate={true} />
+                      <SourceCard
+                        key={i}
+                        doc={doc}
+                        showDate={true}
+                        onOpen={handleSourceOpen}
+                      />
                     ))}
                   </div>
                 )}
@@ -553,7 +604,12 @@ const Popup = (props) => {
                       FROM BOOKMARKS
                     </p>
                     {bookmarkDocs.map((doc, i) => (
-                      <SourceCard key={i} doc={doc} showDate={false} />
+                      <SourceCard
+                        key={i}
+                        doc={doc}
+                        showDate={false}
+                        onOpen={handleSourceOpen}
+                      />
                     ))}
                   </div>
                 )}
@@ -574,6 +630,7 @@ const Popup = (props) => {
                     key={i}
                     doc={doc}
                     showDate={activeTab === "history"}
+                    onOpen={handleSourceOpen}
                   />
                 ))}
               </div>

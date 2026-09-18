@@ -26,7 +26,7 @@ const getDaysAgo = (dateValue) => {
   return "";
 };
 
-const SourceCard = ({ doc, showDate = false }) => {
+const SourceCard = ({ doc, showDate = false, onOpen }) => {
   const metadata = doc?.metadata || {};
   const source = metadata.source || doc?.url || doc?.source || "";
   const domain = metadata.domain || doc?.domain || getDomain(source);
@@ -45,7 +45,9 @@ const SourceCard = ({ doc, showDate = false }) => {
   const snippet = doc?.snippet || metadata.snippet || "";
 
   const openSource = () => {
-    if (source) chrome.tabs.create({ url: source });
+    if (!source) return;
+    chrome.tabs.create({ url: source });
+    onOpen?.();
   };
 
   return (

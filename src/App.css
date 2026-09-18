@@ -570,6 +570,101 @@
   box-shadow: 0 0.25rem 0.75rem rgba(33, 37, 41, 0.08);
 }
 
+.rate-prompt-banner {
+  --rate-prompt-color: #0d6efd;
+  --rate-prompt-soft: #eef4ff;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 42rem;
+  margin: 0.75rem auto 0;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--rate-prompt-color) 24%, white);
+  border-radius: 0.75rem;
+  background: var(--rate-prompt-soft);
+}
+
+.rate-prompt-banner.mode-bookmark {
+  --rate-prompt-color: #dc3545;
+  --rate-prompt-soft: #fff1f2;
+}
+
+.rate-prompt-banner.mode-combined {
+  --rate-prompt-color: #198754;
+  --rate-prompt-soft: #edf8f1;
+}
+
+.rate-prompt-copy {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+}
+
+.rate-prompt-icon {
+  display: inline-grid;
+  width: 1.85rem;
+  height: 1.85rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--rate-prompt-color);
+  place-items: center;
+}
+
+.rate-prompt-copy h2 {
+  margin: 0;
+  color: #343a40;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.rate-prompt-copy p {
+  margin: 0.12rem 0 0;
+  color: #6c757d;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.rate-prompt-actions {
+  display: flex;
+  margin-top: 0.65rem;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.rate-prompt-actions button {
+  display: inline-flex;
+  padding: 0.35rem 0.55rem;
+  border: 0;
+  border-radius: 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  gap: 0.28rem;
+  align-items: center;
+}
+
+.rate-prompt-primary {
+  background: var(--rate-prompt-color);
+  color: #fff;
+}
+
+.rate-prompt-secondary,
+.rate-prompt-ghost {
+  background: transparent;
+  color: #5f6670;
+}
+
+.rate-prompt-secondary:hover,
+.rate-prompt-secondary:focus-visible,
+.rate-prompt-ghost:hover,
+.rate-prompt-ghost:focus-visible {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.rate-prompt-actions button:focus-visible {
+  outline: 2px solid var(--rate-prompt-color);
+  outline-offset: 2px;
+}
+
 .heading-breadcrumb {
   margin: 0.35rem 0;
   overflow: hidden;
@@ -914,6 +1009,11 @@
 .settings-tile-icon.is-history {
   background: #eaf7ef;
   color: #198754;
+}
+
+.settings-tile-icon.is-rate {
+  background: #fff5db;
+  color: #b77900;
 }
 
 .settings-tile-icon.is-privacy {

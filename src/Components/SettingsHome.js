@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ChevronRight, History, Link2, ShieldCheck } from "lucide-react";
+import { ChevronRight, History, Link2, ShieldCheck, Star } from "lucide-react";
+import { CWS_REVIEW_URL } from "../services/ratePrompt";
 
 const SYNC_STATUS_KEY = "crossBrowserSyncStatus";
 const SOLO_STATUS = { isLinked: false, browserCount: 1 };
@@ -46,6 +47,10 @@ const SettingsHome = ({ onOpenSync, onOpenHistory, onOpenPrivacy }) => {
         syncStatus.browserCount === 1 ? "browser" : "browsers"
       } linked`
     : "Link and manage your browsers";
+
+  const openReviewPage = () => {
+    chrome.tabs.create({ url: CWS_REVIEW_URL });
+  };
 
   return (
     <section className="settings-home" aria-labelledby="settings-home-title">
@@ -96,6 +101,25 @@ const SettingsHome = ({ onOpenSync, onOpenHistory, onOpenPrivacy }) => {
           <span className="settings-tile-copy">
             <strong>Privacy</strong>
             <small>Control what SurfMind stores</small>
+          </span>
+          <ChevronRight
+            className="settings-tile-chevron"
+            size={17}
+            aria-hidden="true"
+          />
+        </button>
+
+        <button
+          type="button"
+          className="settings-tile"
+          onClick={openReviewPage}
+        >
+          <span className="settings-tile-icon is-rate" aria-hidden="true">
+            <Star size={18} />
+          </span>
+          <span className="settings-tile-copy">
+            <strong>Rate SurfMind</strong>
+            <small>Share your experience on the Chrome Web Store</small>
           </span>
           <ChevronRight
             className="settings-tile-chevron"

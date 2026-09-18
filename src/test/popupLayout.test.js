@@ -7,7 +7,11 @@ jest.mock("../components/Combined", () => () => <div>Combined view</div>);
 jest.mock("../components/RecentSearches", () => () => (
   <div data-testid="recent-searches">Recent searches</div>
 ));
-jest.mock("../components/SourceCard", () => () => <div>Source card</div>);
+jest.mock("../components/SourceCard", () => ({ onOpen }) => (
+  <button type="button" onClick={onOpen}>
+    Source card
+  </button>
+));
 jest.mock("../components/SyncSettings", () => () => <div>Settings view</div>);
 jest.mock("../components/PrivacySettings", () => () => <div>Privacy view</div>);
 jest.mock("../components/SavedHistory", () => () => (
@@ -52,6 +56,9 @@ const renderPopup = (stateOverrides = {}) => {
 
 beforeEach(() => {
   global.chrome = {
+    tabs: {
+      create: jest.fn(),
+    },
     storage: {
       local: {
         get: jest.fn().mockResolvedValue({
@@ -200,6 +207,39 @@ test("hides recent searches while a new search is active", () => {
 
   expect(screen.getByText("Retrieving sources...")).toBeInTheDocument();
   expect(screen.queryByTestId("recent-searches")).not.toBeInTheDocument();
+});
+
+test("offers an earned rating prompt only after a matched source click", async () => {
+  chrome.storage.local.get.mockResolvedValue({
+    ratePrompt: {
+      successfulSearchCount: 5,
+      timesShown: 0,
+      lastShownAt: null,
+      permanentlyDismissed: false,
+    },
+  });
+  renderPopup({
+    docs: [{ metadata: { source: "https://example.com" } }],
+    parsed: { summary: "A useful answer", url: null },
+    finalReceived: true,
+  });
+
+  expect(screen.queryByText("Enjoying SurfMind?")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Source card" }));
+
+  expect(await screen.findByText("Enjoying SurfMind?")).toBeInTheDocument();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Rate on Chrome Web Store" })
+  );
+
+  expect(chrome.tabs.create).toHaveBeenCalledWith({
+    url: "https://chromewebstore.google.com/detail/surfmind-smarter-browsing/ladckalplikfcplbihpgfnlkonnpehkj/reviews",
+  });
+  await waitFor(() =>
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({
+      ratePrompt: expect.objectContaining({ permanentlyDismissed: true }),
+    })
+  );
 });
 
 test("shows a back button and keeps the gear on the settings page", async () => {
