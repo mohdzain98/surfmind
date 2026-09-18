@@ -41,6 +41,11 @@ test("confirms unlinking in the shared confirmation dialog", async () => {
     <SyncSettings host="https://api.example.com/v1" browserUuid="browser-123" />
   );
 
+  expect(
+    await screen.findByText("2 browsers share this history")
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/free tier/i)).not.toBeInTheDocument();
+
   fireEvent.click(
     await screen.findByRole("button", { name: "Unlink browser" })
   );

@@ -570,6 +570,20 @@
   box-shadow: 0 0.25rem 0.75rem rgba(33, 37, 41, 0.08);
 }
 
+.linked-browser-tag {
+  display: inline-flex;
+  margin-top: 0.35rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #5f3dc4;
+  font-size: 0.64rem;
+  font-weight: 600;
+  line-height: 1;
+  gap: 0.25rem;
+  align-items: center;
+}
+
 .rate-prompt-banner {
   --rate-prompt-color: #0d6efd;
   --rate-prompt-soft: #eef4ff;

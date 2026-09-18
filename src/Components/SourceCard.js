@@ -1,3 +1,5 @@
+import { Laptop } from "lucide-react";
+
 const getDomain = (source) => {
   try {
     return new URL(source).hostname.replace(/^www\./, "");
@@ -43,6 +45,7 @@ const SourceCard = ({ doc, showDate = false, onOpen }) => {
     metadata.visited_at || metadata.date || doc?.visited_at || doc?.date;
   const relativeDate = showDate && dateValue ? getDaysAgo(dateValue) : "";
   const snippet = doc?.snippet || metadata.snippet || "";
+  const foundOnOtherBrowser = metadata.found_on_other_browser === true;
 
   const openSource = () => {
     if (!source) return;
@@ -65,6 +68,15 @@ const SourceCard = ({ doc, showDate = false, onOpen }) => {
         {domain ? domain.charAt(0).toUpperCase() + domain.slice(1) : ""}
         {title ? ` | ${title}` : ""}
       </p>
+      {foundOnOtherBrowser ? (
+        <span
+          className="linked-browser-tag"
+          title="This result was saved on another linked browser"
+        >
+          <Laptop size={11} aria-hidden="true" />
+          Found on another browser
+        </span>
+      ) : null}
       {headingPath ? (
         <p className="heading-breadcrumb" title={headingPath}>
           {headingPath}
