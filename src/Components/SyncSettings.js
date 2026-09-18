@@ -180,7 +180,7 @@ const SyncSettings = ({ host, browserUuid, onPairingChanged }) => {
           </strong>
           <p className="mb-0">
             {status.isLinked
-              ? `${status.browserCount} browsers share this history · ${status.tier} tier`
+              ? `${status.browserCount} browsers share this history`
               : "Your history is not shared with another browser."}
           </p>
         </div>

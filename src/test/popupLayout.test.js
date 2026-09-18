@@ -13,6 +13,22 @@ jest.mock("../components/PrivacySettings", () => () => <div>Privacy view</div>);
 jest.mock("../components/SavedHistory", () => () => (
   <div>Saved history view</div>
 ));
+jest.mock("../components/CategoriesSettings", () => () => (
+  <div>Categories view</div>
+));
+jest.mock("../components/CategoryBrowser", () => () => (
+  <div>Category browser</div>
+));
+jest.mock("../hooks/useCategorization", () => () => ({
+  enabled: false,
+  categories: [],
+  tier: "free",
+  limit: 4,
+  loading: false,
+  busyAction: "",
+  message: null,
+  classificationState: "idle",
+}));
 
 const baseState = {
   activeTab: "history",
@@ -137,6 +153,9 @@ test("keeps settings as a top-right gear outside the mode dropdown", () => {
   renderPopup();
 
   expect(
+    screen.getByRole("button", { name: "Browse categories" })
+  ).toBeInTheDocument();
+  expect(
     screen.getByRole("button", { name: "Open settings" })
   ).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: /^History$/ }));
@@ -146,6 +165,21 @@ test("keeps settings as a top-right gear outside the mode dropdown", () => {
   ).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Bookmarks" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Combined" })).toBeInTheDocument();
+});
+
+test("opens categories from the navbar and returns to search", () => {
+  renderPopup();
+
+  fireEvent.click(screen.getByRole("button", { name: "Browse categories" }));
+  expect(screen.getByText("Category browser")).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Back to search" })
+  ).toBeInTheDocument();
+  expect(screen.queryByTestId("recent-searches")).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Back to search" }));
+  expect(screen.queryByText("Category browser")).not.toBeInTheDocument();
+  expect(screen.getByPlaceholderText(/Ask SurfMind/)).toBeInTheDocument();
 });
 
 test("opens completed-answer recent searches on a dedicated page and returns", () => {
@@ -222,6 +256,9 @@ test("shows a back button and keeps the gear on the settings page", async () => 
   expect(
     screen.getByRole("button", { name: /Saved History/ })
   ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: /Categories/ })
+  ).toBeInTheDocument();
   expect(await screen.findByText("2 browsers linked")).toBeInTheDocument();
   expect(screen.queryByText("Settings view")).not.toBeInTheDocument();
   expect(screen.queryByText("Privacy view")).not.toBeInTheDocument();
@@ -249,4 +286,8 @@ test("drills into one settings section at a time and returns to the menu", () =>
   fireEvent.click(screen.getByRole("button", { name: "Back to settings" }));
   fireEvent.click(screen.getByRole("button", { name: /Saved History/ }));
   expect(screen.getByText("Saved history view")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Back to settings" }));
+  fireEvent.click(screen.getByRole("button", { name: /Categories/ }));
+  expect(screen.getByText("Categories view")).toBeInTheDocument();
 });

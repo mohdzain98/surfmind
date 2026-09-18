@@ -8,6 +8,7 @@ import {
   GitMerge,
   Settings,
   Sparkles,
+  Tags,
   Trash2,
 } from "lucide-react";
 import Bookmarks from "./Bookmarks";
@@ -17,6 +18,8 @@ import SyncSettings from "./SyncSettings";
 import PrivacySettings from "./PrivacySettings";
 import SettingsHome from "./SettingsHome";
 import SavedHistory from "./SavedHistory";
+import CategoriesSettings from "./CategoriesSettings";
+import CategoryBrowser from "./CategoryBrowser";
 import RecentSearches from "./RecentSearches";
 import SearchComposer from "./SearchComposer";
 import SearchThought from "./SearchThought";
@@ -33,6 +36,7 @@ import {
   UPDATE_PREVIOUS_VERSION_KEY,
   UPDATE_VERSION_KEY,
 } from "../services/updateVersion";
+import useCategorization from "../hooks/useCategorization";
 
 const WELCOME_LINES = [
   "Hi, what would you like to rediscover today?",
@@ -114,13 +118,20 @@ const Popup = (props) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [lastSearchTab, setLastSearchTab] = useState("history");
   const [showRecentPage, setShowRecentPage] = useState(false);
+  const [showCategoryPage, setShowCategoryPage] = useState(false);
   const [settingsView, setSettingsView] = useState("home");
   const [welcomeLine] = useState(
     () => WELCOME_LINES[Math.floor(Math.random() * WELCOME_LINES.length)]
   );
+  const categorization = useCategorization({
+    active: activeTab === "settings",
+    host,
+    browserUuid: userId,
+  });
 
   const handleTabChange = (tab) => {
     setShowRecentPage(false);
+    setShowCategoryPage(false);
     setSettingsView("home");
     if (tab !== "settings") setLastSearchTab(tab);
     setState({
@@ -139,12 +150,20 @@ const Popup = (props) => {
 
   const handleSettingsToggle = () => {
     setDropdownOpen(false);
+    setShowCategoryPage(false);
     setSettingsView("home");
     handleTabChange(activeTab === "settings" ? lastSearchTab : "settings");
   };
 
+  const handleCategoryPageToggle = () => {
+    setDropdownOpen(false);
+    setShowRecentPage(false);
+    setShowCategoryPage((visible) => !visible);
+  };
+
   const handleClearSearch = () => {
     setShowRecentPage(false);
+    setShowCategoryPage(false);
     setState({
       docs: [],
       head: "",
@@ -166,6 +185,7 @@ const Popup = (props) => {
 
   const handleAllDataCleared = (nextUserId) => {
     setShowRecentPage(false);
+    setShowCategoryPage(false);
     setState({
       activeTab: "history",
       query: "",
@@ -240,7 +260,19 @@ const Popup = (props) => {
       {/* ── Header ── */}
       <div className="panel-nav d-flex align-items-center mb-3">
         <div className="flex-grow-1">
-          {showRecentPage ? (
+          {showCategoryPage ? (
+            <button
+              type="button"
+              className="panel-back-button"
+              onClick={() => setShowCategoryPage(false)}
+              aria-label={
+                activeTab === "settings" ? "Back to settings" : "Back to search"
+              }
+            >
+              <ArrowLeft size={17} aria-hidden="true" />
+              Back
+            </button>
+          ) : showRecentPage ? (
             <button
               type="button"
               className="panel-back-button"
@@ -278,20 +310,35 @@ const Popup = (props) => {
           ) : null}
         </div>
 
-        <button
-          type="button"
-          className={`settings-button ${activeTab === "settings" ? "is-active" : ""}`}
-          onClick={handleSettingsToggle}
-          aria-label={
-            activeTab === "settings" ? "Return to search" : "Open settings"
-          }
-          title={activeTab === "settings" ? "Return to search" : "Settings"}
-        >
-          <Settings size={18} aria-hidden="true" />
-        </button>
+        <div className="panel-nav-actions">
+          <button
+            type="button"
+            className={`settings-button category-page-button ${showCategoryPage ? "is-active" : ""}`}
+            onClick={handleCategoryPageToggle}
+            aria-label={
+              showCategoryPage ? "Close categories" : "Browse categories"
+            }
+            title="Categories"
+          >
+            <Tags size={18} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className={`settings-button ${activeTab === "settings" && !showCategoryPage ? "is-active" : ""}`}
+            onClick={handleSettingsToggle}
+            aria-label={
+              activeTab === "settings" ? "Return to search" : "Open settings"
+            }
+            title={activeTab === "settings" ? "Return to search" : "Settings"}
+          >
+            <Settings size={18} aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
-      {showRecentPage ? (
+      {showCategoryPage ? (
+        <CategoryBrowser host={host} browserUuid={userId} />
+      ) : showRecentPage ? (
         <div className="recent-searches-page">
           <RecentSearches host={host} browserUuid={userId} />
         </div>
@@ -348,7 +395,9 @@ const Popup = (props) => {
                 <SettingsHome
                   onOpenSync={() => setSettingsView("sync")}
                   onOpenHistory={() => setSettingsView("history")}
+                  onOpenCategories={() => setSettingsView("categories")}
                   onOpenPrivacy={() => setSettingsView("privacy")}
+                  categorization={categorization}
                 />
               ) : null}
               {settingsView === "sync" ? (
@@ -365,6 +414,11 @@ const Popup = (props) => {
               {settingsView === "history" ? (
                 <div className="settings-detail">
                   <SavedHistory />
+                </div>
+              ) : null}
+              {settingsView === "categories" ? (
+                <div className="settings-detail">
+                  <CategoriesSettings categorization={categorization} />
                 </div>
               ) : null}
               {settingsView === "privacy" ? (

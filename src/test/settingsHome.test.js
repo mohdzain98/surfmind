@@ -29,7 +29,14 @@ test("shows sync first, saved history, privacy last, and stored summaries", asyn
     <SettingsHome
       onOpenSync={jest.fn()}
       onOpenHistory={jest.fn()}
+      onOpenCategories={jest.fn()}
       onOpenPrivacy={jest.fn()}
+      categorization={{
+        enabled: true,
+        categories: [{ id: "work" }, { id: "learning" }],
+        limit: 4,
+        classificationState: "idle",
+      }}
     />
   );
 
@@ -39,6 +46,7 @@ test("shows sync first, saved history, privacy last, and stored summaries", asyn
 
   const syncTile = screen.getByRole("button", { name: /Cross-browser Sync/ });
   const historyTile = screen.getByRole("button", { name: /Saved History/ });
+  const categoriesTile = screen.getByRole("button", { name: /Categories/ });
   const privacyTile = screen.getByRole("button", { name: /Privacy/ });
   expect(
     syncTile.compareDocumentPosition(privacyTile) &
@@ -48,8 +56,13 @@ test("shows sync first, saved history, privacy last, and stored summaries", asyn
     historyTile.compareDocumentPosition(privacyTile) &
       Node.DOCUMENT_POSITION_FOLLOWING
   ).toBeTruthy();
+  expect(
+    categoriesTile.compareDocumentPosition(privacyTile) &
+      Node.DOCUMENT_POSITION_FOLLOWING
+  ).toBeTruthy();
   await waitFor(() => expect(syncTile).toHaveTextContent("2 browsers linked"));
   await waitFor(() => expect(historyTile).toHaveTextContent("1 page saved"));
+  expect(categoriesTile).toHaveTextContent("2 categories");
   expect(
     screen.queryByRole("link", { name: "Privacy Policy" })
   ).not.toBeInTheDocument();

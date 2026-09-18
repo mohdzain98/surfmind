@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronRight, History, Link2, ShieldCheck } from "lucide-react";
+import { ChevronRight, History, Link2, ShieldCheck, Tags } from "lucide-react";
 
 const SYNC_STATUS_KEY = "crossBrowserSyncStatus";
 const SOLO_STATUS = { isLinked: false, browserCount: 1 };
@@ -7,7 +7,13 @@ const SOLO_STATUS = { isLinked: false, browserCount: 1 };
 const countSavedPages = (entries = []) =>
   new Set(entries.map((entry) => entry?.url).filter(Boolean)).size;
 
-const SettingsHome = ({ onOpenSync, onOpenHistory, onOpenPrivacy }) => {
+const SettingsHome = ({
+  onOpenSync,
+  onOpenHistory,
+  onOpenCategories,
+  onOpenPrivacy,
+  categorization = {},
+}) => {
   const [syncStatus, setSyncStatus] = useState(SOLO_STATUS);
   const [savedPageCount, setSavedPageCount] = useState(0);
 
@@ -46,6 +52,11 @@ const SettingsHome = ({ onOpenSync, onOpenHistory, onOpenPrivacy }) => {
         syncStatus.browserCount === 1 ? "browser" : "browsers"
       } linked`
     : "Link and manage your browsers";
+  const categorySummary = categorization.loading
+    ? "Checking category settings…"
+    : categorization.enabled
+      ? `${categorization.categories?.length || 0} categories${categorization.classificationState === "organizing" ? " · organizing pages" : ""}`
+      : "Off · organize saved pages into topics";
 
   return (
     <section className="settings-home" aria-labelledby="settings-home-title">
@@ -81,6 +92,25 @@ const SettingsHome = ({ onOpenSync, onOpenHistory, onOpenPrivacy }) => {
                 ? "No pages saved on this browser"
                 : `${savedPageCount} ${savedPageCount === 1 ? "page" : "pages"} saved on this browser`}
             </small>
+          </span>
+          <ChevronRight
+            className="settings-tile-chevron"
+            size={17}
+            aria-hidden="true"
+          />
+        </button>
+
+        <button
+          type="button"
+          className="settings-tile"
+          onClick={onOpenCategories}
+        >
+          <span className="settings-tile-icon is-categories" aria-hidden="true">
+            <Tags size={18} />
+          </span>
+          <span className="settings-tile-copy">
+            <strong>Categories</strong>
+            <small>{categorySummary}</small>
           </span>
           <ChevronRight
             className="settings-tile-chevron"
