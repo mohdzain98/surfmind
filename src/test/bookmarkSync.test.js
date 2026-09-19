@@ -183,6 +183,21 @@ test("pre-search flush immediately syncs dirty bookmarks", async () => {
   expect(getStorage().bookmarksDirty).toBe(false);
 });
 
+test("manual full sync uploads the complete bookmark tree when clean", async () => {
+  const { sync, fetchImpl, getStorage } = createHarness();
+
+  const result = await sync.syncIfDirty({
+    force: true,
+    reason: "manual-full",
+  });
+
+  expect(result).toMatchObject({ success: true, synced: 1 });
+  const payload = JSON.parse(getSaveDataCall(fetchImpl)[1].body);
+  expect(payload.flag).toBe("bookmark");
+  expect(payload.data).toHaveLength(1);
+  expect(getStorage().bookmarksDirty).toBe(false);
+});
+
 test("captures content only when the new bookmark matches the active tab", async () => {
   const { sync, getStorage } = createHarness();
   const extraction = {

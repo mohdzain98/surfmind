@@ -7,7 +7,7 @@
   <a href="https://github.com/mohdzain98/surfmind/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-red.svg" alt="license"/>
   </a>
-  <img src="https://img.shields.io/badge/chrome-extension-brightgreen" alt="chrome extension"/>
+  <img src="https://img.shields.io/badge/Chrome%20%2B%20Edge-extension-brightgreen" alt="Chrome and Edge extension"/>
   <a href="https://surfmind.docschat.in/">
     <img src="https://img.shields.io/badge/website-SurfMind-blueviolet" alt="SurfMind website"/>
   </a>
@@ -18,7 +18,7 @@
 
 ### Overview
 
-SurfMind is a Chrome extension designed to enhance your browsing experience by intelligently tracking and managing the websites you visit. Leveraging advanced AI technologies like Vector Embeddings and FAISS, SurfMind provides a seamless and efficient way to keep a detailed log of your web activity. <br>
+SurfMind is a Chromium browser extension for Google Chrome and Microsoft Edge. It enhances your browsing experience by intelligently tracking and managing the websites you visit. Leveraging advanced AI technologies like Vector Embeddings and FAISS, SurfMind provides a seamless and efficient way to keep a detailed log of your web activity. <br>
 
 ### Key Features
 
@@ -45,7 +45,7 @@ SurfMind is a Chrome extension designed to enhance your browsing experience by i
 
 ### Tech Stack
 
-- <strong>Extension UI</strong> : React + Bootstrap (Chrome MV3 side panel)
+- <strong>Extension UI</strong> : React + Bootstrap (Chromium MV3 side panel)
 - <strong>Backend</strong> : FastAPI + Redis
 - <strong>RAG</strong> : LangChain, BM25 + FAISS, Gemini/OpenAI models
 
@@ -54,6 +54,21 @@ SurfMind is a Chrome extension designed to enhance your browsing experience by i
 - <strong>Extension</strong>: Tracks navigation and bookmarks, stores locally, and triggers search from a persistent side-panel UI
 - <strong>Backend API</strong>: Receives saved data (`/v1/save-data`) and streams step-by-step search progress (`/v1/search-stream`)
 - <strong>Retrieval Pipeline</strong>: Hybrid retrieval (BM25 + pgvector), LLM response, structured parsing, and post-processing
+
+### Browser builds
+
+Browser-specific metadata is configured in [`config/browser-builds.json`](./config/browser-builds.json). Application behavior remains shared; the build injects the correct browser name, store name, review URL, manifest description, and archive name.
+
+```bash
+# Build and package both browsers
+npm run package:browsers
+
+# Or package one browser
+npm run package:chrome
+npm run package:edge
+```
+
+The commands create unpacked builds in `build/chrome` and `build/edge`, with upload-ready ZIP files in `dist/`. Add the published Microsoft Edge Add-ons review URL to the Edge configuration when it becomes available; until then, rating prompts are omitted from the Edge build.
 
 ## Changelog
 

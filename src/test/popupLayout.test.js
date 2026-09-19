@@ -1,6 +1,19 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import Popup from "../components/Popup";
 import { userContext } from "../context/userContext";
+import { getSyncPageCounts } from "../services/syncApi";
+import { readLocalPageCounts } from "../services/pageCounts";
+
+jest.mock("../services/syncApi", () => ({
+  getSyncPageCounts: jest.fn(),
+}));
+jest.mock("../services/pageCounts", () => ({
+  countSavedHistoryPages: (entries = []) =>
+    new Set(entries.map((entry) => entry?.url).filter(Boolean)).size,
+  readLocalPageCounts: jest.fn(),
+  pageCountsMatch: (local, remote) =>
+    local.history === remote.history && local.bookmarks === remote.bookmarks,
+}));
 
 jest.mock("../components/Bookmarks", () => () => <div>Bookmarks view</div>);
 jest.mock("../components/Combined", () => () => <div>Combined view</div>);
@@ -16,6 +29,9 @@ jest.mock("../components/SyncSettings", () => () => <div>Settings view</div>);
 jest.mock("../components/PrivacySettings", () => () => <div>Privacy view</div>);
 jest.mock("../components/SavedHistory", () => () => (
   <div>Saved history view</div>
+));
+jest.mock("../components/SavedBookmarks", () => () => (
+  <div>Saved bookmarks view</div>
 ));
 
 const baseState = {
@@ -55,7 +71,12 @@ const renderPopup = (stateOverrides = {}) => {
 };
 
 beforeEach(() => {
+  readLocalPageCounts.mockImplementation(() => new Promise(() => {}));
+  getSyncPageCounts.mockImplementation(() => new Promise(() => {}));
   global.chrome = {
+    runtime: {
+      sendMessage: jest.fn(),
+    },
     tabs: {
       create: jest.fn(),
     },
@@ -73,6 +94,56 @@ beforeEach(() => {
       },
     },
   };
+});
+
+test("manually syncs all history and bookmarks from the header", async () => {
+  readLocalPageCounts.mockResolvedValue({ history: 4, bookmarks: 2 });
+  getSyncPageCounts
+    .mockResolvedValueOnce({ history: 3, bookmarks: 1 })
+    .mockResolvedValueOnce({ history: 3, bookmarks: 1 })
+    .mockResolvedValue({ history: 4, bookmarks: 2 });
+  chrome.runtime.sendMessage.mockResolvedValue({
+    success: true,
+    history: { success: true, synced: 3 },
+    bookmarks: { success: true, synced: 2 },
+  });
+  renderPopup({ activeTab: "settings" });
+
+  const syncButton = screen.getByRole("button", {
+    name: "Sync all history and bookmarks",
+  });
+  await waitFor(() => expect(syncButton).toBeEnabled());
+  fireEvent.click(syncButton);
+
+  expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+    action: "syncAllData",
+    host: "https://api.example.com/v1",
+  });
+  expect(
+    await screen.findByText(
+      "Sync complete. History and bookmarks are up to date.",
+      {},
+      { timeout: 3000 }
+    )
+  ).toBeInTheDocument();
+  await waitFor(() => expect(getSyncPageCounts).toHaveBeenCalledTimes(3));
+  expect(screen.getByText("Up to date")).toBeInTheDocument();
+  expect(syncButton).toBeDisabled();
+});
+
+test("disables manual sync when local and persisted page counts match", async () => {
+  readLocalPageCounts.mockResolvedValue({ history: 4, bookmarks: 2 });
+  getSyncPageCounts.mockResolvedValue({ history: 4, bookmarks: 2 });
+  renderPopup({ activeTab: "settings" });
+
+  const syncButton = screen.getByRole("button", {
+    name: "Sync all history and bookmarks",
+  });
+  expect(await screen.findByText("Up to date")).toBeInTheDocument();
+  expect(syncButton).toBeDisabled();
+  expect(screen.getByLabelText("Sync coverage")).toHaveTextContent(
+    "History4 local · 4 synced"
+  );
 });
 
 test("uses a one-time full-page introduction for a major update", async () => {
@@ -262,6 +333,9 @@ test("shows a back button and keeps the gear on the settings page", async () => 
   expect(
     screen.getByRole("button", { name: /Saved History/ })
   ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: /Saved Bookmarks/ })
+  ).toBeInTheDocument();
   expect(await screen.findByText("2 browsers linked")).toBeInTheDocument();
   expect(screen.queryByText("Settings view")).not.toBeInTheDocument();
   expect(screen.queryByText("Privacy view")).not.toBeInTheDocument();
@@ -289,4 +363,8 @@ test("drills into one settings section at a time and returns to the menu", () =>
   fireEvent.click(screen.getByRole("button", { name: "Back to settings" }));
   fireEvent.click(screen.getByRole("button", { name: /Saved History/ }));
   expect(screen.getByText("Saved history view")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Back to settings" }));
+  fireEvent.click(screen.getByRole("button", { name: /Saved Bookmarks/ }));
+  expect(screen.getByText("Saved bookmarks view")).toBeInTheDocument();
 });

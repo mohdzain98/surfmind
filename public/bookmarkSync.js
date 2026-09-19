@@ -140,8 +140,13 @@
       return flattenBookmarks(nodes, stored[EXTRACTED_CONTENT_KEY]);
     };
 
-    const performSync = async ({ host = "" } = {}) => {
+    const performSync = async ({
+      host = "",
+      force = false,
+      reason = "manual",
+    } = {}) => {
       await markQueue;
+      if (force) await markDirty();
       let stored = await chromeApi.storage.local.get({
         bookmarksDirty: false,
         bookmarksDirtyVersion: 0,
@@ -211,11 +216,21 @@
         browser_uuid: userId,
         flag: "bookmark",
       };
+      if (reason === "manual-full") {
+        console.info(
+          `[SurfMind] Sending ${bookmarks.length} bookmark entries to /save-data`
+        );
+      }
       const response = await fetchImpl(`${apiHost}/save-data`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestPayload),
       });
+      if (reason === "manual-full") {
+        console.info(
+          `[SurfMind] Bookmark /save-data response: ${response.status}`
+        );
+      }
 
       if (!response.ok) {
         return {

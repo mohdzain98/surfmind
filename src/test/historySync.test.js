@@ -151,6 +151,27 @@ test("pre-query flush syncs a recent entry below the thresholds", async () => {
   expect(getSaveDataCall(fetchImpl)).toBeDefined();
 });
 
+test("manual full sync re-ingests all retained history", async () => {
+  const syncedEntries = [entry(1), entry(2)].map((item) => ({
+    ...item,
+    synced: true,
+  }));
+  const { sync, fetchImpl, getStorage } = createHarness({
+    entries: syncedEntries,
+  });
+
+  const result = await sync.maybeSync({
+    force: true,
+    resyncAll: true,
+    reason: "manual-full",
+  });
+
+  expect(result).toMatchObject({ success: true, synced: 2 });
+  const payload = JSON.parse(getSaveDataCall(fetchImpl)[1].body);
+  expect(payload.data).toHaveLength(2);
+  expect(getStorage().navigationData.every((item) => item.synced)).toBe(true);
+});
+
 test("entries remain unsynced when the backend rejects the batch", async () => {
   const { sync, getStorage } = createHarness({
     entries: [entry(1)],

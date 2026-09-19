@@ -125,7 +125,7 @@
       return { normalized, changed };
     };
 
-    const performSync = async ({ force, reason, host }) => {
+    const performSync = async ({ force, resyncAll, reason, host }) => {
       const stored = await chromeApi.storage.local.get({
         navigationData: [],
         lastSyncTime: null,
@@ -140,6 +140,14 @@
       let { normalized, changed } = normalizeHistory(stored.navigationData);
 
       let unsynced = normalized.filter((entry) => !entry.synced);
+      if (resyncAll && normalized.length > 0) {
+        normalized = normalized.map((entry) => ({
+          ...entry,
+          synced: false,
+        }));
+        changed = true;
+        unsynced = normalized;
+      }
       const countReady =
         pageEntries.countDistinctPages(unsynced) >= syncConfig.countThreshold;
       const shouldCheckSchema = force || reason === "time" || countReady;
@@ -262,6 +270,7 @@
       }
       syncInFlight = performSync({
         force: options.force === true,
+        resyncAll: options.resyncAll === true,
         reason: options.reason || "count",
         host: options.host || "",
       }).finally(() => {

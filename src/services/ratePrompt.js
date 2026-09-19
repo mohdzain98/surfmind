@@ -1,9 +1,13 @@
+import {
+  EXTENSION_STORE_REVIEW_URL,
+  HAS_EXTENSION_STORE_REVIEW,
+} from "./storeConfig";
+
 export const RATE_PROMPT_STORAGE_KEY = "ratePrompt";
 export const RATE_PROMPT_MIN_SEARCHES = 5;
 export const RATE_PROMPT_MAX_SHOWS = 3;
 export const RATE_PROMPT_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
-export const CWS_REVIEW_URL =
-  "https://chromewebstore.google.com/detail/surfmind-smarter-browsing/ladckalplikfcplbihpgfnlkonnpehkj/reviews";
+export const STORE_REVIEW_URL = EXTENSION_STORE_REVIEW_URL;
 
 const DEFAULT_RATE_PROMPT_STATE = Object.freeze({
   successfulSearchCount: 0,
@@ -38,6 +42,7 @@ const saveRatePromptState = async (state) => {
 };
 
 export const recordSuccessfulSearch = async () => {
+  if (!HAS_EXTENSION_STORE_REVIEW) return normalizeState();
   const state = await getRatePromptState();
   return saveRatePromptState({
     ...state,
@@ -46,6 +51,7 @@ export const recordSuccessfulSearch = async () => {
 };
 
 export const isRatePromptEligible = (state, now = Date.now()) => {
+  if (!HAS_EXTENSION_STORE_REVIEW) return false;
   const normalized = normalizeState(state);
   if (normalized.permanentlyDismissed) return false;
   if (normalized.successfulSearchCount < RATE_PROMPT_MIN_SEARCHES) return false;
@@ -55,6 +61,7 @@ export const isRatePromptEligible = (state, now = Date.now()) => {
 };
 
 export const claimRatePrompt = async (now = Date.now()) => {
+  if (!HAS_EXTENSION_STORE_REVIEW) return false;
   const state = await getRatePromptState();
   if (!isRatePromptEligible(state, now)) return false;
 

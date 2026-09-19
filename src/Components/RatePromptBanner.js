@@ -1,5 +1,6 @@
 import { Clock3, Star, X } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { EXTENSION_STORE_NAME } from "../services/storeConfig";
 
 const RatePromptBanner = ({ mode, onRate, onLater, onDismiss }) => {
   const bannerRef = useRef(null);
@@ -23,13 +24,13 @@ const RatePromptBanner = ({ mode, onRate, onLater, onDismiss }) => {
         </span>
         <div>
           <h2 id="rate-prompt-title">Enjoying SurfMind?</h2>
-          <p>A quick Chrome Web Store review helps a lot.</p>
+          <p>A quick {EXTENSION_STORE_NAME} review helps a lot.</p>
         </div>
       </div>
       <div className="rate-prompt-actions">
         <button type="button" className="rate-prompt-primary" onClick={onRate}>
           <Star size={13} aria-hidden="true" />
-          Rate on Chrome Web Store
+          Rate on {EXTENSION_STORE_NAME}
         </button>
         <button
           type="button"
