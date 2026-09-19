@@ -3,6 +3,7 @@ import { userContext } from "./userContext";
 import { initializeUserId } from "../components/UserId";
 import { createBrowserIdentity } from "../services/syncApi";
 import { flushBeforeSearch } from "../services/searchSync";
+import { recordSuccessfulSearch } from "../services/ratePrompt";
 import {
   LEGACY_UPDATE_VERSIONS,
   UPDATE_PREVIOUS_VERSION_KEY,
@@ -263,6 +264,13 @@ const UserState = ({ children }) => {
               appendThought("Validating results...", currentStep);
             } else if (step === "final") {
               const finalDocs = data.docs || [];
+              if (finalDocs.length > 0) {
+                try {
+                  await recordSuccessfulSearch();
+                } catch {
+                  // Rating telemetry must never interrupt a completed search.
+                }
+              }
               setState({
                 docs: finalDocs,
                 head:

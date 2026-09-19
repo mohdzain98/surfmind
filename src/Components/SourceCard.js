@@ -1,3 +1,5 @@
+import { Laptop } from "lucide-react";
+
 const getDomain = (source) => {
   try {
     return new URL(source).hostname.replace(/^www\./, "");
@@ -26,7 +28,7 @@ const getDaysAgo = (dateValue) => {
   return "";
 };
 
-const SourceCard = ({ doc, showDate = false }) => {
+const SourceCard = ({ doc, showDate = false, onOpen }) => {
   const metadata = doc?.metadata || {};
   const source = metadata.source || doc?.url || doc?.source || "";
   const domain = metadata.domain || doc?.domain || getDomain(source);
@@ -43,9 +45,12 @@ const SourceCard = ({ doc, showDate = false }) => {
     metadata.visited_at || metadata.date || doc?.visited_at || doc?.date;
   const relativeDate = showDate && dateValue ? getDaysAgo(dateValue) : "";
   const snippet = doc?.snippet || metadata.snippet || "";
+  const foundOnOtherBrowser = metadata.found_on_other_browser === true;
 
   const openSource = () => {
-    if (source) chrome.tabs.create({ url: source });
+    if (!source) return;
+    chrome.tabs.create({ url: source });
+    onOpen?.();
   };
 
   return (
@@ -63,6 +68,15 @@ const SourceCard = ({ doc, showDate = false }) => {
         {domain ? domain.charAt(0).toUpperCase() + domain.slice(1) : ""}
         {title ? ` | ${title}` : ""}
       </p>
+      {foundOnOtherBrowser ? (
+        <span
+          className="linked-browser-tag"
+          title="This result was saved on another linked browser"
+        >
+          <Laptop size={11} aria-hidden="true" />
+          Found on another browser
+        </span>
+      ) : null}
       {headingPath ? (
         <p className="heading-breadcrumb" title={headingPath}>
           {headingPath}
