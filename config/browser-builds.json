@@ -1,0 +1,20 @@
+{
+  "chrome": {
+    "browserName": "Google Chrome",
+    "storeName": "Chrome Web Store",
+    "storeReviewUrl": "https://chromewebstore.google.com/detail/surfmind-smarter-browsing/ladckalplikfcplbihpgfnlkonnpehkj/reviews",
+    "archiveName": "surfmind-chrome",
+    "manifest": {
+      "description": "Chrome extension designed to enhance your browsing experience by intelligently managing the websites you visit and bookmark"
+    }
+  },
+  "edge": {
+    "browserName": "Microsoft Edge",
+    "storeName": "Microsoft Edge Add-ons",
+    "storeReviewUrl": "",
+    "archiveName": "surfmind-edge",
+    "manifest": {
+      "description": "Microsoft Edge extension designed to enhance your browsing experience by intelligently managing the websites you visit and bookmark"
+    }
+  }
+}

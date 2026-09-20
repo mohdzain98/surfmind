@@ -2,6 +2,8 @@
   const COUNT_THRESHOLD = 25;
   const TIME_SAFETY_NET_MIN = 240;
   const MAX_WAIT_MS = TIME_SAFETY_NET_MIN * 60 * 1000;
+  const DATA_SCHEMA_VERSION_KEY = "dataSchemaVersion";
+  const HISTORY_DATA_SCHEMA_VERSION_KEY = "historyDataSchemaVersion";
   const pageEntries =
     globalScope.SurfMindPageEntries ||
     (typeof require === "function" ? require("./pageEntries") : null);
@@ -9,6 +11,19 @@
   const parsePositiveInteger = (value, fallback) => {
     const parsed = Number.parseInt(value, 10);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  };
+
+  const normalizeDataSchemaVersion = (value) => {
+    if (value === null || value === undefined || value === "") return null;
+    const normalized = Number(value);
+    return Number.isFinite(normalized) ? normalized : null;
+  };
+
+  const readDataSchemaVersion = (payload) => {
+    const data = payload?.data || payload || {};
+    return normalizeDataSchemaVersion(
+      data.dataSchemaVersion ?? data.data_schema_version
+    );
   };
 
   const resolveSyncConfig = (stored = {}) => {
@@ -77,6 +92,17 @@
   }) => {
     let syncInFlight = null;
 
+    const fetchDataSchemaVersion = async (host, browserUuid) => {
+      const response = await fetchImpl(`${host}/sync/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ browser_uuid: browserUuid }),
+      });
+      if (!response.ok) return null;
+      const payload = await response.json();
+      return readDataSchemaVersion(payload);
+    };
+
     const normalizeHistory = (entries) => {
       const normalizedAt = now();
       let changed = false;
@@ -99,7 +125,7 @@
       return { normalized, changed };
     };
 
-    const performSync = async ({ force, reason, host }) => {
+    const performSync = async ({ force, resyncAll, reason, host }) => {
       const stored = await chromeApi.storage.local.get({
         navigationData: [],
         lastSyncTime: null,
@@ -107,32 +133,82 @@
         userId: "",
         syncCountThreshold: COUNT_THRESHOLD,
         syncTimeSafetyNetMin: TIME_SAFETY_NET_MIN,
+        [DATA_SCHEMA_VERSION_KEY]: null,
+        [HISTORY_DATA_SCHEMA_VERSION_KEY]: null,
       });
       const syncConfig = resolveSyncConfig(stored);
-      const { normalized, changed } = normalizeHistory(stored.navigationData);
+      let { normalized, changed } = normalizeHistory(stored.navigationData);
+
+      let unsynced = normalized.filter((entry) => !entry.synced);
+      if (resyncAll && normalized.length > 0) {
+        normalized = normalized.map((entry) => ({
+          ...entry,
+          synced: false,
+        }));
+        changed = true;
+        unsynced = normalized;
+      }
+      const countReady =
+        pageEntries.countDistinctPages(unsynced) >= syncConfig.countThreshold;
+      const shouldCheckSchema = force || reason === "time" || countReady;
+      const apiHost = host || stored.apiHost;
+      let userId = stored.userId;
+      if (!userId && normalized.length > 0) {
+        userId = createId();
+        await chromeApi.storage.local.set({ userId });
+      }
+
+      let remoteDataSchemaVersion = null;
+      let schemaChanged = false;
+      if (shouldCheckSchema && apiHost && userId) {
+        try {
+          remoteDataSchemaVersion = await fetchDataSchemaVersion(
+            apiHost,
+            userId
+          );
+        } catch {
+          remoteDataSchemaVersion = null;
+        }
+
+        schemaChanged = Boolean(
+          remoteDataSchemaVersion !== null &&
+          remoteDataSchemaVersion !==
+            normalizeDataSchemaVersion(stored[HISTORY_DATA_SCHEMA_VERSION_KEY])
+        );
+        if (schemaChanged) {
+          normalized = normalized.map((entry) => ({
+            ...entry,
+            synced: false,
+          }));
+          changed = true;
+          unsynced = normalized;
+        }
+      }
 
       if (changed) {
         await chromeApi.storage.local.set({ navigationData: normalized });
       }
 
-      const unsynced = normalized.filter((entry) => !entry.synced);
       if (unsynced.length === 0) {
+        if (remoteDataSchemaVersion !== null) {
+          await chromeApi.storage.local.set({
+            [DATA_SCHEMA_VERSION_KEY]: remoteDataSchemaVersion,
+            [HISTORY_DATA_SCHEMA_VERSION_KEY]: remoteDataSchemaVersion,
+          });
+        }
         return { success: true, synced: 0, skipped: "empty" };
       }
 
       const oldestCapture = Math.min(
         ...unsynced.map((entry) => entry.capturedAt)
       );
-      const countReady =
-        pageEntries.countDistinctPages(unsynced) >= syncConfig.countThreshold;
       const timeReady =
         reason === "time" && now() - oldestCapture >= syncConfig.maxWaitMs;
 
-      if (!force && !countReady && !timeReady) {
+      if (!force && !schemaChanged && !countReady && !timeReady) {
         return { success: true, synced: 0, skipped: "threshold" };
       }
 
-      const apiHost = host || stored.apiHost;
       if (!apiHost) {
         return {
           success: false,
@@ -141,7 +217,6 @@
         };
       }
 
-      let userId = stored.userId;
       if (!userId) {
         userId = createId();
         await chromeApi.storage.local.set({ userId });
@@ -174,6 +249,12 @@
       await chromeApi.storage.local.set({
         navigationData: updatedHistory,
         lastSyncTime: completedAt,
+        ...(remoteDataSchemaVersion !== null
+          ? {
+              [DATA_SCHEMA_VERSION_KEY]: remoteDataSchemaVersion,
+              [HISTORY_DATA_SCHEMA_VERSION_KEY]: remoteDataSchemaVersion,
+            }
+          : {}),
       });
 
       return {
@@ -189,6 +270,7 @@
       }
       syncInFlight = performSync({
         force: options.force === true,
+        resyncAll: options.resyncAll === true,
         reason: options.reason || "count",
         host: options.host || "",
       }).finally(() => {
@@ -204,6 +286,10 @@
     COUNT_THRESHOLD,
     TIME_SAFETY_NET_MIN,
     MAX_WAIT_MS,
+    DATA_SCHEMA_VERSION_KEY,
+    HISTORY_DATA_SCHEMA_VERSION_KEY,
+    normalizeDataSchemaVersion,
+    readDataSchemaVersion,
     resolveSyncConfig,
     coalesceHistoryEntries,
     createHistorySync,

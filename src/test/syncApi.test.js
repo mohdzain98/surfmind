@@ -2,6 +2,7 @@ import {
   createBrowserIdentity,
   formatCountdown,
   generateSyncCode,
+  getSyncPageCounts,
   getSyncStatus,
   normalizeSyncCode,
   redeemSyncCode,
@@ -90,6 +91,25 @@ test("unlinks a browser and gracefully handles an unavailable status route", asy
     "https://api.example.com/v1/sync/status",
     {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ browser_uuid: "browser-456" }),
+    }
+  );
+});
+
+test("loads page counts for this browser with a JSON-body POST", async () => {
+  fetch.mockResolvedValueOnce(
+    jsonResponse({ history_count: 88, bookmark_count: 2 })
+  );
+
+  await expect(
+    getSyncPageCounts("https://api.example.com/v1", "browser-456")
+  ).resolves.toEqual({ history: 88, bookmarks: 2 });
+  expect(fetch).toHaveBeenCalledWith(
+    "https://api.example.com/v1/sync/page-counts",
+    {
+      method: "POST",
+      cache: "no-store",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ browser_uuid: "browser-456" }),
     }

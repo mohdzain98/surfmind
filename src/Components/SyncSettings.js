@@ -15,7 +15,6 @@ const SOLO_STATUS = {
   isLinked: false,
   browserCount: 1,
   syncAccountId: "",
-  tier: "free",
 };
 
 const SyncSettings = ({ host, browserUuid, onPairingChanged }) => {

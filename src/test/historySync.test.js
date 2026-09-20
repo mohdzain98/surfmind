@@ -1,5 +1,7 @@
 const {
   COUNT_THRESHOLD,
+  DATA_SCHEMA_VERSION_KEY,
+  HISTORY_DATA_SCHEMA_VERSION_KEY,
   MAX_WAIT_MS,
   createHistorySync,
 } = require("../../public/historySync");
@@ -10,11 +12,16 @@ const createHarness = ({
   responseOk = true,
   syncCountThreshold,
   syncTimeSafetyNetMin,
+  dataSchemaVersion = 1,
+  remoteDataSchemaVersion = 1,
+  statusOk = true,
 }) => {
   let storage = {
     navigationData: entries,
     apiHost: "https://api.example.com/v1",
     userId: "user-1",
+    [DATA_SCHEMA_VERSION_KEY]: dataSchemaVersion,
+    [HISTORY_DATA_SCHEMA_VERSION_KEY]: dataSchemaVersion,
     ...(syncCountThreshold ? { syncCountThreshold } : {}),
     ...(syncTimeSafetyNetMin ? { syncTimeSafetyNetMin } : {}),
   };
@@ -28,7 +35,22 @@ const createHarness = ({
       },
     },
   };
-  const fetchImpl = jest.fn(async () => ({ ok: responseOk, status: 500 }));
+  const fetchImpl = jest.fn(async (url) => {
+    if (url.endsWith("/sync/status")) {
+      return {
+        ok: statusOk,
+        status: statusOk ? 200 : 503,
+        json: jest.fn(async () => ({
+          dataSchemaVersion: remoteDataSchemaVersion,
+        })),
+      };
+    }
+    return {
+      ok: responseOk,
+      status: responseOk ? 200 : 500,
+      json: jest.fn(async () => ({})),
+    };
+  });
   let id = 0;
   const sync = createHistorySync({
     chromeApi,
@@ -39,6 +61,9 @@ const createHarness = ({
 
   return { sync, fetchImpl, getStorage: () => storage };
 };
+
+const getSaveDataCall = (fetchImpl) =>
+  fetchImpl.mock.calls.find(([url]) => url.endsWith("/save-data"));
 
 const entry = (index, capturedAt = 10_000) => ({
   url: `https://example.com/${index}`,
@@ -59,7 +84,7 @@ test("heavy-user path syncs when 25 unsynced pages accumulate", async () => {
   const result = await sync.maybeSync({ reason: "count" });
 
   expect(result).toMatchObject({ success: true, synced: COUNT_THRESHOLD });
-  expect(fetchImpl).toHaveBeenCalledTimes(1);
+  expect(getSaveDataCall(fetchImpl)).toBeDefined();
   expect(getStorage().navigationData.every((item) => item.synced)).toBe(true);
   expect(getStorage().lastSyncTime).toBe(10_000);
 });
@@ -92,7 +117,7 @@ test("light-user path syncs after the four-hour maximum wait", async () => {
   const result = await sync.maybeSync({ reason: "time" });
 
   expect(result).toMatchObject({ success: true, synced: 1 });
-  expect(fetchImpl).toHaveBeenCalledTimes(1);
+  expect(getSaveDataCall(fetchImpl)).toBeDefined();
 });
 
 test("uses development count and time thresholds from extension storage", async () => {
@@ -123,7 +148,28 @@ test("pre-query flush syncs a recent entry below the thresholds", async () => {
   });
 
   expect(result).toMatchObject({ success: true, synced: 1 });
-  expect(fetchImpl).toHaveBeenCalledTimes(1);
+  expect(getSaveDataCall(fetchImpl)).toBeDefined();
+});
+
+test("manual full sync re-ingests all retained history", async () => {
+  const syncedEntries = [entry(1), entry(2)].map((item) => ({
+    ...item,
+    synced: true,
+  }));
+  const { sync, fetchImpl, getStorage } = createHarness({
+    entries: syncedEntries,
+  });
+
+  const result = await sync.maybeSync({
+    force: true,
+    resyncAll: true,
+    reason: "manual-full",
+  });
+
+  expect(result).toMatchObject({ success: true, synced: 2 });
+  const payload = JSON.parse(getSaveDataCall(fetchImpl)[1].body);
+  expect(payload.data).toHaveLength(2);
+  expect(getStorage().navigationData.every((item) => item.synced)).toBe(true);
 });
 
 test("entries remain unsynced when the backend rejects the batch", async () => {
@@ -154,7 +200,7 @@ test("preserves full structured section content in the ingestion payload", async
 
   await sync.maybeSync({ force: true, reason: "pre-query" });
 
-  const requestBody = JSON.parse(fetchImpl.mock.calls[0][1].body);
+  const requestBody = JSON.parse(getSaveDataCall(fetchImpl)[1].body);
   expect(requestBody.browser_uuid).toBe("user-1");
   expect(requestBody).not.toHaveProperty("userId");
   expect(requestBody.data[0]).toMatchObject({
@@ -189,7 +235,7 @@ test("sends each URL and heading path only once per batch", async () => {
 
   await sync.maybeSync({ force: true, reason: "pre-query" });
 
-  const requestBody = JSON.parse(fetchImpl.mock.calls[0][1].body);
+  const requestBody = JSON.parse(getSaveDataCall(fetchImpl)[1].body);
   expect(requestBody.data).toHaveLength(1);
   expect(requestBody.data[0]).toMatchObject({
     url: shared.url,
@@ -197,4 +243,57 @@ test("sends each URL and heading path only once per batch", async () => {
     content: "First paragraph.\nSecond paragraph.\nThird paragraph.",
   });
   expect(getStorage().navigationData.every((item) => item.synced)).toBe(true);
+});
+
+test("a backend schema bump re-ingests all locally retained history", async () => {
+  const syncedEntries = [entry(1), entry(2)].map((item) => ({
+    ...item,
+    synced: true,
+  }));
+  const { sync, fetchImpl, getStorage } = createHarness({
+    entries: syncedEntries,
+    currentTime: MAX_WAIT_MS + 20_000,
+    dataSchemaVersion: 1,
+    remoteDataSchemaVersion: 2,
+  });
+
+  const result = await sync.maybeSync({ reason: "time" });
+
+  expect(result).toMatchObject({ success: true, synced: 2 });
+  const payload = JSON.parse(getSaveDataCall(fetchImpl)[1].body);
+  expect(payload.flag).toBe("history");
+  expect(payload.data).toHaveLength(2);
+  expect(getStorage().navigationData.every((item) => item.synced)).toBe(true);
+  expect(getStorage()[DATA_SCHEMA_VERSION_KEY]).toBe(2);
+  expect(getStorage()[HISTORY_DATA_SCHEMA_VERSION_KEY]).toBe(2);
+});
+
+test("the first observed schema version recovers retained history", async () => {
+  const { sync, getStorage } = createHarness({
+    entries: [{ ...entry(1), synced: true }],
+    dataSchemaVersion: null,
+    remoteDataSchemaVersion: 1,
+  });
+
+  await sync.maybeSync({ force: true, reason: "pre-query" });
+
+  expect(getStorage().navigationData[0].synced).toBe(true);
+  expect(getStorage()[HISTORY_DATA_SCHEMA_VERSION_KEY]).toBe(1);
+});
+
+test("a failed schema check does not block pending history ingestion", async () => {
+  const { sync, fetchImpl, getStorage } = createHarness({
+    entries: [entry(1)],
+    statusOk: false,
+  });
+
+  const result = await sync.maybeSync({
+    force: true,
+    reason: "pre-query",
+  });
+
+  expect(result).toMatchObject({ success: true, synced: 1 });
+  expect(getSaveDataCall(fetchImpl)).toBeDefined();
+  expect(getStorage().navigationData[0].synced).toBe(true);
+  expect(getStorage()[HISTORY_DATA_SCHEMA_VERSION_KEY]).toBe(1);
 });

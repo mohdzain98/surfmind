@@ -20,6 +20,13 @@ let captureQueue = Promise.resolve();
 const UPDATE_VERSION_KEY = "sm-last-seen-version";
 const UPDATE_PREVIOUS_VERSION_KEY = "sm-update-previous-version";
 
+const isExpectedMissingReceiverError = (error) => {
+  const message = typeof error === "string" ? error : error?.message || "";
+  return /receiving end does not exist|could not establish connection|message port closed/i.test(
+    message
+  );
+};
+
 chrome.sidePanel
   .setPanelBehavior({ openPanelOnActionClick: true })
   .catch((error) => {
@@ -134,7 +141,9 @@ const captureCreatedBookmark = (bookmark) => {
       extractFromTab: extractContentFromTab,
     })
     .catch((error) => {
-      console.warn("Live bookmark extraction unavailable:", error);
+      if (!isExpectedMissingReceiverError(error)) {
+        console.warn("Live bookmark extraction unavailable:", error);
+      }
     });
 };
 
@@ -189,6 +198,53 @@ chrome.bookmarks.onChanged.addListener(markBookmarksDirty);
 chrome.bookmarks.onMoved.addListener(markBookmarksDirty);
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "syncAllData") {
+    const host = request.host || "";
+    Promise.all([ensureSyncAlarm(), ensureBookmarkSyncAlarm()])
+      .then(async () => {
+        const history = await historySync.maybeSync({
+          force: true,
+          resyncAll: true,
+          reason: "manual-full",
+          host,
+        });
+        const bookmarks = await bookmarkSync.syncIfDirty({
+          force: true,
+          reason: "manual-full",
+          host,
+        });
+        return [history, bookmarks];
+      })
+      .then(([history, bookmarks]) => {
+        console.info("[SurfMind] Manual sync results:", {
+          history: {
+            success: history?.success,
+            synced: history?.synced,
+            skipped: history?.skipped,
+            error: history?.error,
+          },
+          bookmarks: {
+            success: bookmarks?.success,
+            synced: bookmarks?.synced,
+            skipped: bookmarks?.skipped,
+            error: bookmarks?.error,
+          },
+        });
+        const errors = [history, bookmarks]
+          .filter((result) => !result?.success)
+          .map((result) => result?.error)
+          .filter(Boolean);
+        sendResponse({
+          success: errors.length === 0,
+          history,
+          bookmarks,
+          ...(errors.length > 0 ? { error: errors.join(" ") } : {}),
+        });
+      })
+      .catch((error) => sendResponse({ success: false, error: error.message }));
+    return true;
+  }
+
   if (request.action === "maybeSyncBookmarks") {
     Promise.all([
       ensureBookmarkSyncAlarm(),
@@ -234,11 +290,15 @@ chrome.webNavigation.onCompleted.addListener((details) => {
         tab.id,
         { action: "extractStructuredContent" },
         (response) => {
-          if (chrome.runtime.lastError || !response?.success) {
-            console.warn(
-              "Structured extraction unavailable:",
-              chrome.runtime.lastError?.message || response?.error
-            );
+          const extractionError =
+            chrome.runtime.lastError?.message || response?.error;
+          if (extractionError || !response?.success) {
+            if (!isExpectedMissingReceiverError(extractionError)) {
+              console.warn(
+                "Structured extraction unavailable:",
+                extractionError || "No extraction response"
+              );
+            }
             return;
           }
 

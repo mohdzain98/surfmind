@@ -130,3 +130,28 @@ export const getSyncStatus = async (host, browserUuid) => {
   }
   return normalizeSyncStatus(payload);
 };
+
+export const getSyncPageCounts = async (host, browserUuid) => {
+  const data = await requestJson(
+    `${host}/sync/page-counts`,
+    {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(createBrowserIdentity(browserUuid)),
+    },
+    "Could not compare synced data"
+  );
+
+  const history = Number(data.history_count ?? data.historyCount ?? 0);
+  const bookmarks = Number(data.bookmark_count ?? data.bookmarkCount ?? 0);
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[SurfMind] /sync/page-counts response:", data);
+  }
+
+  return {
+    history: Number.isFinite(history) ? history : 0,
+    bookmarks: Number.isFinite(bookmarks) ? bookmarks : 0,
+  };
+};

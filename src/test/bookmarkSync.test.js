@@ -1,4 +1,6 @@
 const {
+  BOOKMARK_DATA_SCHEMA_VERSION_KEY,
+  DATA_SCHEMA_VERSION_KEY,
   EXTRACTED_CONTENT_KEY,
   SAFETY_NET_MIN,
   createBookmarkSync,
@@ -27,12 +29,17 @@ const createHarness = ({
   dirty = false,
   responseOk = true,
   extractedContent = {},
+  dataSchemaVersion = 1,
+  remoteDataSchemaVersion = 1,
+  statusOk = true,
 } = {}) => {
   let storage = {
     apiHost: "https://api.example.com/v1",
     userId: "browser-1",
     bookmarksDirty: dirty,
     bookmarksDirtyVersion: dirty ? 1 : 0,
+    [DATA_SCHEMA_VERSION_KEY]: dataSchemaVersion,
+    [BOOKMARK_DATA_SCHEMA_VERSION_KEY]: dataSchemaVersion,
     [EXTRACTED_CONTENT_KEY]: extractedContent,
   };
   const chromeApi = {
@@ -49,7 +56,22 @@ const createHarness = ({
       },
     },
   };
-  const fetchImpl = jest.fn(async () => ({ ok: responseOk, status: 500 }));
+  const fetchImpl = jest.fn(async (url) => {
+    if (url.endsWith("/sync/status")) {
+      return {
+        ok: statusOk,
+        status: statusOk ? 200 : 503,
+        json: jest.fn(async () => ({
+          dataSchemaVersion: remoteDataSchemaVersion,
+        })),
+      };
+    }
+    return {
+      ok: responseOk,
+      status: responseOk ? 200 : 500,
+      json: jest.fn(async () => ({})),
+    };
+  });
   const sync = createBookmarkSync({
     chromeApi,
     fetchImpl,
@@ -63,6 +85,9 @@ const createHarness = ({
     getStorage: () => storage,
   };
 };
+
+const getSaveDataCall = (fetchImpl) =>
+  fetchImpl.mock.calls.find(([url]) => url.endsWith("/save-data"));
 
 test("normalizes the full bookmark tree for the existing ingestion contract", () => {
   expect(flattenBookmarks(bookmarkTree)).toEqual([
@@ -122,14 +147,18 @@ test("nests heading-aware sections under one bookmark entry", () => {
   ]);
 });
 
-test("a clean conditional flush is an instant no-op", async () => {
+test("a clean conditional flush checks the schema and skips ingestion", async () => {
   const { sync, chromeApi, fetchImpl } = createHarness();
 
   const result = await sync.syncIfDirty({ reason: "dropdown-open" });
 
   expect(result).toMatchObject({ success: true, synced: 0, skipped: "clean" });
   expect(chromeApi.bookmarks.getTree).not.toHaveBeenCalled();
-  expect(fetchImpl).not.toHaveBeenCalled();
+  expect(fetchImpl).toHaveBeenCalledTimes(1);
+  expect(fetchImpl.mock.calls[0][0]).toBe(
+    "https://api.example.com/v1/sync/status"
+  );
+  expect(getSaveDataCall(fetchImpl)).toBeUndefined();
 });
 
 test("bookmark events only persist dirty state without uploading", async () => {
@@ -150,7 +179,22 @@ test("pre-search flush immediately syncs dirty bookmarks", async () => {
   const result = await sync.syncIfDirty({ reason: "pre-query" });
 
   expect(result).toMatchObject({ success: true, synced: 1 });
-  expect(fetchImpl).toHaveBeenCalledTimes(1);
+  expect(getSaveDataCall(fetchImpl)).toBeDefined();
+  expect(getStorage().bookmarksDirty).toBe(false);
+});
+
+test("manual full sync uploads the complete bookmark tree when clean", async () => {
+  const { sync, fetchImpl, getStorage } = createHarness();
+
+  const result = await sync.syncIfDirty({
+    force: true,
+    reason: "manual-full",
+  });
+
+  expect(result).toMatchObject({ success: true, synced: 1 });
+  const payload = JSON.parse(getSaveDataCall(fetchImpl)[1].body);
+  expect(payload.flag).toBe("bookmark");
+  expect(payload.data).toHaveLength(1);
   expect(getStorage().bookmarksDirty).toBe(false);
 });
 
@@ -204,7 +248,7 @@ test("keeps the flat title payload when the bookmarked page is not active", asyn
   );
   await sync.syncIfDirty({ reason: "pre-query" });
 
-  const payload = JSON.parse(fetchImpl.mock.calls[0][1].body);
+  const payload = JSON.parse(getSaveDataCall(fetchImpl)[1].body);
   expect(captureResult).toEqual({ captured: false, reason: "tab-not-active" });
   expect(extractFromTab).not.toHaveBeenCalled();
   expect(payload.data).toEqual([
@@ -241,7 +285,7 @@ test("sends cached live-tab content in the next bookmark sync", async () => {
 
   await sync.syncIfDirty({ reason: "time" });
 
-  const payload = JSON.parse(fetchImpl.mock.calls[0][1].body);
+  const payload = JSON.parse(getSaveDataCall(fetchImpl)[1].body);
   expect(payload.data).toHaveLength(1);
   expect(payload.data[0].content).toEqual([
     {
@@ -263,6 +307,7 @@ test("failed bookmark uploads remain dirty for a later retry", async () => {
 
   expect(result.success).toBe(false);
   expect(getStorage().bookmarksDirty).toBe(true);
+  expect(getStorage()[DATA_SCHEMA_VERSION_KEY]).toBe(1);
 });
 
 test("uses the stable browser UUID and bookmark flag", async () => {
@@ -270,7 +315,7 @@ test("uses the stable browser UUID and bookmark flag", async () => {
 
   await sync.syncIfDirty({ reason: "time" });
 
-  const [url, options] = fetchImpl.mock.calls[0];
+  const [url, options] = getSaveDataCall(fetchImpl);
   const payload = JSON.parse(options.body);
   expect(url).toBe("https://api.example.com/v1/save-data");
   expect(payload).toMatchObject({
@@ -280,4 +325,46 @@ test("uses the stable browser UUID and bookmark flag", async () => {
   expect(payload).not.toHaveProperty("userId");
   expect(payload.data).toHaveLength(1);
   expect(SAFETY_NET_MIN).toBe(360);
+});
+
+test("a backend schema bump forces one full bookmark resync", async () => {
+  const { sync, fetchImpl, getStorage } = createHarness({
+    dataSchemaVersion: 1,
+    remoteDataSchemaVersion: 2,
+  });
+
+  const result = await sync.syncIfDirty({ reason: "time" });
+
+  expect(result).toMatchObject({ success: true, synced: 1 });
+  expect(getSaveDataCall(fetchImpl)).toBeDefined();
+  expect(getStorage().bookmarksDirty).toBe(false);
+  expect(getStorage()[DATA_SCHEMA_VERSION_KEY]).toBe(2);
+  expect(getStorage()[BOOKMARK_DATA_SCHEMA_VERSION_KEY]).toBe(2);
+});
+
+test("the first observed schema version resyncs existing local bookmarks", async () => {
+  const { sync, getStorage } = createHarness({
+    dataSchemaVersion: null,
+    remoteDataSchemaVersion: 1,
+  });
+
+  await sync.syncIfDirty({ reason: "dropdown-open" });
+
+  expect(getStorage().bookmarksDirty).toBe(false);
+  expect(getStorage()[DATA_SCHEMA_VERSION_KEY]).toBe(1);
+  expect(getStorage()[BOOKMARK_DATA_SCHEMA_VERSION_KEY]).toBe(1);
+});
+
+test("a failed schema check does not block an already-dirty sync", async () => {
+  const { sync, fetchImpl, getStorage } = createHarness({
+    dirty: true,
+    statusOk: false,
+  });
+
+  const result = await sync.syncIfDirty({ reason: "pre-query" });
+
+  expect(result).toMatchObject({ success: true, synced: 1 });
+  expect(getSaveDataCall(fetchImpl)).toBeDefined();
+  expect(getStorage().bookmarksDirty).toBe(false);
+  expect(getStorage()[DATA_SCHEMA_VERSION_KEY]).toBe(1);
 });

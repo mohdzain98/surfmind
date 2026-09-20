@@ -1,21 +1,36 @@
 import { useEffect, useState } from "react";
-import { ChevronRight, History, Link2, ShieldCheck, Tags } from "lucide-react";
+import {
+  Bookmark,
+  ChevronRight,
+  History,
+  Link2,
+  ShieldCheck,
+  Star,
+  Tags,
+} from "lucide-react";
+import { STORE_REVIEW_URL } from "../services/ratePrompt";
+import { readBookmarkFolders } from "../services/bookmarkFolders";
+import { countSavedHistoryPages } from "../services/pageCounts";
+import {
+  EXTENSION_STORE_NAME,
+  HAS_EXTENSION_STORE_REVIEW,
+} from "../services/storeConfig";
 
 const SYNC_STATUS_KEY = "crossBrowserSyncStatus";
 const SOLO_STATUS = { isLinked: false, browserCount: 1 };
 
-const countSavedPages = (entries = []) =>
-  new Set(entries.map((entry) => entry?.url).filter(Boolean)).size;
-
 const SettingsHome = ({
   onOpenSync,
   onOpenHistory,
+  onOpenBookmarks,
   onOpenCategories,
   onOpenPrivacy,
+  pageCounts,
   categorization = {},
 }) => {
   const [syncStatus, setSyncStatus] = useState(SOLO_STATUS);
   const [savedPageCount, setSavedPageCount] = useState(0);
+  const [bookmarkFolderCount, setBookmarkFolderCount] = useState(0);
 
   useEffect(() => {
     const storage = chrome.storage;
@@ -27,7 +42,7 @@ const SettingsHome = ({
       .then((stored) => {
         if (!mounted) return;
         setSyncStatus(stored[SYNC_STATUS_KEY] || SOLO_STATUS);
-        setSavedPageCount(countSavedPages(stored.navigationData));
+        setSavedPageCount(countSavedHistoryPages(stored.navigationData));
       });
 
     const handleStorageChange = (changes, areaName) => {
@@ -36,7 +51,9 @@ const SettingsHome = ({
         setSyncStatus(changes[SYNC_STATUS_KEY].newValue || SOLO_STATUS);
       }
       if (changes.navigationData) {
-        setSavedPageCount(countSavedPages(changes.navigationData.newValue));
+        setSavedPageCount(
+          countSavedHistoryPages(changes.navigationData.newValue)
+        );
       }
     };
     storage.onChanged?.addListener(handleStorageChange);
@@ -44,6 +61,30 @@ const SettingsHome = ({
     return () => {
       mounted = false;
       storage.onChanged?.removeListener(handleStorageChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!chrome.bookmarks?.getTree) return undefined;
+    let mounted = true;
+
+    const loadBookmarkCount = async () => {
+      try {
+        const summary = await readBookmarkFolders();
+        if (mounted) setBookmarkFolderCount(summary.folders.length);
+      } catch {
+        if (mounted) setBookmarkFolderCount(0);
+      }
+    };
+
+    loadBookmarkCount();
+    chrome.bookmarks.onCreated?.addListener(loadBookmarkCount);
+    chrome.bookmarks.onRemoved?.addListener(loadBookmarkCount);
+
+    return () => {
+      mounted = false;
+      chrome.bookmarks.onCreated?.removeListener(loadBookmarkCount);
+      chrome.bookmarks.onRemoved?.removeListener(loadBookmarkCount);
     };
   }, []);
 
@@ -58,12 +99,53 @@ const SettingsHome = ({
       ? `${categorization.categories?.length || 0} categories${categorization.classificationState === "organizing" ? " · organizing pages" : ""}`
       : "Off · organize saved pages into topics";
 
+  const openReviewPage = () => {
+    if (STORE_REVIEW_URL) chrome.tabs.create({ url: STORE_REVIEW_URL });
+  };
+
   return (
     <section className="settings-home" aria-labelledby="settings-home-title">
       <h1 id="settings-home-title">Settings</h1>
       <p className="settings-home-subtitle">
         Manage how SurfMind syncs and stores your browsing data.
       </p>
+
+      {pageCounts ? (
+        <section className="settings-sync-counts" aria-label="Sync coverage">
+          <div className="settings-sync-counts-heading">
+            <strong>Sync coverage</strong>
+            <span
+              className={`settings-sync-state is-${pageCounts.status} ${pageCounts.matches ? "is-matched" : ""}`}
+            >
+              {["idle", "checking"].includes(pageCounts.status)
+                ? "Checking…"
+                : pageCounts.status === "error"
+                  ? "Unavailable"
+                  : pageCounts.matches
+                    ? "Up to date"
+                    : "Sync available"}
+            </span>
+          </div>
+          {pageCounts.status === "ready" ? (
+            <div className="settings-sync-count-grid">
+              <span>History</span>
+              <small>
+                {pageCounts.local.history} local · {pageCounts.remote.history}{" "}
+                synced
+              </small>
+              <span>Bookmarks</span>
+              <small>
+                {pageCounts.local.bookmarks} local ·{" "}
+                {pageCounts.remote.bookmarks} synced
+              </small>
+            </div>
+          ) : null}
+          <p className="settings-sync-note">
+            SurfMind syncs changes automatically, so you usually don’t need to
+            do anything.
+          </p>
+        </section>
+      ) : null}
 
       <div className="settings-menu">
         <button type="button" className="settings-tile" onClick={onOpenSync}>
@@ -91,6 +173,29 @@ const SettingsHome = ({
               {savedPageCount === 0
                 ? "No pages saved on this browser"
                 : `${savedPageCount} ${savedPageCount === 1 ? "page" : "pages"} saved on this browser`}
+            </small>
+          </span>
+          <ChevronRight
+            className="settings-tile-chevron"
+            size={17}
+            aria-hidden="true"
+          />
+        </button>
+
+        <button
+          type="button"
+          className="settings-tile"
+          onClick={onOpenBookmarks}
+        >
+          <span className="settings-tile-icon is-bookmarks" aria-hidden="true">
+            <Bookmark size={18} />
+          </span>
+          <span className="settings-tile-copy">
+            <strong>Saved Bookmarks</strong>
+            <small>
+              {bookmarkFolderCount === 0
+                ? "No bookmark folders found"
+                : `${bookmarkFolderCount} ${bookmarkFolderCount === 1 ? "folder" : "folders"} on this browser`}
             </small>
           </span>
           <ChevronRight
@@ -133,6 +238,27 @@ const SettingsHome = ({
             aria-hidden="true"
           />
         </button>
+
+        {HAS_EXTENSION_STORE_REVIEW ? (
+          <button
+            type="button"
+            className="settings-tile"
+            onClick={openReviewPage}
+          >
+            <span className="settings-tile-icon is-rate" aria-hidden="true">
+              <Star size={18} />
+            </span>
+            <span className="settings-tile-copy">
+              <strong>Rate SurfMind</strong>
+              <small>Share your experience on the {EXTENSION_STORE_NAME}</small>
+            </span>
+            <ChevronRight
+              className="settings-tile-chevron"
+              size={17}
+              aria-hidden="true"
+            />
+          </button>
+        ) : null}
       </div>
     </section>
   );
