@@ -2,6 +2,8 @@ const {
   COUNT_THRESHOLD,
   DATA_SCHEMA_VERSION_KEY,
   HISTORY_DATA_SCHEMA_VERSION_KEY,
+  HISTORY_RESYNC_IN_PROGRESS_KEY,
+  MAX_HISTORY_SECTION_CHARS,
   MAX_WAIT_MS,
   createHistorySync,
 } = require("../../public/historySync");
@@ -15,6 +17,8 @@ const createHarness = ({
   dataSchemaVersion = 1,
   remoteDataSchemaVersion = 1,
   statusOk = true,
+  saveResponseStatuses,
+  maxPayloadBytes,
 }) => {
   let storage = {
     navigationData: entries,
@@ -35,6 +39,7 @@ const createHarness = ({
       },
     },
   };
+  let saveRequestIndex = 0;
   const fetchImpl = jest.fn(async (url) => {
     if (url.endsWith("/sync/status")) {
       return {
@@ -45,9 +50,16 @@ const createHarness = ({
         })),
       };
     }
+    const status = saveResponseStatuses
+      ? saveResponseStatuses[
+          Math.min(saveRequestIndex++, saveResponseStatuses.length - 1)
+        ]
+      : responseOk
+        ? 200
+        : 500;
     return {
-      ok: responseOk,
-      status: responseOk ? 200 : 500,
+      ok: status >= 200 && status < 300,
+      status,
       json: jest.fn(async () => ({})),
     };
   });
@@ -57,6 +69,7 @@ const createHarness = ({
     fetchImpl,
     now: () => currentTime,
     createId: () => `generated-${++id}`,
+    ...(maxPayloadBytes ? { maxPayloadBytes } : {}),
   });
 
   return { sync, fetchImpl, getStorage: () => storage };
@@ -64,6 +77,9 @@ const createHarness = ({
 
 const getSaveDataCall = (fetchImpl) =>
   fetchImpl.mock.calls.find(([url]) => url.endsWith("/save-data"));
+
+const getSaveDataCalls = (fetchImpl) =>
+  fetchImpl.mock.calls.filter(([url]) => url.endsWith("/save-data"));
 
 const entry = (index, capturedAt = 10_000) => ({
   url: `https://example.com/${index}`,
@@ -185,11 +201,11 @@ test("entries remain unsynced when the backend rejects the batch", async () => {
   expect(getStorage().lastSyncTime).toBeUndefined();
 });
 
-test("preserves full structured section content in the ingestion payload", async () => {
+test("caps structured history section content in the ingestion payload", async () => {
   const fullContent = "Full section sentence. ".repeat(12_000);
   const structuredEntry = {
     ...entry(1),
-    content: fullContent,
+    content: fullContent.slice(0, MAX_HISTORY_SECTION_CHARS),
     heading_path: ["Docs", "Architecture", "Storage"],
     heading_level: 2,
     section_index: 4,
@@ -204,13 +220,96 @@ test("preserves full structured section content in the ingestion payload", async
   expect(requestBody.browser_uuid).toBe("user-1");
   expect(requestBody).not.toHaveProperty("userId");
   expect(requestBody.data[0]).toMatchObject({
-    content: fullContent,
+    content: fullContent.slice(0, MAX_HISTORY_SECTION_CHARS),
     heading_path: ["Docs", "Architecture", "Storage"],
     heading_level: 2,
     section_index: 4,
   });
   expect(requestBody.data[0]).not.toHaveProperty("synced");
   expect(requestBody.data[0]).not.toHaveProperty("captureId");
+});
+
+test("sends at most 15 sections per history page", async () => {
+  const entries = Array.from({ length: 20 }, (_, index) => ({
+    ...entry(index),
+    url: "https://example.com/large-page",
+    heading_path: ["Large page", `Section ${index}`],
+  }));
+  const { sync, fetchImpl, getStorage } = createHarness({ entries });
+
+  const result = await sync.maybeSync({ force: true, reason: "pre-query" });
+
+  const payload = JSON.parse(getSaveDataCall(fetchImpl)[1].body);
+  expect(payload.data).toHaveLength(15);
+  expect(result).toMatchObject({ success: true, synced: 20, omitted: 5 });
+  expect(getStorage().navigationData.every((item) => item.synced)).toBe(true);
+});
+
+test("splits large history syncs into sequential size-bounded requests", async () => {
+  const maxPayloadBytes = 2_700;
+  const entries = Array.from({ length: 5 }, (_, index) => ({
+    ...entry(index),
+    content: "Useful history context. ".repeat(80),
+  }));
+  const { sync, fetchImpl } = createHarness({
+    entries,
+    maxPayloadBytes,
+  });
+
+  const result = await sync.maybeSync({ force: true, reason: "pre-query" });
+  const saveCalls = getSaveDataCalls(fetchImpl);
+
+  expect(result.success).toBe(true);
+  expect(saveCalls.length).toBeGreaterThan(1);
+  for (const [, options] of saveCalls) {
+    expect(Buffer.byteLength(options.body, "utf8")).toBeLessThanOrEqual(
+      maxPayloadBytes
+    );
+  }
+});
+
+test("resumes a failed full resync without resending completed batches", async () => {
+  const entries = Array.from({ length: 4 }, (_, index) => ({
+    ...entry(index),
+    synced: true,
+    content: "Resume-safe history context. ".repeat(70),
+  }));
+  const { sync, fetchImpl, getStorage } = createHarness({
+    entries,
+    maxPayloadBytes: 2_700,
+    saveResponseStatuses: [200, 500, 200, 200, 200],
+  });
+
+  const firstResult = await sync.maybeSync({
+    force: true,
+    resyncAll: true,
+    reason: "manual-full",
+  });
+  const syncedAfterFailure = getStorage().navigationData.filter(
+    (item) => item.synced
+  ).length;
+
+  expect(firstResult.success).toBe(false);
+  expect(syncedAfterFailure).toBeGreaterThan(0);
+  expect(syncedAfterFailure).toBeLessThan(entries.length);
+  expect(getStorage()[HISTORY_RESYNC_IN_PROGRESS_KEY]).toBe(true);
+
+  const callsBeforeRetry = getSaveDataCalls(fetchImpl).length;
+  const secondResult = await sync.maybeSync({
+    force: true,
+    resyncAll: true,
+    reason: "manual-full",
+  });
+  const retryCalls = getSaveDataCalls(fetchImpl).slice(callsBeforeRetry);
+  const retriedUrls = retryCalls.flatMap(([, options]) =>
+    JSON.parse(options.body).data.map((item) => item.url)
+  );
+
+  expect(secondResult.success).toBe(true);
+  expect(retryCalls).toHaveLength(entries.length - syncedAfterFailure);
+  expect(retriedUrls).not.toContain("https://example.com/0");
+  expect(getStorage().navigationData.every((item) => item.synced)).toBe(true);
+  expect(getStorage()[HISTORY_RESYNC_IN_PROGRESS_KEY]).toBe(false);
 });
 
 test("sends each URL and heading path only once per batch", async () => {
