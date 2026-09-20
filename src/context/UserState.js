@@ -4,6 +4,7 @@ import { initializeUserId } from "../components/UserId";
 import { createBrowserIdentity } from "../services/syncApi";
 import { flushBeforeSearch } from "../services/searchSync";
 import { recordSuccessfulSearch } from "../services/ratePrompt";
+import { toUserFacingError } from "../services/userFacingError";
 import {
   LEGACY_UPDATE_VERSIONS,
   UPDATE_PREVIOUS_VERSION_KEY,
@@ -87,7 +88,12 @@ const UserState = ({ children }) => {
       host,
     });
     if (!result?.success) {
-      throw new Error(result?.error || "History sync failed");
+      throw new Error(
+        toUserFacingError(
+          result?.error,
+          "SurfMind couldn’t sync your history. Please try again."
+        )
+      );
     }
     return result;
   }, []);
@@ -99,7 +105,12 @@ const UserState = ({ children }) => {
       host,
     });
     if (!result?.success) {
-      throw new Error(result?.error || "Bookmark sync failed");
+      throw new Error(
+        toUserFacingError(
+          result?.error,
+          "SurfMind couldn’t sync your bookmarks. Please try again."
+        )
+      );
     }
     return result;
   }, []);
@@ -289,7 +300,10 @@ const UserState = ({ children }) => {
               return;
             } else if (step === "error") {
               appendThought(
-                data.message || "There is a problem generating response",
+                toUserFacingError(
+                  data.message,
+                  "SurfMind couldn’t generate a response. Please try again."
+                ),
                 null,
                 {
                   loading: false,
@@ -309,7 +323,10 @@ const UserState = ({ children }) => {
         });
       } catch (error) {
         appendThought(
-          error.message || "There is a problem generating response",
+          toUserFacingError(
+            error,
+            "SurfMind couldn’t generate a response. Please try again."
+          ),
           null,
           {
             syncing: false,

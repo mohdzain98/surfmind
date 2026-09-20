@@ -266,7 +266,33 @@ test("explains when SurfMind has not captured searchable history yet", () => {
       /Your existing Chrome history isn’t imported automatically\./
     )
   ).toHaveClass("answer-context");
+  expect(
+    screen
+      .getByText(
+        /Check Sync Coverage in Settings to make sure your data is synced\./
+      )
+      .closest(".answer-sync-tip")
+  ).toBeInTheDocument();
   expect(screen.queryByText("No history data found")).not.toBeInTheDocument();
+});
+
+test("opens sync coverage settings from a no-data answer", () => {
+  const { value } = renderPopup({
+    parsed: { summary: "No relevant data found", url: null },
+    activeTab: "bookmark",
+    finalReceived: true,
+  });
+
+  expect(
+    screen.getByText(
+      /Check Sync Coverage in Settings to make sure your data is synced\./
+    )
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Open Settings" }));
+
+  expect(value.setState).toHaveBeenCalledWith(
+    expect.objectContaining({ activeTab: "settings", query: "" })
+  );
 });
 
 test("hides recent searches while a new search is active", () => {

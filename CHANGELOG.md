@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.8.2
+
+### Added
+
+- Added human-readable sync and search errors for common HTTP and network failures.
+- Added a Sync Coverage tip and Settings shortcut when a search returns no relevant data.
+
+### Changed
+
+- Limited history extraction to 15 sections per page and 2,000 characters per section while preserving richer bookmark content.
+- Removed common navigation, footer, sidebar, cookie-consent, and advertisement elements before extracting page content.
+- Split large history uploads into sequential, size-bounded batches and checkpointed each completed batch so interrupted full syncs resume safely.
+- Simplified the Settings layout by removing the divider below Sync Coverage.
+
+### Fixed
+
+- Prevented oversized history payloads from exceeding server request limits during large catch-up syncs.
+- Replaced raw errors such as HTTP 413 responses with actionable messages for extension users.
+
 ## v1.8
 
 ### Added

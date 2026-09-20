@@ -43,6 +43,7 @@ import {
 } from "../services/ratePrompt";
 import { getSyncPageCounts } from "../services/syncApi";
 import { pageCountsMatch, readLocalPageCounts } from "../services/pageCounts";
+import { toUserFacingError } from "../services/userFacingError";
 
 const EMPTY_PAGE_COUNTS = {
   status: "idle",
@@ -237,7 +238,12 @@ const Popup = (props) => {
         host,
       });
       if (!result?.success) {
-        throw new Error(result?.error || "Manual sync failed");
+        throw new Error(
+          toUserFacingError(
+            result?.error,
+            "SurfMind couldn’t sync your saved data. Please try again."
+          )
+        );
       }
 
       setManualSync({
@@ -254,7 +260,10 @@ const Popup = (props) => {
     } catch (error) {
       setManualSync({
         status: "error",
-        message: error?.message || "Manual sync failed. Please try again.",
+        message: toUserFacingError(
+          error,
+          "SurfMind couldn’t sync your saved data. Please try again."
+        ),
       });
     }
   };
@@ -334,6 +343,11 @@ const Popup = (props) => {
   const hasEmptyHistoryAnswer = Boolean(
     activeTab === "history" &&
     /\bno history data found\b/i.test(parsed.summary || "")
+  );
+  const hasNoDataAnswer = Boolean(
+    /\bno\s+(?:(?:relevant|history|bookmark)\s+)?data\s+found\b/i.test(
+      parsed.summary || ""
+    )
   );
   const showRecentSearches = Boolean(
     activeTab !== "settings" && !hasSearchActivity
@@ -699,6 +713,22 @@ const Popup = (props) => {
                   SurfMind builds its own searchable history from pages you
                   visit after installing it.
                 </p>
+              ) : null}
+              {hasNoDataAnswer ? (
+                <div className="answer-sync-tip">
+                  <span>
+                    Check Sync Coverage in Settings to make sure your data is
+                    synced.
+                  </span>
+                  <div className="answer-sync-tip-actions">
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange("settings")}
+                    >
+                      Open Settings
+                    </button>
+                  </div>
+                </div>
               ) : null}
               {parsed.url && (
                 <a

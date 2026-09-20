@@ -1,5 +1,7 @@
 const { Readability } = require("@mozilla/readability");
 const {
+  MAX_HISTORY_SECTION_CHARS,
+  MAX_HISTORY_SECTIONS_PER_PAGE,
   buildHeadingSections,
   createBookmarkEntries,
   extractStructuredContent,
@@ -154,6 +156,69 @@ test("creates section-scoped entries using the shared ingestion contract", () =>
     captureId: "capture-1",
     synced: false,
   });
+});
+
+test("bounds history extraction while keeping bookmark extraction rich", () => {
+  const longText = "Detailed page context. ".repeat(300);
+  const extraction = {
+    title: "Large guide",
+    sections: Array.from(
+      { length: MAX_HISTORY_SECTIONS_PER_PAGE + 5 },
+      (_, index) => ({
+        headingPath: ["Large guide", `Section ${index}`],
+        level: 2,
+        text: longText,
+      })
+    ),
+  };
+
+  const historyEntries = createHistoryEntries({
+    extraction,
+    url: "https://example.com/large-guide",
+    capturedAt: 1_700_000_000_000,
+    createId: () => "capture",
+  });
+  const bookmarkEntries = createBookmarkEntries({
+    extraction,
+    bookmark: {
+      title: "Large guide",
+      url: "https://example.com/large-guide",
+    },
+  });
+
+  expect(historyEntries).toHaveLength(MAX_HISTORY_SECTIONS_PER_PAGE);
+  expect(
+    historyEntries.every(
+      (item) => item.content.length <= MAX_HISTORY_SECTION_CHARS
+    )
+  ).toBe(true);
+  expect(bookmarkEntries[0].content).toHaveLength(extraction.sections.length);
+  expect(bookmarkEntries[0].content[0].content.length).toBeGreaterThan(
+    MAX_HISTORY_SECTION_CHARS
+  );
+});
+
+test("removes common site chrome before building heading sections", () => {
+  const documentRef = parseDocument("<title>Article</title>");
+  const sections = buildHeadingSections(
+    documentRef,
+    `
+      <nav><p>Repeated navigation</p></nav>
+      <aside><p>Repeated sidebar</p></aside>
+      <div class="cookie-consent"><p>Accept cookies</p></div>
+      <article><h1>Main topic</h1><p>Useful article content.</p></article>
+      <footer><p>Repeated footer</p></footer>
+    `,
+    "Article"
+  );
+
+  expect(sections).toEqual([
+    {
+      headingPath: ["Article", "Main topic"],
+      level: 1,
+      text: "Useful article content.",
+    },
+  ]);
 });
 
 test("creates bookmark sections using the same heading-aware contract", () => {
