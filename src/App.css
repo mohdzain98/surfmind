@@ -255,6 +255,41 @@
   line-height: 1.45;
 }
 
+.answer-sync-tip {
+  margin-top: 0.55rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e4e7ec;
+  color: #8a9099;
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+
+.answer-sync-tip-actions {
+  display: flex;
+  margin-top: 0.3rem;
+  align-items: center;
+}
+
+.answer-sync-tip button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #6f42c1;
+  font-size: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.answer-sync-tip button:hover,
+.answer-sync-tip button:focus-visible {
+  text-decoration: underline;
+}
+
+.answer-sync-tip button:focus-visible {
+  outline: 1px solid currentColor;
+  outline-offset: 2px;
+}
+
 .answer-url {
   display: block;
   overflow: hidden;
@@ -1104,7 +1139,7 @@
 
 .settings-menu {
   overflow: hidden;
-  border-block: 1px solid #e9ecef;
+  border-bottom: 1px solid #e9ecef;
 }
 
 .settings-tile {
