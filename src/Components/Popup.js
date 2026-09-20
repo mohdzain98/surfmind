@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import {
   ArrowLeft,
   History,
@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Clock3,
   GitMerge,
+  RefreshCw,
   Settings,
   Sparkles,
   Trash2,
@@ -17,10 +18,12 @@ import SyncSettings from "./SyncSettings";
 import PrivacySettings from "./PrivacySettings";
 import SettingsHome from "./SettingsHome";
 import SavedHistory from "./SavedHistory";
+import SavedBookmarks from "./SavedBookmarks";
 import RecentSearches from "./RecentSearches";
 import SearchComposer from "./SearchComposer";
 import SearchThought from "./SearchThought";
 import SourceCard from "./SourceCard";
+import RatePromptBanner from "./RatePromptBanner";
 import { userContext } from "../context/userContext";
 import { truncateUrl, truncateUrlsInText } from "../services/displayText";
 import {
@@ -33,6 +36,25 @@ import {
   UPDATE_PREVIOUS_VERSION_KEY,
   UPDATE_VERSION_KEY,
 } from "../services/updateVersion";
+import {
+  claimRatePrompt,
+  STORE_REVIEW_URL,
+  permanentlyDismissRatePrompt,
+} from "../services/ratePrompt";
+import { getSyncPageCounts } from "../services/syncApi";
+import { pageCountsMatch, readLocalPageCounts } from "../services/pageCounts";
+
+const EMPTY_PAGE_COUNTS = {
+  status: "idle",
+  local: { history: 0, bookmarks: 0 },
+  remote: { history: 0, bookmarks: 0 },
+  matches: false,
+};
+const COVERAGE_RECHECK_ATTEMPTS = 8;
+const COVERAGE_RECHECK_DELAY_MS = 750;
+
+const wait = (delayMs) =>
+  new Promise((resolve) => setTimeout(resolve, delayMs));
 
 const WELCOME_LINES = [
   "Hi, what would you like to rediscover today?",
@@ -115,11 +137,18 @@ const Popup = (props) => {
   const [lastSearchTab, setLastSearchTab] = useState("history");
   const [showRecentPage, setShowRecentPage] = useState(false);
   const [settingsView, setSettingsView] = useState("home");
+  const [showRatePrompt, setShowRatePrompt] = useState(false);
+  const [manualSync, setManualSync] = useState({
+    status: "idle",
+    message: "",
+  });
+  const [pageCounts, setPageCounts] = useState(EMPTY_PAGE_COUNTS);
   const [welcomeLine] = useState(
     () => WELCOME_LINES[Math.floor(Math.random() * WELCOME_LINES.length)]
   );
 
   const handleTabChange = (tab) => {
+    setShowRatePrompt(false);
     setShowRecentPage(false);
     setSettingsView("home");
     if (tab !== "settings") setLastSearchTab(tab);
@@ -143,7 +172,100 @@ const Popup = (props) => {
     handleTabChange(activeTab === "settings" ? lastSearchTab : "settings");
   };
 
+  useEffect(() => {
+    if (!manualSync.message || manualSync.status === "syncing") {
+      return undefined;
+    }
+    const timeoutId = setTimeout(() => {
+      setManualSync({ status: "idle", message: "" });
+    }, 6000);
+    return () => clearTimeout(timeoutId);
+  }, [manualSync.message, manualSync.status]);
+
+  const refreshPageCounts = useCallback(async () => {
+    if (!host || !userId) return null;
+
+    setPageCounts((current) => ({ ...current, status: "checking" }));
+    try {
+      const [local, remote] = await Promise.all([
+        readLocalPageCounts(),
+        getSyncPageCounts(host, userId),
+      ]);
+      const nextCounts = {
+        status: "ready",
+        local,
+        remote,
+        matches: pageCountsMatch(local, remote),
+      };
+      setPageCounts(nextCounts);
+      return nextCounts;
+    } catch (error) {
+      setPageCounts((current) => ({
+        ...current,
+        status: "error",
+        error: error?.message || "Could not compare synced data",
+      }));
+      return null;
+    }
+  }, [host, userId]);
+
+  useEffect(() => {
+    refreshPageCounts();
+  }, [refreshPageCounts]);
+
+  const refreshPageCountsAfterSync = useCallback(async () => {
+    let latestCounts = null;
+
+    for (let attempt = 0; attempt < COVERAGE_RECHECK_ATTEMPTS; attempt += 1) {
+      latestCounts = await refreshPageCounts();
+      if (!latestCounts || latestCounts.matches) break;
+      if (attempt < COVERAGE_RECHECK_ATTEMPTS - 1) {
+        await wait(COVERAGE_RECHECK_DELAY_MS);
+      }
+    }
+
+    return latestCounts;
+  }, [refreshPageCounts]);
+
+  const handleManualSync = async () => {
+    if (manualSync.status === "syncing") return;
+    setManualSync({ status: "syncing", message: "Syncing all saved data…" });
+
+    try {
+      const result = await chrome.runtime.sendMessage({
+        action: "syncAllData",
+        host,
+      });
+      if (!result?.success) {
+        throw new Error(result?.error || "Manual sync failed");
+      }
+
+      setManualSync({
+        status: "syncing",
+        message: "Sync complete. Updating coverage…",
+      });
+      const refreshedCounts = await refreshPageCountsAfterSync();
+      setManualSync({
+        status: "success",
+        message: refreshedCounts?.matches
+          ? "Sync complete. History and bookmarks are up to date."
+          : "Sync complete. Coverage was refreshed.",
+      });
+    } catch (error) {
+      setManualSync({
+        status: "error",
+        message: error?.message || "Manual sync failed. Please try again.",
+      });
+    }
+  };
+
+  const allLocalPagesSynced = Boolean(
+    pageCounts.status === "ready" && pageCounts.matches
+  );
+  const checkingPageCounts = ["idle", "checking"].includes(pageCounts.status);
+
   const handleClearSearch = () => {
+    setShowRatePrompt(false);
     setShowRecentPage(false);
     setState({
       docs: [],
@@ -165,6 +287,7 @@ const Popup = (props) => {
   };
 
   const handleAllDataCleared = (nextUserId) => {
+    setShowRatePrompt(false);
     setShowRecentPage(false);
     setState({
       activeTab: "history",
@@ -218,6 +341,33 @@ const Popup = (props) => {
   const showRecentSearchLink = Boolean(
     activeTab !== "settings" && hasCompletedAnswer
   );
+
+  const handleSourceOpen = async () => {
+    try {
+      if (await claimRatePrompt()) setShowRatePrompt(true);
+    } catch {
+      // Opening a matched source should still work if prompt storage fails.
+    }
+  };
+
+  const handleRateNow = async () => {
+    setShowRatePrompt(false);
+    if (STORE_REVIEW_URL) chrome.tabs.create({ url: STORE_REVIEW_URL });
+    try {
+      await permanentlyDismissRatePrompt();
+    } catch {
+      // The Web Store action should not be blocked by a storage failure.
+    }
+  };
+
+  const handleRateDismiss = async () => {
+    setShowRatePrompt(false);
+    try {
+      await permanentlyDismissRatePrompt();
+    } catch {
+      // The banner remains dismissible if storage is temporarily unavailable.
+    }
+  };
 
   if (!updateReady) {
     return (
@@ -278,18 +428,50 @@ const Popup = (props) => {
           ) : null}
         </div>
 
-        <button
-          type="button"
-          className={`settings-button ${activeTab === "settings" ? "is-active" : ""}`}
-          onClick={handleSettingsToggle}
-          aria-label={
-            activeTab === "settings" ? "Return to search" : "Open settings"
-          }
-          title={activeTab === "settings" ? "Return to search" : "Settings"}
-        >
-          <Settings size={18} aria-hidden="true" />
-        </button>
+        <div className="panel-nav-actions">
+          <button
+            type="button"
+            className={`manual-sync-button ${manualSync.status === "syncing" ? "is-syncing" : ""} ${allLocalPagesSynced ? "is-synced" : ""}`}
+            onClick={handleManualSync}
+            disabled={
+              manualSync.status === "syncing" ||
+              allLocalPagesSynced ||
+              checkingPageCounts
+            }
+            aria-label="Sync all history and bookmarks"
+            title={
+              allLocalPagesSynced
+                ? "History and bookmarks are up to date"
+                : checkingPageCounts
+                  ? "Checking sync status"
+                  : "Sync all saved history and bookmarks"
+            }
+          >
+            <RefreshCw size={17} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className={`settings-button ${activeTab === "settings" ? "is-active" : ""}`}
+            onClick={handleSettingsToggle}
+            aria-label={
+              activeTab === "settings" ? "Return to search" : "Open settings"
+            }
+            title={activeTab === "settings" ? "Return to search" : "Settings"}
+          >
+            <Settings size={18} aria-hidden="true" />
+          </button>
+        </div>
       </div>
+
+      {manualSync.message ? (
+        <div
+          className={`manual-sync-notice is-${manualSync.status}`}
+          role="status"
+          aria-live="polite"
+        >
+          {manualSync.message}
+        </div>
+      ) : null}
 
       {showRecentPage ? (
         <div className="recent-searches-page">
@@ -348,7 +530,9 @@ const Popup = (props) => {
                 <SettingsHome
                   onOpenSync={() => setSettingsView("sync")}
                   onOpenHistory={() => setSettingsView("history")}
+                  onOpenBookmarks={() => setSettingsView("bookmarks")}
                   onOpenPrivacy={() => setSettingsView("privacy")}
+                  pageCounts={pageCounts}
                 />
               ) : null}
               {settingsView === "sync" ? (
@@ -365,6 +549,11 @@ const Popup = (props) => {
               {settingsView === "history" ? (
                 <div className="settings-detail">
                   <SavedHistory />
+                </div>
+              ) : null}
+              {settingsView === "bookmarks" ? (
+                <div className="settings-detail">
+                  <SavedBookmarks />
                 </div>
               ) : null}
               {settingsView === "privacy" ? (
@@ -471,6 +660,15 @@ const Popup = (props) => {
             />
           ) : null}
 
+          {showRatePrompt ? (
+            <RatePromptBanner
+              mode={activeTab}
+              onRate={handleRateNow}
+              onLater={() => setShowRatePrompt(false)}
+              onDismiss={handleRateDismiss}
+            />
+          ) : null}
+
           {/* ── Final answer card ── */}
           {finalReceived && (parsed.summary || parsed.url) && (
             <div
@@ -536,7 +734,12 @@ const Popup = (props) => {
                       FROM HISTORY
                     </p>
                     {historyDocs.map((doc, i) => (
-                      <SourceCard key={i} doc={doc} showDate={true} />
+                      <SourceCard
+                        key={i}
+                        doc={doc}
+                        showDate={true}
+                        onOpen={handleSourceOpen}
+                      />
                     ))}
                   </div>
                 )}
@@ -553,7 +756,12 @@ const Popup = (props) => {
                       FROM BOOKMARKS
                     </p>
                     {bookmarkDocs.map((doc, i) => (
-                      <SourceCard key={i} doc={doc} showDate={false} />
+                      <SourceCard
+                        key={i}
+                        doc={doc}
+                        showDate={false}
+                        onOpen={handleSourceOpen}
+                      />
                     ))}
                   </div>
                 )}
@@ -574,6 +782,7 @@ const Popup = (props) => {
                     key={i}
                     doc={doc}
                     showDate={activeTab === "history"}
+                    onOpen={handleSourceOpen}
                   />
                 ))}
               </div>
