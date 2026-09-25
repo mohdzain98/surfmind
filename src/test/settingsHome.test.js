@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import SettingsHome from "../components/SettingsHome";
+import { buildPageSyncCoverage } from "../services/pageCounts";
 
 beforeEach(() => {
   const bookmarkEvent = {
@@ -111,6 +112,18 @@ test("opens the Web Store review page without changing prompt state", async () =
 });
 
 test("shows local and persisted counts for the current browser", async () => {
+  const local = {
+    history: 100,
+    bookmarks: 300,
+    dirty: { history: false, bookmarks: false },
+  };
+  const remote = {
+    history: 100,
+    bookmarks: 200,
+    totals: { history: 100, bookmarks: 250 },
+    caps: { history: 100, bookmarks: 250 },
+  };
+
   render(
     <SettingsHome
       onOpenSync={jest.fn()}
@@ -119,23 +132,102 @@ test("shows local and persisted counts for the current browser", async () => {
       onOpenPrivacy={jest.fn()}
       pageCounts={{
         status: "ready",
-        local: { history: 88, bookmarks: 3 },
-        remote: { history: 88, bookmarks: 2 },
+        local,
+        remote,
+        coverage: buildPageSyncCoverage(local, remote),
         matches: false,
       }}
     />
   );
 
-  expect(screen.getByLabelText("Sync coverage")).toHaveTextContent(
-    "History88 local · 88 synced"
-  );
-  expect(screen.getByLabelText("Sync coverage")).toHaveTextContent(
-    "Bookmarks3 local · 2 synced"
-  );
-  expect(screen.getByText("Sync available")).toBeInTheDocument();
-  expect(
-    screen.getByText(
-      "SurfMind syncs changes automatically, so you usually don’t need to do anything."
+  await waitFor(() =>
+    expect(screen.getByLabelText("Sync coverage")).toHaveTextContent(
+      "HistoryAt capacity, up to date100 local · 100 synced · 100 total · 100 max"
     )
-  ).toHaveClass("settings-sync-note");
+  );
+  expect(screen.getByLabelText("Sync coverage")).toHaveTextContent(
+    "BookmarksAt capacity — showing your most recent 250300 local · 200 synced · 250 total · 250 max"
+  );
+  expect(screen.getByText("SurfMind syncs changes automatically.")).toHaveClass(
+    "settings-sync-note"
+  );
+});
+
+test("shows when linked browsers filled the shared account capacity", () => {
+  const local = {
+    history: 40,
+    bookmarks: 20,
+    dirty: { history: false, bookmarks: false },
+  };
+  const remote = {
+    history: 40,
+    bookmarks: 20,
+    totals: { history: 100, bookmarks: 250 },
+    caps: { history: 100, bookmarks: 250 },
+  };
+
+  render(
+    <SettingsHome
+      onOpenSync={jest.fn()}
+      onOpenHistory={jest.fn()}
+      onOpenBookmarks={jest.fn()}
+      onOpenPrivacy={jest.fn()}
+      pageCounts={{
+        status: "ready",
+        local,
+        remote,
+        coverage: buildPageSyncCoverage(local, remote),
+        matches: true,
+      }}
+    />
+  );
+
+  expect(
+    screen.getAllByText("At capacity via your other devices")
+  ).toHaveLength(2);
+});
+
+test("always shows shared totals when cross-browser sync is linked", async () => {
+  const local = {
+    history: 82,
+    bookmarks: 136,
+    dirty: { history: false, bookmarks: false },
+  };
+  const remote = {
+    history: 82,
+    bookmarks: 136,
+    totals: { history: 82, bookmarks: 136 },
+    caps: { history: 100, bookmarks: 250 },
+  };
+
+  render(
+    <SettingsHome
+      onOpenSync={jest.fn()}
+      onOpenHistory={jest.fn()}
+      onOpenBookmarks={jest.fn()}
+      onOpenPrivacy={jest.fn()}
+      pageCounts={{
+        status: "ready",
+        local,
+        remote,
+        coverage: buildPageSyncCoverage(local, remote),
+        matches: true,
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    const coverage = screen.getByLabelText("Sync coverage");
+    expect(coverage).toHaveTextContent(
+      "HistoryUp to date82 local · 82 synced · 82 total"
+    );
+    expect(coverage).toHaveTextContent(
+      "BookmarksUp to date136 local · 136 synced · 136 total"
+    );
+  });
+
+  const historyDetails = screen.getByText("History").closest("details");
+  expect(historyDetails).not.toHaveAttribute("open");
+  fireEvent.click(historyDetails.querySelector("summary"));
+  expect(historyDetails).toHaveAttribute("open");
 });

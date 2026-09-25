@@ -7,13 +7,13 @@ import { readLocalPageCounts } from "../services/pageCounts";
 jest.mock("../services/syncApi", () => ({
   getSyncPageCounts: jest.fn(),
 }));
-jest.mock("../services/pageCounts", () => ({
-  countSavedHistoryPages: (entries = []) =>
-    new Set(entries.map((entry) => entry?.url).filter(Boolean)).size,
-  readLocalPageCounts: jest.fn(),
-  pageCountsMatch: (local, remote) =>
-    local.history === remote.history && local.bookmarks === remote.bookmarks,
-}));
+jest.mock("../services/pageCounts", () => {
+  const actual = jest.requireActual("../services/pageCounts");
+  return {
+    ...actual,
+    readLocalPageCounts: jest.fn(),
+  };
+});
 
 jest.mock("../components/Bookmarks", () => () => <div>Bookmarks view</div>);
 jest.mock("../components/Combined", () => () => <div>Combined view</div>);
@@ -127,7 +127,7 @@ test("manually syncs all history and bookmarks from the header", async () => {
     )
   ).toBeInTheDocument();
   await waitFor(() => expect(getSyncPageCounts).toHaveBeenCalledTimes(3));
-  expect(screen.getByText("Up to date")).toBeInTheDocument();
+  expect(screen.getAllByText("Up to date")).toHaveLength(2);
   expect(syncButton).toBeDisabled();
 });
 
@@ -139,10 +139,35 @@ test("disables manual sync when local and persisted page counts match", async ()
   const syncButton = screen.getByRole("button", {
     name: "Sync all history and bookmarks",
   });
-  expect(await screen.findByText("Up to date")).toBeInTheDocument();
+  expect(await screen.findAllByText("Up to date")).toHaveLength(2);
   expect(syncButton).toBeDisabled();
+  await waitFor(() =>
+    expect(screen.getByLabelText("Sync coverage")).toHaveTextContent(
+      "HistoryUp to date4 local · 4 synced · 4 total"
+    )
+  );
+});
+
+test("offers a refresh when local bookmarks exceed the backend cap", async () => {
+  readLocalPageCounts.mockResolvedValue({
+    history: 100,
+    bookmarks: 300,
+    dirty: { history: false, bookmarks: false },
+  });
+  getSyncPageCounts.mockResolvedValue({
+    history: 100,
+    bookmarks: 250,
+    totals: { history: 100, bookmarks: 250 },
+    caps: { history: 100, bookmarks: 250 },
+  });
+  renderPopup({ activeTab: "settings" });
+
+  const refreshButton = await screen.findByRole("button", {
+    name: "Refresh synced history and bookmarks",
+  });
+  expect(refreshButton).toBeEnabled();
   expect(screen.getByLabelText("Sync coverage")).toHaveTextContent(
-    "History4 local · 4 synced"
+    "At capacity — showing your most recent 250"
   );
 });
 
