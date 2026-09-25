@@ -1,4 +1,6 @@
 const getResponseData = (payload) => payload?.data || payload || {};
+const DEFAULT_HISTORY_CAP = 100;
+const DEFAULT_BOOKMARK_CAP = 250;
 
 const getErrorMessage = (payload, fallback) => {
   const detail = payload?.detail;
@@ -145,13 +147,31 @@ export const getSyncPageCounts = async (host, browserUuid) => {
 
   const history = Number(data.history_count ?? data.historyCount ?? 0);
   const bookmarks = Number(data.bookmark_count ?? data.bookmarkCount ?? 0);
-
-  if (process.env.NODE_ENV !== "production") {
-    console.log("[SurfMind] /sync/page-counts response:", data);
-  }
+  const historyTotal = Number(
+    data.history_total ?? data.historyTotal ?? history
+  );
+  const bookmarkTotal = Number(
+    data.bookmark_total ?? data.bookmarkTotal ?? bookmarks
+  );
+  const historyCap = Number(
+    data.history_cap ?? data.historyCap ?? DEFAULT_HISTORY_CAP
+  );
+  const bookmarkCap = Number(
+    data.bookmark_cap ?? data.bookmarkCap ?? DEFAULT_BOOKMARK_CAP
+  );
 
   return {
     history: Number.isFinite(history) ? history : 0,
     bookmarks: Number.isFinite(bookmarks) ? bookmarks : 0,
+    totals: {
+      history: Number.isFinite(historyTotal) ? historyTotal : history,
+      bookmarks: Number.isFinite(bookmarkTotal) ? bookmarkTotal : bookmarks,
+    },
+    caps: {
+      history: Number.isFinite(historyCap) ? historyCap : DEFAULT_HISTORY_CAP,
+      bookmarks: Number.isFinite(bookmarkCap)
+        ? bookmarkCap
+        : DEFAULT_BOOKMARK_CAP,
+    },
   };
 };

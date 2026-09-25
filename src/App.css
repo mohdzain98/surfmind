@@ -1077,8 +1077,8 @@
 }
 
 .settings-sync-counts {
-  margin-bottom: 0.85rem;
-  padding: 0.65rem 0.7rem;
+  margin-bottom: 0.7rem;
+  padding: 0.55rem 0.65rem;
   border: 1px solid #e5e8ec;
   border-radius: 0.65rem;
   background: #fafbfc;
@@ -1112,29 +1112,81 @@
 
 .settings-sync-count-grid {
   display: grid;
-  margin-top: 0.5rem;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.28rem 0.7rem;
-  align-items: baseline;
+  margin-top: 0.38rem;
+  gap: 0.36rem;
 }
 
-.settings-sync-count-grid span {
+.settings-sync-resource + .settings-sync-resource {
+  padding-top: 0.18rem;
+}
+
+.settings-sync-resource-heading {
+  display: flex;
+  gap: 0.7rem;
+  align-items: baseline;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+}
+
+.settings-sync-resource-heading::-webkit-details-marker {
+  display: none;
+}
+
+.settings-sync-resource-name {
   color: #59616b;
   font-size: 0.69rem;
   font-weight: 600;
 }
 
-.settings-sync-count-grid small {
+.settings-sync-resource-action {
+  display: inline-flex;
+  min-width: 0;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.settings-sync-resource-chevron {
+  flex: 0 0 auto;
+  color: #9aa1aa;
+  transition: transform 160ms ease;
+}
+
+.settings-sync-resource[open] .settings-sync-resource-chevron {
+  transform: rotate(90deg);
+}
+
+.settings-sync-resource-summary {
+  display: block;
+  margin-top: 0.08rem;
   color: #8a9099;
   font-size: 0.67rem;
+}
+
+.settings-sync-resource-state {
+  color: #198754;
+  font-size: 0.64rem;
+  font-style: normal;
   text-align: right;
 }
 
+.settings-sync-resource-state.is-dirty,
+.settings-sync-resource-state.is-new-local,
+.settings-sync-resource-state.is-not-synced,
+.settings-sync-resource-state.is-capacity-refresh {
+  color: #b26a00;
+}
+
+.settings-sync-resource-state.is-other-devices,
+.settings-sync-resource-state.is-capacity-other-devices {
+  color: #58738f;
+}
+
 .settings-sync-note {
-  margin: 0.5rem 0 0;
+  margin: 0.08rem 0 0;
   color: #969ca5;
   font-size: 0.64rem;
-  line-height: 1.4;
+  line-height: 1.2;
 }
 
 .settings-menu {

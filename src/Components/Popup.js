@@ -42,7 +42,10 @@ import {
   permanentlyDismissRatePrompt,
 } from "../services/ratePrompt";
 import { getSyncPageCounts } from "../services/syncApi";
-import { pageCountsMatch, readLocalPageCounts } from "../services/pageCounts";
+import {
+  buildPageSyncCoverage,
+  readLocalPageCounts,
+} from "../services/pageCounts";
 import { toUserFacingError } from "../services/userFacingError";
 
 const EMPTY_PAGE_COUNTS = {
@@ -192,11 +195,13 @@ const Popup = (props) => {
         readLocalPageCounts(),
         getSyncPageCounts(host, userId),
       ]);
+      const coverage = buildPageSyncCoverage(local, remote);
       const nextCounts = {
         status: "ready",
         local,
         remote,
-        matches: pageCountsMatch(local, remote),
+        coverage,
+        matches: coverage.matches,
       };
       setPageCounts(nextCounts);
       return nextCounts;
@@ -219,7 +224,13 @@ const Popup = (props) => {
 
     for (let attempt = 0; attempt < COVERAGE_RECHECK_ATTEMPTS; attempt += 1) {
       latestCounts = await refreshPageCounts();
-      if (!latestCounts || latestCounts.matches) break;
+      const waitingForCountUpdate = [
+        latestCounts?.coverage?.history?.key,
+        latestCounts?.coverage?.bookmarks?.key,
+      ].some((key) => ["dirty", "new-local"].includes(key));
+      if (!latestCounts || latestCounts.matches || !waitingForCountUpdate) {
+        break;
+      }
       if (attempt < COVERAGE_RECHECK_ATTEMPTS - 1) {
         await wait(COVERAGE_RECHECK_DELAY_MS);
       }
@@ -268,9 +279,14 @@ const Popup = (props) => {
     }
   };
 
-  const allLocalPagesSynced = Boolean(
-    pageCounts.status === "ready" && pageCounts.matches
+  const syncAction = pageCounts.coverage?.action || null;
+  const syncAvailable = Boolean(
+    pageCounts.status === "ready" && pageCounts.coverage?.canSync
   );
+  const allLocalPagesSynced = Boolean(
+    pageCounts.status === "ready" && !syncAvailable
+  );
+  const refreshOnly = syncAction === "refresh";
   const checkingPageCounts = ["idle", "checking"].includes(pageCounts.status);
 
   const handleClearSearch = () => {
@@ -449,16 +465,22 @@ const Popup = (props) => {
             onClick={handleManualSync}
             disabled={
               manualSync.status === "syncing" ||
-              allLocalPagesSynced ||
+              !syncAvailable ||
               checkingPageCounts
             }
-            aria-label="Sync all history and bookmarks"
+            aria-label={
+              refreshOnly
+                ? "Refresh synced history and bookmarks"
+                : "Sync all history and bookmarks"
+            }
             title={
               allLocalPagesSynced
                 ? "History and bookmarks are up to date"
                 : checkingPageCounts
                   ? "Checking sync status"
-                  : "Sync all saved history and bookmarks"
+                  : refreshOnly
+                    ? "Refresh the most recent saved history and bookmarks"
+                    : "Sync all saved history and bookmarks"
             }
           >
             <RefreshCw size={17} aria-hidden="true" />
