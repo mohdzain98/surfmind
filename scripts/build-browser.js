@@ -60,6 +60,16 @@ const inspectArchive = (archivePath) => {
   }
 };
 
+const getReleaseFamily = (version) => {
+  const match = String(version).match(/^(\d+)\.(\d+)(?:\.|$)/);
+  if (!match) {
+    throw new Error(
+      `Packaging failed: version "${version}" must start with major.minor.`
+    );
+  }
+  return `v${match[1]}.${match[2]}`;
+};
+
 const packageTarget = (target) => {
   const targetConfig = buildConfig[target];
   const buildRelativePath = path.join("build", target);
@@ -85,7 +95,8 @@ const packageTarget = (target) => {
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
   const version = manifest.version_name || manifest.version;
-  const distPath = path.join(projectRoot, "dist");
+  const releaseFamily = getReleaseFamily(version);
+  const distPath = path.join(projectRoot, "dist", releaseFamily);
   const archivePath = path.join(
     distPath,
     `${targetConfig.archiveName}-${version}.zip`

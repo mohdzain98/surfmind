@@ -2,11 +2,14 @@ import {
   createBrowserIdentity,
   formatCountdown,
   generateSyncCode,
+  getLinkedDevices,
   getSyncPageCounts,
   getSyncStatus,
   normalizeSyncCode,
   redeemSyncCode,
+  renameLinkedDevice,
   unlinkBrowser,
+  unlinkLinkedDevice,
 } from "../services/syncApi";
 
 const jsonResponse = (payload, status = 200) => ({
@@ -40,14 +43,18 @@ test("generates and normalizes an expiring eight-character code", async () => {
 
   const result = await generateSyncCode(
     "https://api.example.com/v1",
-    "browser-123"
+    "browser-123",
+    "Chrome on macOS"
   );
 
   expect(fetch).toHaveBeenCalledWith(
     "https://api.example.com/v1/sync/generate-code",
     expect.objectContaining({
       method: "POST",
-      body: JSON.stringify({ browser_uuid: "browser-123" }),
+      body: JSON.stringify({
+        browser_uuid: "browser-123",
+        device_name: "Chrome on macOS",
+      }),
     })
   );
   expect(result).toMatchObject({ code: "AB12CD34", expiresAt: 601_000 });
@@ -60,12 +67,14 @@ test("redeems a code and surfaces backend validation messages", async () => {
   const status = await redeemSyncCode(
     "https://api.example.com/v1",
     "browser-456",
-    "ab12cd34"
+    "ab12cd34",
+    "Edge on Windows"
   );
 
   expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
     browser_uuid: "browser-456",
     code: "AB12CD34",
+    device_name: "Edge on Windows",
   });
   expect(status).toMatchObject({ isLinked: true, browserCount: 2 });
 
@@ -75,6 +84,63 @@ test("redeems a code and surfaces backend validation messages", async () => {
   await expect(
     redeemSyncCode("https://api.example.com/v1", "browser-456", "AB12CD34")
   ).rejects.toThrow("Sync code has expired");
+});
+
+test("lists, renames, and remotely unlinks linked browsers", async () => {
+  fetch.mockResolvedValueOnce(
+    jsonResponse({
+      devices: [
+        {
+          browser_uuid: "browser-123",
+          device_name: "Work Laptop",
+          linked_at: "2026-10-01T00:00:00Z",
+          last_synced_at: "2026-10-11T00:00:00Z",
+          is_current: true,
+        },
+      ],
+    })
+  );
+  await expect(
+    getLinkedDevices("https://api.example.com/v1", "browser-123")
+  ).resolves.toEqual([
+    expect.objectContaining({
+      browserUuid: "browser-123",
+      deviceName: "Work Laptop",
+      isCurrent: true,
+    }),
+  ]);
+
+  fetch.mockResolvedValueOnce(
+    jsonResponse({
+      browser_uuid: "browser-456",
+      device_name: "Home Edge",
+    })
+  );
+  await expect(
+    renameLinkedDevice(
+      "https://api.example.com/v1",
+      "browser-123",
+      "browser-456",
+      "Home Edge"
+    )
+  ).resolves.toMatchObject({
+    browserUuid: "browser-456",
+    deviceName: "Home Edge",
+  });
+
+  fetch.mockResolvedValueOnce(jsonResponse({ success: true }));
+  await expect(
+    unlinkLinkedDevice(
+      "https://api.example.com/v1",
+      "browser-123",
+      "browser-456"
+    )
+  ).resolves.toBe(true);
+
+  expect(JSON.parse(fetch.mock.calls[2][1].body)).toEqual({
+    browser_uuid: "browser-123",
+    target_browser_uuid: "browser-456",
+  });
 });
 
 test("unlinks a browser and gracefully handles an unavailable status route", async () => {

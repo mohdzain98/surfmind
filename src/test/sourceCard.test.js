@@ -18,6 +18,17 @@ test("labels results saved by another linked browser", () => {
   expect(screen.getByText("Found on another browser")).toBeInTheDocument();
 });
 
+test("names the linked browser when result metadata includes a device name", () => {
+  const doc = createDoc(true);
+  doc.metadata.device_name = "Work Laptop";
+  render(<SourceCard doc={doc} />);
+
+  expect(screen.getByText("Found on Work Laptop")).toBeInTheDocument();
+  expect(
+    screen.queryByText("Found on another browser")
+  ).not.toBeInTheDocument();
+});
+
 test.each([
   ["a result explicitly marked local", createDoc(false)],
   ["a response without the flag", createDoc()],

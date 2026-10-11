@@ -1,14 +1,30 @@
 import { useCallback, useEffect, useState } from "react";
-import { Check, Clipboard, Link2, Link2Off, RefreshCw } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Clipboard,
+  Link2,
+  Link2Off,
+  RefreshCw,
+} from "lucide-react";
 import ConfirmationDialog from "./ConfirmationDialog";
+import LinkedBrowsers from "./LinkedBrowsers";
 import {
   formatCountdown,
   generateSyncCode,
+  getLinkedDevices,
   getSyncStatus,
   normalizeSyncCode,
   redeemSyncCode,
+  renameLinkedDevice,
   unlinkBrowser,
+  unlinkLinkedDevice,
 } from "../services/syncApi";
+import {
+  buildDefaultDeviceName,
+  normalizeDeviceName,
+  resolveUniqueDeviceName,
+} from "../services/deviceName";
 
 const STATUS_STORAGE_KEY = "crossBrowserSyncStatus";
 const SOLO_STATUS = {
@@ -26,13 +42,32 @@ const SyncSettings = ({ host, browserUuid, onPairingChanged }) => {
   const [busyAction, setBusyAction] = useState("");
   const [message, setMessage] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [pairingView, setPairingView] = useState("generate");
+  const [pairingView, setPairingView] = useState("");
   const [unlinkDialogOpen, setUnlinkDialogOpen] = useState(false);
+  const [devices, setDevices] = useState([]);
+  const [defaultDeviceName] = useState(() => buildDefaultDeviceName());
+  const [deviceName, setDeviceName] = useState(defaultDeviceName);
 
   const persistStatus = useCallback(async (nextStatus) => {
     setStatus(nextStatus);
     await chrome.storage.local.set({ [STATUS_STORAGE_KEY]: nextStatus });
   }, []);
+
+  const refreshDevices = useCallback(async () => {
+    if (!host || !browserUuid) return [];
+    const nextDevices = await getLinkedDevices(host, browserUuid);
+    const sortedDevices = [...nextDevices].sort((left, right) => {
+      if (left.isCurrent !== right.isCurrent) return left.isCurrent ? -1 : 1;
+      return (
+        new Date(right.lastSyncedAt || 0).getTime() -
+        new Date(left.lastSyncedAt || 0).getTime()
+      );
+    });
+    setDevices(sortedDevices);
+    const currentDevice = sortedDevices.find((device) => device.isCurrent);
+    if (currentDevice?.deviceName) setDeviceName(currentDevice.deviceName);
+    return sortedDevices;
+  }, [browserUuid, host]);
 
   const refreshStatus = useCallback(async () => {
     if (!host || !browserUuid) return;
@@ -41,15 +76,22 @@ const SyncSettings = ({ host, browserUuid, onPairingChanged }) => {
       const stored = await chrome.storage.local.get({
         [STATUS_STORAGE_KEY]: SOLO_STATUS,
       });
-      setStatus(stored[STATUS_STORAGE_KEY] || SOLO_STATUS);
+      const storedStatus = stored[STATUS_STORAGE_KEY] || SOLO_STATUS;
+      setStatus(storedStatus);
       const remoteStatus = await getSyncStatus(host, browserUuid);
-      if (remoteStatus) await persistStatus(remoteStatus);
+      if (remoteStatus) {
+        await persistStatus(remoteStatus);
+        if (remoteStatus.isLinked) await refreshDevices();
+        else setDevices([]);
+      } else if (storedStatus.isLinked) {
+        await refreshDevices();
+      }
     } catch (error) {
       setMessage({ tone: "danger", text: error.message });
     } finally {
       setBusyAction("");
     }
-  }, [browserUuid, host, persistStatus]);
+  }, [browserUuid, host, persistStatus, refreshDevices]);
 
   useEffect(() => {
     refreshStatus();
@@ -75,7 +117,11 @@ const SyncSettings = ({ host, browserUuid, onPairingChanged }) => {
     setMessage(null);
     setCopied(false);
     try {
-      const result = await generateSyncCode(host, browserUuid);
+      const result = await generateSyncCode(
+        host,
+        browserUuid,
+        normalizeDeviceName(deviceName) || defaultDeviceName
+      );
       setGeneratedCode(result.code);
       setExpiresAt(result.expiresAt);
       setRemainingMs(Math.max(0, result.expiresAt - Date.now()));
@@ -101,8 +147,45 @@ const SyncSettings = ({ host, browserUuid, onPairingChanged }) => {
     setBusyAction("redeem");
     setMessage(null);
     try {
-      const nextStatus = await redeemSyncCode(host, browserUuid, redeemCode);
+      const nextStatus = await redeemSyncCode(
+        host,
+        browserUuid,
+        redeemCode,
+        normalizeDeviceName(deviceName) || defaultDeviceName
+      );
       await persistStatus(nextStatus);
+      const linkedDevices = await refreshDevices();
+      const submittedName = normalizeDeviceName(deviceName);
+      if (!submittedName || submittedName === defaultDeviceName) {
+        const currentDevice = linkedDevices.find((device) => device.isCurrent);
+        if (currentDevice) {
+          const uniqueName = resolveUniqueDeviceName(
+            submittedName || defaultDeviceName,
+            browserUuid,
+            linkedDevices
+          );
+          if (uniqueName !== currentDevice.deviceName) {
+            const updated = await renameLinkedDevice(
+              host,
+              browserUuid,
+              browserUuid,
+              uniqueName
+            );
+            setDevices((currentDevices) =>
+              currentDevices.map((item) =>
+                item.browserUuid === browserUuid
+                  ? {
+                      ...item,
+                      ...updated,
+                      deviceName: updated.deviceName || uniqueName,
+                    }
+                  : item
+              )
+            );
+            setDeviceName(uniqueName);
+          }
+        }
+      }
       setRedeemCode("");
       setMessage({
         tone: "success",
@@ -122,6 +205,7 @@ const SyncSettings = ({ host, browserUuid, onPairingChanged }) => {
     try {
       const nextStatus = await unlinkBrowser(host, browserUuid);
       await persistStatus(nextStatus);
+      setDevices([]);
       setGeneratedCode("");
       setUnlinkDialogOpen(false);
       setMessage({
@@ -131,6 +215,70 @@ const SyncSettings = ({ host, browserUuid, onPairingChanged }) => {
       await onPairingChanged?.("unlinked");
     } catch (error) {
       setMessage({ tone: "danger", text: error.message });
+    } finally {
+      setBusyAction("");
+    }
+  };
+
+  const handleRenameDevice = async (device, nextName) => {
+    const previousDevices = devices;
+    const previousDeviceName = deviceName;
+    const optimisticName =
+      nextName ||
+      (device.isCurrent
+        ? defaultDeviceName
+        : `Linked browser · ${device.browserUuid.slice(-4)}`);
+    setDevices((currentDevices) =>
+      currentDevices.map((item) =>
+        item.browserUuid === device.browserUuid
+          ? { ...item, deviceName: optimisticName }
+          : item
+      )
+    );
+    if (device.isCurrent) setDeviceName(optimisticName);
+    try {
+      const updated = await renameLinkedDevice(
+        host,
+        browserUuid,
+        device.browserUuid,
+        nextName
+      );
+      setDevices((currentDevices) =>
+        currentDevices.map((item) =>
+          item.browserUuid === device.browserUuid
+            ? {
+                ...item,
+                ...updated,
+                deviceName: updated.deviceName || optimisticName,
+              }
+            : item
+        )
+      );
+      if (device.isCurrent) {
+        setDeviceName(updated.deviceName || optimisticName);
+      }
+    } catch (error) {
+      setDevices(previousDevices);
+      if (device.isCurrent) setDeviceName(previousDeviceName);
+      throw error;
+    }
+  };
+
+  const handleUnlinkDevice = async (device) => {
+    setBusyAction(`unlink-${device.browserUuid}`);
+    setMessage(null);
+    try {
+      await unlinkLinkedDevice(host, browserUuid, device.browserUuid);
+      await refreshDevices();
+      const remoteStatus = await getSyncStatus(host, browserUuid);
+      if (remoteStatus) await persistStatus(remoteStatus);
+      setMessage({
+        tone: "success",
+        text: `${device.deviceName} was unlinked. No saved data was deleted.`,
+      });
+    } catch (error) {
+      setMessage({ tone: "danger", text: error.message });
+      throw error;
     } finally {
       setBusyAction("");
     }
@@ -185,115 +333,162 @@ const SyncSettings = ({ host, browserUuid, onPairingChanged }) => {
         </div>
       </div>
 
-      <div
-        className={`sync-pairing-switch ${
-          pairingView === "link" ? "is-link-selected" : ""
-        }`}
-        role="tablist"
-        aria-label="Choose how to link browsers"
-      >
+      <div className="sync-pairing-accordions">
         <button
           type="button"
-          role="tab"
-          id="sync-generate-tab"
-          className={pairingView === "generate" ? "is-active" : ""}
-          aria-selected={pairingView === "generate"}
+          className="sync-pairing-trigger"
+          id="sync-generate-trigger"
+          aria-expanded={pairingView === "generate"}
           aria-controls="sync-generate-panel"
-          onClick={() => setPairingView("generate")}
+          onClick={() =>
+            setPairingView((current) =>
+              current === "generate" ? "" : "generate"
+            )
+          }
         >
-          <Clipboard size={13} aria-hidden="true" />
-          Generate code
+          <span className="sync-pairing-trigger-icon" aria-hidden="true">
+            <Clipboard size={14} />
+          </span>
+          <span>Show a code on this browser</span>
+          <ChevronDown
+            className="sync-pairing-chevron"
+            size={16}
+            aria-hidden="true"
+          />
         </button>
+
+        {pairingView === "generate" ? (
+          <div
+            className="sync-block sync-pairing-panel"
+            id="sync-generate-panel"
+            role="region"
+            aria-labelledby="sync-generate-trigger"
+          >
+            <p className="text-muted small">
+              Enter this one-time code on the browser you want to link.
+            </p>
+            <label
+              htmlFor="sync-generate-device-name"
+              className="form-label small"
+            >
+              Name this browser <span className="text-muted">(optional)</span>
+            </label>
+            <input
+              id="sync-generate-device-name"
+              className="form-control form-control-sm sync-device-name-input"
+              value={deviceName}
+              maxLength={40}
+              onChange={(event) => setDeviceName(event.target.value)}
+            />
+            <button
+              type="button"
+              className="btn btn-primary btn-sm mt-2"
+              onClick={handleGenerate}
+              disabled={isBusy || !host || !browserUuid}
+            >
+              <Clipboard size={13} aria-hidden="true" />
+              {busyAction === "generate" ? "Generating…" : "Generate sync code"}
+            </button>
+
+            {generatedCode ? (
+              <div className="sync-code-card" aria-live="polite">
+                <code>{generatedCode}</code>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-light"
+                  onClick={handleCopy}
+                  aria-label="Copy sync code"
+                >
+                  {copied ? <Check size={15} /> : <Clipboard size={15} />}
+                </button>
+                <span>Expires in {formatCountdown(remainingMs)}</span>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         <button
           type="button"
-          role="tab"
-          id="sync-link-tab"
-          className={pairingView === "link" ? "is-active" : ""}
-          aria-selected={pairingView === "link"}
+          className="sync-pairing-trigger"
+          id="sync-link-trigger"
+          aria-expanded={pairingView === "link"}
           aria-controls="sync-link-panel"
-          onClick={() => setPairingView("link")}
+          onClick={() =>
+            setPairingView((current) => (current === "link" ? "" : "link"))
+          }
         >
-          <Link2 size={13} aria-hidden="true" />
-          Link browser
+          <span className="sync-pairing-trigger-icon" aria-hidden="true">
+            <Link2 size={14} />
+          </span>
+          <span>Enter a code from another browser</span>
+          <ChevronDown
+            className="sync-pairing-chevron"
+            size={16}
+            aria-hidden="true"
+          />
         </button>
+
+        {pairingView === "link" ? (
+          <form
+            className="sync-block sync-pairing-panel"
+            id="sync-link-panel"
+            role="region"
+            aria-labelledby="sync-link-trigger"
+            onSubmit={handleRedeem}
+          >
+            <input
+              id="sync-code-input"
+              className="form-control sync-code-input"
+              value={redeemCode}
+              onChange={(event) =>
+                setRedeemCode(normalizeSyncCode(event.target.value))
+              }
+              placeholder="XXXXXXXX"
+              autoComplete="off"
+              inputMode="text"
+              maxLength={8}
+              aria-label="Sync code"
+              aria-describedby="sync-code-help"
+            />
+            <div id="sync-code-help" className="form-text">
+              Codes contain eight letters or numbers and expire after about ten
+              minutes.
+            </div>
+            <label
+              htmlFor="sync-redeem-device-name"
+              className="form-label small mt-2"
+            >
+              Name this browser <span className="text-muted">(optional)</span>
+            </label>
+            <input
+              id="sync-redeem-device-name"
+              className="form-control form-control-sm sync-device-name-input"
+              value={deviceName}
+              maxLength={40}
+              onChange={(event) => setDeviceName(event.target.value)}
+            />
+            <button
+              type="submit"
+              className="btn btn-success btn-sm mt-2"
+              disabled={
+                isBusy || redeemCode.length !== 8 || !host || !browserUuid
+              }
+            >
+              <Link2 size={13} aria-hidden="true" />
+              {busyAction === "redeem" ? "Linking…" : "Link this browser"}
+            </button>
+          </form>
+        ) : null}
       </div>
 
-      {pairingView === "generate" ? (
-        <div
-          className="sync-block sync-pairing-panel"
-          id="sync-generate-panel"
-          role="tabpanel"
-          aria-labelledby="sync-generate-tab"
-        >
-          <h3 className="h6">Show a code on this browser</h3>
-          <p className="text-muted small">
-            Enter this one-time code on the browser you want to link.
-          </p>
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={handleGenerate}
-            disabled={isBusy || !host || !browserUuid}
-          >
-            <Clipboard size={13} aria-hidden="true" />
-            {busyAction === "generate" ? "Generating…" : "Generate sync code"}
-          </button>
-
-          {generatedCode ? (
-            <div className="sync-code-card" aria-live="polite">
-              <code>{generatedCode}</code>
-              <button
-                type="button"
-                className="btn btn-sm btn-light"
-                onClick={handleCopy}
-                aria-label="Copy sync code"
-              >
-                {copied ? <Check size={15} /> : <Clipboard size={15} />}
-              </button>
-              <span>Expires in {formatCountdown(remainingMs)}</span>
-            </div>
-          ) : null}
-        </div>
-      ) : (
-        <form
-          className="sync-block sync-pairing-panel"
-          id="sync-link-panel"
-          role="tabpanel"
-          aria-labelledby="sync-link-tab"
-          onSubmit={handleRedeem}
-        >
-          <label htmlFor="sync-code-input" className="form-label h6">
-            Enter a code from another browser
-          </label>
-          <input
-            id="sync-code-input"
-            className="form-control sync-code-input"
-            value={redeemCode}
-            onChange={(event) =>
-              setRedeemCode(normalizeSyncCode(event.target.value))
-            }
-            placeholder="XXXXXXXX"
-            autoComplete="off"
-            inputMode="text"
-            maxLength={8}
-            aria-describedby="sync-code-help"
-          />
-          <div id="sync-code-help" className="form-text">
-            Codes contain eight letters or numbers and expire after about ten
-            minutes.
-          </div>
-          <button
-            type="submit"
-            className="btn btn-success btn-sm mt-2"
-            disabled={
-              isBusy || redeemCode.length !== 8 || !host || !browserUuid
-            }
-          >
-            <Link2 size={13} aria-hidden="true" />
-            {busyAction === "redeem" ? "Linking…" : "Link this browser"}
-          </button>
-        </form>
-      )}
+      {status.isLinked && devices.length > 0 ? (
+        <LinkedBrowsers
+          devices={devices}
+          onRename={handleRenameDevice}
+          onUnlink={handleUnlinkDevice}
+          busy={isBusy}
+        />
+      ) : null}
 
       {status.isLinked ? (
         <div className="sync-block sync-danger-zone">

@@ -209,6 +209,59 @@ test("uses a one-time full-page introduction for a major update", async () => {
   );
 });
 
+test("introduces named cross-browser results for version 1.9.0", async () => {
+  const { value } = renderPopup({
+    updateFlag: false,
+    updateNotice: "major",
+    updateVersion: "1.90.0",
+  });
+
+  expect(
+    screen.getByRole("heading", { name: "Know which browser found it." })
+  ).toBeInTheDocument();
+  expect(screen.getByText("Name every linked browser")).toBeInTheDocument();
+  expect(screen.getByText("Search across linked browsers")).toBeInTheDocument();
+  expect(
+    screen.getByText("An article you saved for later")
+  ).toBeInTheDocument();
+  expect(screen.getByText("Found on Work Laptop")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Let's Surf" }));
+
+  await waitFor(() =>
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({
+      "sm-last-seen-version": "1.90.0",
+    })
+  );
+  await waitFor(() =>
+    expect(value.setState).toHaveBeenCalledWith({
+      updateFlag: true,
+      updateNotice: null,
+    })
+  );
+});
+
+test("opens Cross-browser Sync from the version 1.9.0 introduction", async () => {
+  const { value } = renderPopup({
+    updateFlag: false,
+    updateNotice: "major",
+    updateVersion: "1.90.0",
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Set up sync" }));
+
+  await waitFor(() =>
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({
+      "sm-last-seen-version": "1.90.0",
+    })
+  );
+  await waitFor(() =>
+    expect(value.setState).toHaveBeenCalledWith(
+      expect.objectContaining({ activeTab: "settings" })
+    )
+  );
+});
+
 test("shows the bookmark-folder update at the top for version 1.8.4", async () => {
   const { container, value } = renderPopup({
     updateFlag: false,

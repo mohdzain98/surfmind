@@ -49,6 +49,12 @@ const SourceCard = ({ doc, showDate = false, onOpen }) => {
   ).trim();
   const folder = String(metadata.folder || doc?.folder || "").trim();
   const foundOnOtherBrowser = metadata.found_on_other_browser === true;
+  const sourceDeviceName = String(
+    metadata.device_name || metadata.source_device_name || ""
+  ).trim();
+  const linkedBrowserLabel = sourceDeviceName
+    ? `Found on ${sourceDeviceName}`
+    : "Found on another browser";
 
   const openSource = () => {
     if (!source) return;
@@ -80,12 +86,9 @@ const SourceCard = ({ doc, showDate = false, onOpen }) => {
             </span>
           ) : null}
           {foundOnOtherBrowser ? (
-            <span
-              className="linked-browser-tag"
-              title="This result was saved on another linked browser"
-            >
+            <span className="linked-browser-tag" title={linkedBrowserLabel}>
               <Laptop size={11} aria-hidden="true" />
-              Found on another browser
+              <span>{linkedBrowserLabel}</span>
             </span>
           ) : null}
         </div>

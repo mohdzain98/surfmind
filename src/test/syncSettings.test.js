@@ -1,18 +1,26 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import SyncSettings from "../components/SyncSettings";
-import { getSyncStatus, unlinkBrowser } from "../services/syncApi";
+import {
+  getLinkedDevices,
+  getSyncStatus,
+  unlinkBrowser,
+} from "../services/syncApi";
 
 jest.mock("../services/syncApi", () => ({
   formatCountdown: jest.fn(() => "10:00"),
   generateSyncCode: jest.fn(),
+  getLinkedDevices: jest.fn(),
   getSyncStatus: jest.fn(),
   normalizeSyncCode: jest.fn((value) => value.toUpperCase()),
   redeemSyncCode: jest.fn(),
+  renameLinkedDevice: jest.fn(),
   unlinkBrowser: jest.fn(),
+  unlinkLinkedDevice: jest.fn(),
 }));
 
 beforeEach(() => {
   getSyncStatus.mockResolvedValue(null);
+  getLinkedDevices.mockResolvedValue([]);
   global.chrome = {
     storage: {
       local: {
@@ -62,7 +70,7 @@ test("confirms unlinking in the shared confirmation dialog", async () => {
   await waitFor(() => expect(dialog).not.toBeInTheDocument());
 });
 
-test("shows one browser-linking workflow at a time", async () => {
+test("shows one browser-linking accordion at a time", async () => {
   render(
     <SyncSettings host="https://api.example.com/v1" browserUuid="browser-123" />
   );
@@ -73,25 +81,66 @@ test("shows one browser-linking workflow at a time", async () => {
     screen.getByText(/Linked browsers can search the same saved history/)
   ).toBeInTheDocument();
 
-  expect(screen.getByRole("tab", { name: "Generate code" })).toHaveAttribute(
-    "aria-selected",
-    "true"
-  );
-  expect(screen.getByText("Show a code on this browser")).toBeInTheDocument();
-  expect(
-    screen.queryByLabelText("Enter a code from another browser")
-  ).not.toBeInTheDocument();
+  const generateTrigger = screen.getByRole("button", {
+    name: "Show a code on this browser",
+  });
+  const linkTrigger = screen.getByRole("button", {
+    name: "Enter a code from another browser",
+  });
+  expect(generateTrigger).toHaveAttribute("aria-expanded", "false");
+  expect(linkTrigger).toHaveAttribute("aria-expanded", "false");
 
-  fireEvent.click(screen.getByRole("tab", { name: "Link browser" }));
+  fireEvent.click(generateTrigger);
+  expect(generateTrigger).toHaveAttribute("aria-expanded", "true");
+  expect(screen.getByLabelText(/Name this browser/)).toBeInTheDocument();
 
-  expect(screen.getByRole("tab", { name: "Link browser" })).toHaveAttribute(
-    "aria-selected",
-    "true"
+  fireEvent.click(linkTrigger);
+  expect(generateTrigger).toHaveAttribute("aria-expanded", "false");
+  expect(linkTrigger).toHaveAttribute("aria-expanded", "true");
+  expect(screen.getByLabelText("Sync code")).toBeInTheDocument();
+});
+
+test("shows linked browsers with the current browser first", async () => {
+  getSyncStatus.mockResolvedValue({
+    isLinked: true,
+    browserCount: 2,
+    syncAccountId: "account-123",
+  });
+  getLinkedDevices.mockResolvedValue([
+    {
+      browserUuid: "browser-456",
+      deviceName: "Home Edge",
+      linkedAt: "2026-10-01T00:00:00Z",
+      lastSyncedAt: "2026-10-10T00:00:00Z",
+      isCurrent: false,
+    },
+    {
+      browserUuid: "browser-123",
+      deviceName: "Work Chrome",
+      linkedAt: "2026-09-01T00:00:00Z",
+      lastSyncedAt: "2026-10-09T00:00:00Z",
+      isCurrent: true,
+    },
+  ]);
+
+  render(
+    <SyncSettings host="https://api.example.com/v1" browserUuid="browser-123" />
   );
+
+  expect(await screen.findByText("Linked browsers")).toBeInTheDocument();
+  expect(screen.queryByText("Work Chrome")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /Linked browsers.*2/i }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Show a code on this browser" })
+  );
+  expect(screen.getByLabelText(/Name this browser/)).toHaveValue("Work Chrome");
+  const browserNames = screen.getAllByText(/Work Chrome|Home Edge/);
+  expect(browserNames[0]).toHaveTextContent("Work Chrome");
+  expect(screen.getByText("This browser")).toBeInTheDocument();
   expect(
-    screen.getByLabelText("Enter a code from another browser")
+    screen.getByRole("button", { name: "Unlink Home Edge" })
   ).toBeInTheDocument();
   expect(
-    screen.queryByText("Show a code on this browser")
+    screen.queryByRole("button", { name: "Unlink Work Chrome" })
   ).not.toBeInTheDocument();
 });

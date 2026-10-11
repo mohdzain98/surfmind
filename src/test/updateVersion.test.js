@@ -5,6 +5,7 @@ import {
 
 test("uses the full page for structural releases and major increases", () => {
   expect(getUpdateNotice("1.76.0", "1.80.0")).toBe("major");
+  expect(getUpdateNotice("1.80.4", "1.90.0")).toBe("major");
   expect(getUpdateNotice("2.0.0", "3.1.0")).toBe("major");
 });
 

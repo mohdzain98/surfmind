@@ -61,13 +61,16 @@ export const normalizeSyncStatus = (payload) => {
   };
 };
 
-export const generateSyncCode = async (host, browserUuid) => {
+export const generateSyncCode = async (host, browserUuid, deviceName) => {
   const data = await requestJson(
     `${host}/sync/generate-code`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(createBrowserIdentity(browserUuid)),
+      body: JSON.stringify({
+        ...createBrowserIdentity(browserUuid),
+        ...(deviceName ? { device_name: deviceName } : {}),
+      }),
     },
     "Could not generate a sync code"
   );
@@ -84,7 +87,7 @@ export const generateSyncCode = async (host, browserUuid) => {
   return { code, expiresAt, status: normalizeSyncStatus(data) };
 };
 
-export const redeemSyncCode = async (host, browserUuid, code) => {
+export const redeemSyncCode = async (host, browserUuid, code, deviceName) => {
   const data = await requestJson(
     `${host}/sync/redeem-code`,
     {
@@ -93,11 +96,83 @@ export const redeemSyncCode = async (host, browserUuid, code) => {
       body: JSON.stringify({
         ...createBrowserIdentity(browserUuid),
         code: normalizeSyncCode(code),
+        ...(deviceName ? { device_name: deviceName } : {}),
       }),
     },
     "Could not redeem this sync code"
   );
   return { ...normalizeSyncStatus(data), isLinked: true };
+};
+
+const normalizeDevice = (device = {}) => {
+  const browserUuid = device.browser_uuid || device.browserUuid || "";
+  return {
+    browserUuid,
+    deviceName:
+      device.device_name ||
+      device.deviceName ||
+      `Linked browser · ${browserUuid.slice(-4)}`,
+    linkedAt: device.linked_at || device.linkedAt || null,
+    lastSyncedAt: device.last_synced_at || device.lastSyncedAt || null,
+    isCurrent: Boolean(device.is_current ?? device.isCurrent),
+  };
+};
+
+export const getLinkedDevices = async (host, browserUuid) => {
+  const data = await requestJson(
+    `${host}/sync/devices`,
+    {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(createBrowserIdentity(browserUuid)),
+    },
+    "Could not load linked browsers"
+  );
+  const devices = Array.isArray(data.devices) ? data.devices : [];
+  return devices.map(normalizeDevice);
+};
+
+export const renameLinkedDevice = async (
+  host,
+  browserUuid,
+  targetBrowserUuid,
+  deviceName
+) => {
+  const data = await requestJson(
+    `${host}/sync/devices/rename`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        browser_uuid: browserUuid,
+        target_browser_uuid: targetBrowserUuid,
+        device_name: deviceName,
+      }),
+    },
+    "Could not rename this browser"
+  );
+  return normalizeDevice(data.device || data);
+};
+
+export const unlinkLinkedDevice = async (
+  host,
+  browserUuid,
+  targetBrowserUuid
+) => {
+  await requestJson(
+    `${host}/sync/devices/unlink`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        browser_uuid: browserUuid,
+        target_browser_uuid: targetBrowserUuid,
+      }),
+    },
+    "Could not unlink this browser"
+  );
+  return true;
 };
 
 export const unlinkBrowser = async (host, browserUuid) => {

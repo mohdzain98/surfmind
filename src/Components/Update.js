@@ -2,8 +2,10 @@ import {
   ArrowRight,
   Clock3,
   FolderSearch,
+  Laptop,
   Link2,
   PanelRightOpen,
+  Pencil,
   SearchCheck,
   Sparkles,
 } from "lucide-react";
@@ -35,6 +37,27 @@ const MAJOR_HIGHLIGHTS = [
   },
 ];
 
+const LINKED_BROWSER_HIGHLIGHTS = [
+  {
+    Icon: Pencil,
+    title: "Name every linked browser",
+    description:
+      "Use familiar names such as Work Laptop, Home Edge, or Personal Mac.",
+  },
+  {
+    Icon: Link2,
+    title: "Search across linked browsers",
+    description:
+      "Find history and bookmarks saved on another browser from the one you’re using now.",
+  },
+  {
+    Icon: Laptop,
+    title: "See where each result came from",
+    description:
+      "Matched sources identify the linked browser that originally saved the page.",
+  },
+];
+
 const MINOR_UPDATE_CONTENT = {
   "1.80.4": {
     title: "Search inside bookmark folders",
@@ -48,23 +71,41 @@ const DEFAULT_MINOR_UPDATE = {
   description: "New improvements are ready for you.",
 };
 
-const Update = ({ severity = "minor", version, handleShowUpdate }) => {
+const Update = ({
+  severity = "minor",
+  version,
+  handleShowUpdate,
+  handleOpenSync,
+}) => {
   if (severity === "major") {
+    const isLinkedBrowserUpdate = version === "1.90.0";
+    const highlights = isLinkedBrowserUpdate
+      ? LINKED_BROWSER_HIGHLIGHTS
+      : MAJOR_HIGHLIGHTS;
     return (
       <main className="update-takeover" aria-labelledby="major-update-title">
         <section className="update-takeover-card">
           <div className="update-takeover-icon" aria-hidden="true">
             <Sparkles size={25} />
           </div>
-          <span className="update-eyebrow">Meet the new SurfMind</span>
-          <h1 id="major-update-title">SurfMind, reimagined.</h1>
+          <span className="update-eyebrow">
+            {isLinkedBrowserUpdate
+              ? "Cross-browser search, made clearer"
+              : "Meet the new SurfMind"}
+          </span>
+          <h1 id="major-update-title">
+            {isLinkedBrowserUpdate
+              ? "Know which browser found it."
+              : "SurfMind, reimagined."}
+          </h1>
           <p className="update-intro">
-            Your browsing assistant has moved from a popup into a persistent,
-            smarter side panel.
+            {isLinkedBrowserUpdate
+              ? "Give linked browsers recognizable names and see exactly where cross-browser search results came from."
+              : "Your browsing assistant has moved from a popup into a persistent, smarter side panel."}
           </p>
 
           <div className="update-highlights">
-            {MAJOR_HIGHLIGHTS.map(({ Icon, title, description }) => (
+            {highlights.map(({ Icon, title, description }) => (
               <div className="update-highlight" key={title}>
                 <span className="update-highlight-icon" aria-hidden="true">
                   <Icon size={17} />
@@ -77,14 +118,43 @@ const Update = ({ severity = "minor", version, handleShowUpdate }) => {
             ))}
           </div>
 
-          <button
-            type="button"
-            className="btn btn-primary update-cta"
-            onClick={handleShowUpdate}
-          >
-            Let&apos;s Surf
-            <ArrowRight size={16} aria-hidden="true" />
-          </button>
+          {isLinkedBrowserUpdate ? (
+            <div
+              className="update-device-example"
+              aria-label="Example search result"
+            >
+              <div className="update-device-example-copy">
+                <span>Example search result</span>
+                <strong>An article you saved for later</strong>
+                <small>example.com</small>
+              </div>
+              <span className="update-device-example-badge">
+                <Laptop size={12} aria-hidden="true" />
+                Found on Work Laptop
+              </span>
+            </div>
+          ) : null}
+
+          <div className="update-cta-row">
+            <button
+              type="button"
+              className="btn btn-primary update-cta"
+              onClick={handleShowUpdate}
+            >
+              Let&apos;s Surf
+              <ArrowRight size={16} aria-hidden="true" />
+            </button>
+            {isLinkedBrowserUpdate ? (
+              <button
+                type="button"
+                className="btn update-cta update-cta-secondary"
+                onClick={handleOpenSync}
+              >
+                <Link2 size={15} aria-hidden="true" />
+                Set up sync
+              </button>
+            ) : null}
+          </div>
         </section>
       </main>
     );

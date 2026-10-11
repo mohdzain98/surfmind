@@ -173,6 +173,12 @@ const Popup = (props) => {
     });
   };
 
+  const handleOpenSyncFromUpdate = async () => {
+    await handleShowUpdate();
+    handleTabChange("settings");
+    setSettingsView("sync");
+  };
+
   const handleSearchInBookmarkFolder = (folder) => {
     setDropdownOpen(false);
     handleTabChange("bookmark", { selectedBookmarkFolder: folder });
@@ -417,7 +423,14 @@ const Popup = (props) => {
   }
 
   if (updateNotice === "major") {
-    return <Update severity="major" handleShowUpdate={handleShowUpdate} />;
+    return (
+      <Update
+        severity="major"
+        version={updateVersion}
+        handleShowUpdate={handleShowUpdate}
+        handleOpenSync={handleOpenSyncFromUpdate}
+      />
+    );
   }
 
   return (
