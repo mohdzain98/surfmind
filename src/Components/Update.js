@@ -1,6 +1,7 @@
 import {
   ArrowRight,
   Clock3,
+  FolderSearch,
   Link2,
   PanelRightOpen,
   SearchCheck,
@@ -34,7 +35,20 @@ const MAJOR_HIGHLIGHTS = [
   },
 ];
 
-const Update = ({ severity = "minor", handleShowUpdate }) => {
+const MINOR_UPDATE_CONTENT = {
+  "1.80.4": {
+    title: "Search inside bookmark folders",
+    description:
+      "Choose any bookmark folder to search only that folder and its subfolders.",
+  },
+};
+
+const DEFAULT_MINOR_UPDATE = {
+  title: "SurfMind just got better",
+  description: "New improvements are ready for you.",
+};
+
+const Update = ({ severity = "minor", version, handleShowUpdate }) => {
   if (severity === "major") {
     return (
       <main className="update-takeover" aria-labelledby="major-update-title">
@@ -76,25 +90,25 @@ const Update = ({ severity = "minor", handleShowUpdate }) => {
     );
   }
 
+  const content = MINOR_UPDATE_CONTENT[version] || DEFAULT_MINOR_UPDATE;
+
   return (
-    <div
-      className="update-banner alert alert-success alert-dismissible fade show mt-3"
-      role="alert"
-    >
-      <div className="d-flex flex-column justify-content-start mb-2">
-        <h5 className="alert-heading mb-0">What&apos;s New!</h5>
+    <aside className="update-banner" aria-label="What’s new">
+      <span className="update-banner-icon" aria-hidden="true">
+        <FolderSearch size={16} />
+      </span>
+      <div className="update-banner-content">
+        <span className="update-banner-label">New</span>
+        <strong>{content.title}</strong>
+        <p>{content.description}</p>
       </div>
-      <p className="update-banner-copy">
-        <ArrowRight size={14} aria-hidden="true" />
-        <span>SurfMind has new improvements ready for you.</span>
-      </p>
       <button
         type="button"
-        className="btn-close"
-        aria-label="Close"
+        className="btn-close update-banner-close"
+        aria-label="Dismiss update"
         onClick={handleShowUpdate}
       />
-    </div>
+    </aside>
   );
 };
 

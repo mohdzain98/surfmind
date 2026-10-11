@@ -1,4 +1,4 @@
-import { Laptop } from "lucide-react";
+import { Folder, Laptop } from "lucide-react";
 
 const getDomain = (source) => {
   try {
@@ -44,7 +44,10 @@ const SourceCard = ({ doc, showDate = false, onOpen }) => {
   const dateValue =
     metadata.visited_at || metadata.date || doc?.visited_at || doc?.date;
   const relativeDate = showDate && dateValue ? getDaysAgo(dateValue) : "";
-  const snippet = doc?.snippet || metadata.snippet || "";
+  const snippet = String(
+    doc?.snippet || metadata.snippet || doc?.content || metadata.content || ""
+  ).trim();
+  const folder = String(metadata.folder || doc?.folder || "").trim();
   const foundOnOtherBrowser = metadata.found_on_other_browser === true;
 
   const openSource = () => {
@@ -68,14 +71,24 @@ const SourceCard = ({ doc, showDate = false, onOpen }) => {
         {domain ? domain.charAt(0).toUpperCase() + domain.slice(1) : ""}
         {title ? ` | ${title}` : ""}
       </p>
-      {foundOnOtherBrowser ? (
-        <span
-          className="linked-browser-tag"
-          title="This result was saved on another linked browser"
-        >
-          <Laptop size={11} aria-hidden="true" />
-          Found on another browser
-        </span>
+      {folder || foundOnOtherBrowser ? (
+        <div className="source-context-tags">
+          {folder ? (
+            <span className="source-folder-tag" title={folder}>
+              <Folder size={11} aria-hidden="true" />
+              <span>{folder}</span>
+            </span>
+          ) : null}
+          {foundOnOtherBrowser ? (
+            <span
+              className="linked-browser-tag"
+              title="This result was saved on another linked browser"
+            >
+              <Laptop size={11} aria-hidden="true" />
+              Found on another browser
+            </span>
+          ) : null}
+        </div>
       ) : null}
       {headingPath ? (
         <p className="heading-breadcrumb" title={headingPath}>

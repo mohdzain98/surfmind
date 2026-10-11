@@ -28,3 +28,30 @@ test.each([
     screen.queryByText("Found on another browser")
   ).not.toBeInTheDocument();
 });
+
+test("shows bookmark folders and uses matched content as the excerpt", () => {
+  render(
+    <SourceCard
+      doc={{
+        content:
+          "The deployment guide explains how to configure production services.",
+        metadata: {
+          source: "https://example.com/deployment",
+          domain: "example.com",
+          title: "Deployment guide",
+          type: "bookmark",
+          folder: "Bookmarks bar / cellus / aws",
+        },
+      }}
+    />
+  );
+
+  expect(screen.getByTitle("Bookmarks bar / cellus / aws")).toHaveTextContent(
+    "Bookmarks bar / cellus / aws"
+  );
+  expect(
+    screen.getByText(
+      "The deployment guide explains how to configure production services."
+    )
+  ).toHaveClass("source-snippet");
+});

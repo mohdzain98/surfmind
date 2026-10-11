@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useReducer } from "react";
 import { userContext } from "./userContext";
 import { initializeUserId } from "../components/UserId";
-import { createBrowserIdentity } from "../services/syncApi";
 import { flushBeforeSearch } from "../services/searchSync";
 import { recordSuccessfulSearch } from "../services/ratePrompt";
 import { toUserFacingError } from "../services/userFacingError";
+import { buildSearchRequest } from "../services/searchRequest";
 import {
   LEGACY_UPDATE_VERSIONS,
   UPDATE_PREVIOUS_VERSION_KEY,
@@ -50,6 +50,7 @@ const initialState = {
   step: null,
   thoughts: [],
   finalReceived: false,
+  selectedBookmarkFolder: null,
 };
 
 const userReducer = (state, action) => {
@@ -155,7 +156,7 @@ const UserState = ({ children }) => {
   );
 
   const searchStream = useCallback(
-    async ({ host, query, userId, flag }) => {
+    async ({ host, query, userId, flag, folder = null }) => {
       let thoughtSequence = 0;
       let thoughts = [];
       const appendThought = (message, currentStep = null, statePatch = {}) => {
@@ -205,11 +206,14 @@ const UserState = ({ children }) => {
         const response = await fetch(`${host}/search-stream`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...createBrowserIdentity(userId),
-            query,
-            flag,
-          }),
+          body: JSON.stringify(
+            buildSearchRequest({
+              browserUuid: userId,
+              query,
+              flag,
+              folder,
+            })
+          ),
         });
 
         if (!response.ok || !response.body) {

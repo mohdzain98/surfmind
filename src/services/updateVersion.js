@@ -8,13 +8,22 @@ export const LEGACY_UPDATE_VERSIONS = [
 ];
 
 const FULL_PAGE_UPDATE_VERSIONS = new Set(["1.80.0"]);
+const BANNER_UPDATE_VERSIONS = new Set(["1.80.4"]);
 
 const parseVersion = (version = "0.0.0") => {
-  const [major = 0, minor = 0] = String(version)
+  const [major = 0, minor = 0, patch = 0, build = 0] = String(version)
     .split(".")
     .map((part) => Number.parseInt(part, 10) || 0);
-  return { major, minor };
+  return { major, minor, patch, build };
 };
+
+const isVersionNewer = (current, stored) =>
+  ["major", "minor", "patch", "build"].some((part, index, parts) => {
+    const previousPartsMatch = parts
+      .slice(0, index)
+      .every((previousPart) => current[previousPart] === stored[previousPart]);
+    return previousPartsMatch && current[part] > stored[part];
+  });
 
 export const getStoredUpdateVersion = (stored) => {
   if (stored[UPDATE_VERSION_KEY]) return stored[UPDATE_VERSION_KEY];
@@ -30,14 +39,14 @@ export const getStoredUpdateVersion = (stored) => {
 export const getUpdateNotice = (storedVersion, currentVersion) => {
   const stored = parseVersion(storedVersion);
   const current = parseVersion(currentVersion);
-  const isNewer =
-    current.major > stored.major ||
-    (current.major === stored.major && current.minor > stored.minor);
+  const isNewer = isVersionNewer(current, stored);
 
+  if (!isNewer) return null;
   if (current.major > stored.major) return "major";
   if (isNewer && FULL_PAGE_UPDATE_VERSIONS.has(currentVersion)) return "major";
   if (current.major === stored.major && current.minor > stored.minor) {
     return "minor";
   }
+  if (BANNER_UPDATE_VERSIONS.has(currentVersion)) return "minor";
   return null;
 };

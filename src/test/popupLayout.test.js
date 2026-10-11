@@ -30,8 +30,16 @@ jest.mock("../components/PrivacySettings", () => () => <div>Privacy view</div>);
 jest.mock("../components/SavedHistory", () => () => (
   <div>Saved history view</div>
 ));
-jest.mock("../components/SavedBookmarks", () => () => (
-  <div>Saved bookmarks view</div>
+jest.mock("../components/SavedBookmarks", () => ({ onSearchFolder }) => (
+  <div>
+    Saved bookmarks view
+    <button
+      type="button"
+      onClick={() => onSearchFolder("Bookmarks bar / Work")}
+    >
+      Search saved folder
+    </button>
+  </div>
 ));
 
 const baseState = {
@@ -191,6 +199,38 @@ test("uses a one-time full-page introduction for a major update", async () => {
   await waitFor(() =>
     expect(chrome.storage.local.set).toHaveBeenCalledWith({
       "sm-last-seen-version": "1.80.0",
+    })
+  );
+  await waitFor(() =>
+    expect(value.setState).toHaveBeenCalledWith({
+      updateFlag: true,
+      updateNotice: null,
+    })
+  );
+});
+
+test("shows the bookmark-folder update at the top for version 1.8.4", async () => {
+  const { container, value } = renderPopup({
+    updateFlag: false,
+    updateNotice: "minor",
+    updateVersion: "1.80.4",
+  });
+
+  const banner = screen.getByLabelText("What’s new");
+  const nav = container.querySelector(".panel-nav");
+  expect(banner).toHaveTextContent("Search inside bookmark folders");
+  expect(banner).toHaveTextContent(
+    "Choose any bookmark folder to search only that folder and its subfolders."
+  );
+  expect(
+    nav.compareDocumentPosition(banner) & Node.DOCUMENT_POSITION_FOLLOWING
+  ).toBeTruthy();
+
+  fireEvent.click(screen.getByRole("button", { name: "Dismiss update" }));
+
+  await waitFor(() =>
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({
+      "sm-last-seen-version": "1.80.4",
     })
   );
   await waitFor(() =>
@@ -418,4 +458,19 @@ test("drills into one settings section at a time and returns to the menu", () =>
   fireEvent.click(screen.getByRole("button", { name: "Back to settings" }));
   fireEvent.click(screen.getByRole("button", { name: /Saved Bookmarks/ }));
   expect(screen.getByText("Saved bookmarks view")).toBeInTheDocument();
+});
+
+test("opens bookmark search with a folder selected from Settings", () => {
+  const { value } = renderPopup({ activeTab: "settings" });
+
+  fireEvent.click(screen.getByRole("button", { name: /Saved Bookmarks/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Search saved folder" }));
+
+  expect(value.setState).toHaveBeenCalledWith(
+    expect.objectContaining({
+      activeTab: "bookmark",
+      selectedBookmarkFolder: "Bookmarks bar / Work",
+      query: "",
+    })
+  );
 });

@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.8.4
+
+### Added
+
+- Added bookmark-folder scoped search with an Entire Bookmarks default and a removable pinned folder indicator.
+- Added a Search Here action to saved bookmark folders and nested subfolders in Settings.
+
+### Changed
+
+- Bookmark searches now send the selected full folder path to the streaming search API while leaving unscoped searches unchanged.
+
 ## v1.8.3
 
 ### Added
