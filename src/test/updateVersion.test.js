@@ -14,6 +14,12 @@ test("uses the banner when only the minor version increases", () => {
   expect(getUpdateNotice("2.1.0", "2.1.0")).toBeNull();
 });
 
+test("uses the lightweight banner for the 1.8.4 feature release", () => {
+  expect(getUpdateNotice("1.80.3", "1.80.4")).toBe("minor");
+  expect(getUpdateNotice("1.80.4", "1.80.4")).toBeNull();
+  expect(getUpdateNotice("1.80.5", "1.80.4")).toBeNull();
+});
+
 test("migrates the newest acknowledged legacy update flag", () => {
   expect(
     getStoredUpdateVersion({

@@ -1,5 +1,32 @@
 # Changelog
 
+## v1.8.4
+
+### Added
+
+- Added bookmark-folder scoped search with an Entire Bookmarks default and a removable pinned folder indicator.
+- Added a Search Here action to saved bookmark folders and nested subfolders in Settings.
+
+### Changed
+
+- Bookmark searches now send the selected full folder path to the streaming search API while leaving unscoped searches unchanged.
+
+## v1.8.3
+
+### Added
+
+- Added account-wide history and bookmark totals, backend-provided storage caps, and per-resource sync states to Sync Coverage.
+- Added the Microsoft Edge Add-ons review link so Edge users can rate SurfMind from the prompt and Settings.
+
+### Changed
+
+- Made Sync Coverage more compact with expandable History and Bookmarks rows while keeping automatic-sync guidance visible.
+- Updated manual sync availability and labels to account for dirty data, new local items, linked-browser data, and storage capacity.
+
+### Fixed
+
+- Prevented extension updates from incorrectly marking unchanged bookmarks as dirty and showing an unnecessary sync action.
+
 ## v1.8.2
 
 ### Added

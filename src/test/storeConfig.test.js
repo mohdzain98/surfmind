@@ -27,11 +27,11 @@ test("uses Chrome values for the normal development build", () => {
   });
 });
 
-test("accepts an Edge build without a review URL", () => {
+test("uses the Edge Add-ons listing for an Edge build", () => {
   process.env.REACT_APP_BROWSER_TARGET = "edge";
   process.env.REACT_APP_BROWSER_NAME = "Microsoft Edge";
   process.env.REACT_APP_EXTENSION_STORE_NAME = "Microsoft Edge Add-ons";
-  process.env.REACT_APP_EXTENSION_STORE_REVIEW_URL = "";
+  delete process.env.REACT_APP_EXTENSION_STORE_REVIEW_URL;
 
   jest.isolateModules(() => {
     const config = require("../services/storeConfig");
@@ -39,6 +39,20 @@ test("accepts an Edge build without a review URL", () => {
     expect(config.BROWSER_TARGET).toBe("edge");
     expect(config.BROWSER_NAME).toBe("Microsoft Edge");
     expect(config.EXTENSION_STORE_NAME).toBe("Microsoft Edge Add-ons");
+    expect(config.EXTENSION_STORE_REVIEW_URL).toBe(
+      "https://microsoftedge.microsoft.com/addons/detail/hdnflpjcaomgjkjmggiaihifillgdofk"
+    );
+    expect(config.HAS_EXTENSION_STORE_REVIEW).toBe(true);
+  });
+});
+
+test("allows a browser build to explicitly disable its review link", () => {
+  process.env.REACT_APP_BROWSER_TARGET = "edge";
+  process.env.REACT_APP_EXTENSION_STORE_REVIEW_URL = "";
+
+  jest.isolateModules(() => {
+    const config = require("../services/storeConfig");
+
     expect(config.EXTENSION_STORE_REVIEW_URL).toBe("");
     expect(config.HAS_EXTENSION_STORE_REVIEW).toBe(false);
   });

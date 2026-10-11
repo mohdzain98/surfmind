@@ -21,6 +21,7 @@ import SavedHistory from "./SavedHistory";
 import SavedBookmarks from "./SavedBookmarks";
 import RecentSearches from "./RecentSearches";
 import SearchComposer from "./SearchComposer";
+import BookmarkFolderPicker from "./BookmarkFolderPicker";
 import SearchThought from "./SearchThought";
 import SourceCard from "./SourceCard";
 import RatePromptBanner from "./RatePromptBanner";
@@ -42,7 +43,10 @@ import {
   permanentlyDismissRatePrompt,
 } from "../services/ratePrompt";
 import { getSyncPageCounts } from "../services/syncApi";
-import { pageCountsMatch, readLocalPageCounts } from "../services/pageCounts";
+import {
+  buildPageSyncCoverage,
+  readLocalPageCounts,
+} from "../services/pageCounts";
 import { toUserFacingError } from "../services/userFacingError";
 
 const EMPTY_PAGE_COUNTS = {
@@ -99,6 +103,7 @@ const Popup = (props) => {
     step,
     thoughts = [],
     finalReceived,
+    selectedBookmarkFolder,
   } = state;
   useEffect(() => {
     initializePopup(host);
@@ -148,7 +153,7 @@ const Popup = (props) => {
     () => WELCOME_LINES[Math.floor(Math.random() * WELCOME_LINES.length)]
   );
 
-  const handleTabChange = (tab) => {
+  const handleTabChange = (tab, statePatch = {}) => {
     setShowRatePrompt(false);
     setShowRecentPage(false);
     setSettingsView("home");
@@ -164,7 +169,13 @@ const Popup = (props) => {
       step: null,
       thoughts: [],
       finalReceived: false,
+      ...statePatch,
     });
+  };
+
+  const handleSearchInBookmarkFolder = (folder) => {
+    setDropdownOpen(false);
+    handleTabChange("bookmark", { selectedBookmarkFolder: folder });
   };
 
   const handleSettingsToggle = () => {
@@ -192,11 +203,13 @@ const Popup = (props) => {
         readLocalPageCounts(),
         getSyncPageCounts(host, userId),
       ]);
+      const coverage = buildPageSyncCoverage(local, remote);
       const nextCounts = {
         status: "ready",
         local,
         remote,
-        matches: pageCountsMatch(local, remote),
+        coverage,
+        matches: coverage.matches,
       };
       setPageCounts(nextCounts);
       return nextCounts;
@@ -219,7 +232,13 @@ const Popup = (props) => {
 
     for (let attempt = 0; attempt < COVERAGE_RECHECK_ATTEMPTS; attempt += 1) {
       latestCounts = await refreshPageCounts();
-      if (!latestCounts || latestCounts.matches) break;
+      const waitingForCountUpdate = [
+        latestCounts?.coverage?.history?.key,
+        latestCounts?.coverage?.bookmarks?.key,
+      ].some((key) => ["dirty", "new-local"].includes(key));
+      if (!latestCounts || latestCounts.matches || !waitingForCountUpdate) {
+        break;
+      }
       if (attempt < COVERAGE_RECHECK_ATTEMPTS - 1) {
         await wait(COVERAGE_RECHECK_DELAY_MS);
       }
@@ -268,9 +287,14 @@ const Popup = (props) => {
     }
   };
 
-  const allLocalPagesSynced = Boolean(
-    pageCounts.status === "ready" && pageCounts.matches
+  const syncAction = pageCounts.coverage?.action || null;
+  const syncAvailable = Boolean(
+    pageCounts.status === "ready" && pageCounts.coverage?.canSync
   );
+  const allLocalPagesSynced = Boolean(
+    pageCounts.status === "ready" && !syncAvailable
+  );
+  const refreshOnly = syncAction === "refresh";
   const checkingPageCounts = ["idle", "checking"].includes(pageCounts.status);
 
   const handleClearSearch = () => {
@@ -288,6 +312,7 @@ const Popup = (props) => {
       step: null,
       thoughts: [],
       finalReceived: false,
+      selectedBookmarkFolder: null,
     });
   };
 
@@ -449,16 +474,22 @@ const Popup = (props) => {
             onClick={handleManualSync}
             disabled={
               manualSync.status === "syncing" ||
-              allLocalPagesSynced ||
+              !syncAvailable ||
               checkingPageCounts
             }
-            aria-label="Sync all history and bookmarks"
+            aria-label={
+              refreshOnly
+                ? "Refresh synced history and bookmarks"
+                : "Sync all history and bookmarks"
+            }
             title={
               allLocalPagesSynced
                 ? "History and bookmarks are up to date"
                 : checkingPageCounts
                   ? "Checking sync status"
-                  : "Sync all saved history and bookmarks"
+                  : refreshOnly
+                    ? "Refresh the most recent saved history and bookmarks"
+                    : "Sync all saved history and bookmarks"
             }
           >
             <RefreshCw size={17} aria-hidden="true" />
@@ -476,6 +507,14 @@ const Popup = (props) => {
           </button>
         </div>
       </div>
+
+      {updateNotice === "minor" ? (
+        <Update
+          severity="minor"
+          version={updateVersion}
+          handleShowUpdate={handleShowUpdate}
+        />
+      ) : null}
 
       {manualSync.message ? (
         <div
@@ -567,7 +606,9 @@ const Popup = (props) => {
               ) : null}
               {settingsView === "bookmarks" ? (
                 <div className="settings-detail">
-                  <SavedBookmarks />
+                  <SavedBookmarks
+                    onSearchFolder={handleSearchInBookmarkFolder}
+                  />
                 </div>
               ) : null}
               {settingsView === "privacy" ? (
@@ -584,81 +625,99 @@ const Popup = (props) => {
           )}
 
           {activeTab !== "settings" ? (
-            <div className="search-mode-selector position-relative mt-3 d-flex justify-content-between align-items-center">
-              <div className="position-relative">
-                {!updateFlag ? (
-                  <span className="mode-new-badge badge bg-danger">NEW</span>
-                ) : null}
-                <button
-                  type="button"
-                  className={`btn btn-sm btn-outline-${tabColor[activeTab]} dropdown-toggle d-flex align-items-center gap-1`}
-                  onClick={() => setDropdownOpen((open) => !open)}
-                  aria-expanded={dropdownOpen}
-                >
-                  {activeTab === "history" ? <History size={13} /> : null}
-                  {activeTab === "bookmark" ? <Bookmark size={13} /> : null}
-                  {activeTab === "combined" ? <GitMerge size={13} /> : null}
-                  {tabLabel[activeTab]}
-                </button>
-                {dropdownOpen ? (
-                  <>
-                    <div
-                      className="position-fixed top-0 start-0 w-100 h-100"
-                      style={{ zIndex: 100 }}
-                      onClick={() => setDropdownOpen(false)}
-                    />
-                    <ul className="dropdown-menu dropdown-menu-end show shadow search-mode-menu">
-                      <li>
-                        <button
-                          type="button"
-                          className="dropdown-item d-flex align-items-center gap-2"
-                          onClick={() => {
-                            handleTabChange("history");
-                            setDropdownOpen(false);
-                          }}
-                        >
-                          <History size={14} className="text-primary" /> History
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          type="button"
-                          className="dropdown-item d-flex align-items-center gap-2"
-                          onClick={() => {
-                            handleTabChange("bookmark");
-                            setDropdownOpen(false);
-                          }}
-                        >
-                          <Bookmark size={14} className="text-danger" />{" "}
-                          Bookmarks
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          type="button"
-                          className="dropdown-item d-flex align-items-center gap-2"
-                          onClick={() => {
-                            handleTabChange("combined");
-                            setDropdownOpen(false);
-                          }}
-                        >
-                          <GitMerge size={14} className="text-success" />{" "}
-                          Combined
-                        </button>
-                      </li>
-                    </ul>
-                  </>
-                ) : null}
+            <div
+              className={`search-mode-selector position-relative mt-3 ${activeTab === "bookmark" ? "has-folder-scope" : ""}`}
+            >
+              <div className="search-mode-actions">
+                <div className="position-relative">
+                  {!updateFlag ? (
+                    <span className="mode-new-badge badge bg-danger">NEW</span>
+                  ) : null}
+                  <button
+                    type="button"
+                    className={`btn btn-sm btn-outline-${tabColor[activeTab]} dropdown-toggle d-flex align-items-center gap-1`}
+                    onClick={() => setDropdownOpen((open) => !open)}
+                    aria-expanded={dropdownOpen}
+                  >
+                    {activeTab === "history" ? <History size={13} /> : null}
+                    {activeTab === "bookmark" ? <Bookmark size={13} /> : null}
+                    {activeTab === "combined" ? <GitMerge size={13} /> : null}
+                    {tabLabel[activeTab]}
+                  </button>
+                  {dropdownOpen ? (
+                    <>
+                      <div
+                        className="position-fixed top-0 start-0 w-100 h-100"
+                        style={{ zIndex: 100 }}
+                        onClick={() => setDropdownOpen(false)}
+                      />
+                      <ul className="dropdown-menu dropdown-menu-end show shadow search-mode-menu">
+                        <li>
+                          <button
+                            type="button"
+                            className="dropdown-item d-flex align-items-center gap-2"
+                            onClick={() => {
+                              handleTabChange("history");
+                              setDropdownOpen(false);
+                            }}
+                          >
+                            <History size={14} className="text-primary" />{" "}
+                            History
+                          </button>
+                        </li>
+                        <li>
+                          <button
+                            type="button"
+                            className="dropdown-item d-flex align-items-center gap-2"
+                            onClick={() => {
+                              handleTabChange("bookmark");
+                              setDropdownOpen(false);
+                            }}
+                          >
+                            <Bookmark size={14} className="text-danger" />{" "}
+                            Bookmarks
+                          </button>
+                        </li>
+                        <li>
+                          <button
+                            type="button"
+                            className="dropdown-item d-flex align-items-center gap-2"
+                            onClick={() => {
+                              handleTabChange("combined");
+                              setDropdownOpen(false);
+                            }}
+                          >
+                            <GitMerge size={14} className="text-success" />{" "}
+                            Combined
+                          </button>
+                        </li>
+                      </ul>
+                    </>
+                  ) : null}
+                </div>
               </div>
-              {hasSearchActivity ? (
-                <button
-                  type="button"
-                  className="search-clear-button"
-                  onClick={handleClearSearch}
-                >
-                  <Trash2 size={14} aria-hidden="true" />
-                  Clear
-                </button>
+              {activeTab === "bookmark" || hasSearchActivity ? (
+                <div className="search-mode-right-actions">
+                  {activeTab === "bookmark" ? (
+                    <BookmarkFolderPicker
+                      selectedFolder={selectedBookmarkFolder}
+                      onSelect={(folder) =>
+                        setState({ selectedBookmarkFolder: folder })
+                      }
+                      disabled={disable}
+                    />
+                  ) : null}
+                  {hasSearchActivity ? (
+                    <button
+                      type="button"
+                      className="search-clear-button"
+                      onClick={handleClearSearch}
+                    >
+                      <Trash2 size={14} aria-hidden="true" />
+                      Clear
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           ) : null}
@@ -837,10 +896,6 @@ const Popup = (props) => {
                 aria-hidden="true"
               />
             </button>
-          ) : null}
-
-          {updateNotice === "minor" ? (
-            <Update severity="minor" handleShowUpdate={handleShowUpdate} />
           ) : null}
         </>
       )}

@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, Folder } from "lucide-react";
+import { ChevronDown, Folder, Search } from "lucide-react";
 import { readBookmarkFolders } from "../services/bookmarkFolders";
 
 const EMPTY_SUMMARY = { bookmarkCount: 0, folders: [], folderTree: [] };
 const BOOKMARK_EVENTS = ["onCreated", "onRemoved", "onChanged", "onMoved"];
 
-const FolderRow = ({ folder, expandable }) => (
-  <div className={`saved-bookmarks-row ${expandable ? "is-expandable" : ""}`}>
+const FolderContent = ({ folder }) => (
+  <>
     <span className="saved-bookmarks-folder-icon" aria-hidden="true">
       <Folder size={15} />
     </span>
@@ -16,6 +16,34 @@ const FolderRow = ({ folder, expandable }) => (
         <small>{folder.path.slice(0, -1).join(" › ")}</small>
       ) : null}
     </span>
+  </>
+);
+
+const FolderRow = ({ folder, expandable, expanded, onToggle, onSearch }) => (
+  <div className={`saved-bookmarks-row ${expandable ? "is-expandable" : ""}`}>
+    {expandable ? (
+      <button
+        type="button"
+        className="saved-bookmarks-folder-main"
+        onClick={onToggle}
+        aria-expanded={expanded}
+      >
+        <FolderContent folder={folder} />
+      </button>
+    ) : (
+      <div className="saved-bookmarks-folder-main is-static">
+        <FolderContent folder={folder} />
+      </div>
+    )}
+    <button
+      type="button"
+      className="saved-bookmarks-search-button"
+      onClick={() => onSearch(folder.path.join(" / "))}
+      aria-label={`Search in ${folder.path.join(" / ")}`}
+      title="Search here"
+    >
+      <Search size={12} aria-hidden="true" />
+    </button>
     <span
       className="saved-bookmarks-folder-count"
       aria-label={`${folder.bookmarkCount} ${folder.bookmarkCount === 1 ? "bookmark" : "bookmarks"}`}
@@ -24,7 +52,7 @@ const FolderRow = ({ folder, expandable }) => (
     </span>
     {expandable ? (
       <ChevronDown
-        className="saved-bookmarks-chevron"
+        className={`saved-bookmarks-chevron ${expanded ? "is-open" : ""}`}
         size={15}
         aria-hidden="true"
       />
@@ -32,30 +60,31 @@ const FolderRow = ({ folder, expandable }) => (
   </div>
 );
 
-const BookmarkFolder = ({ folder }) => {
+const BookmarkFolder = ({ folder, onSearch }) => {
   const expandable = folder.children.length > 0;
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <li className="saved-bookmarks-item">
-      {expandable ? (
-        <details>
-          <summary>
-            <FolderRow folder={folder} expandable />
-          </summary>
-          <ul className="saved-bookmarks-children">
-            {folder.children.map((child) => (
-              <BookmarkFolder folder={child} key={child.id} />
-            ))}
-          </ul>
-        </details>
-      ) : (
-        <FolderRow folder={folder} expandable={false} />
-      )}
+      <FolderRow
+        folder={folder}
+        expandable={expandable}
+        expanded={expanded}
+        onToggle={() => setExpanded((open) => !open)}
+        onSearch={onSearch}
+      />
+      {expandable && expanded ? (
+        <ul className="saved-bookmarks-children">
+          {folder.children.map((child) => (
+            <BookmarkFolder folder={child} key={child.id} onSearch={onSearch} />
+          ))}
+        </ul>
+      ) : null}
     </li>
   );
 };
 
-const SavedBookmarks = () => {
+const SavedBookmarks = ({ onSearchFolder = () => {} }) => {
   const [summary, setSummary] = useState(EMPTY_SUMMARY);
   const [status, setStatus] = useState("loading");
 
@@ -124,7 +153,11 @@ const SavedBookmarks = () => {
           </p>
           <ul>
             {summary.folderTree.map((folder) => (
-              <BookmarkFolder folder={folder} key={folder.id} />
+              <BookmarkFolder
+                folder={folder}
+                key={folder.id}
+                onSearch={onSearchFolder}
+              />
             ))}
           </ul>
         </div>

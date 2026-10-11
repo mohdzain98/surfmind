@@ -11,7 +11,7 @@
   "edge": {
     "browserName": "Microsoft Edge",
     "storeName": "Microsoft Edge Add-ons",
-    "storeReviewUrl": "",
+    "storeReviewUrl": "https://microsoftedge.microsoft.com/addons/detail/hdnflpjcaomgjkjmggiaihifillgdofk",
     "archiveName": "surfmind-edge",
     "manifest": {
       "description": "Microsoft Edge extension designed to enhance your browsing experience by intelligently managing the websites you visit and bookmark"

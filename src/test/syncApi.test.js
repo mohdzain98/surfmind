@@ -99,12 +99,24 @@ test("unlinks a browser and gracefully handles an unavailable status route", asy
 
 test("loads page counts for this browser with a JSON-body POST", async () => {
   fetch.mockResolvedValueOnce(
-    jsonResponse({ history_count: 88, bookmark_count: 2 })
+    jsonResponse({
+      history_count: 88,
+      bookmark_count: 2,
+      history_total: 100,
+      bookmark_total: 250,
+      history_cap: 100,
+      bookmark_cap: 250,
+    })
   );
 
   await expect(
     getSyncPageCounts("https://api.example.com/v1", "browser-456")
-  ).resolves.toEqual({ history: 88, bookmarks: 2 });
+  ).resolves.toEqual({
+    history: 88,
+    bookmarks: 2,
+    totals: { history: 100, bookmarks: 250 },
+    caps: { history: 100, bookmarks: 250 },
+  });
   expect(fetch).toHaveBeenCalledWith(
     "https://api.example.com/v1/sync/page-counts",
     {
@@ -114,6 +126,21 @@ test("loads page counts for this browser with a JSON-body POST", async () => {
       body: JSON.stringify({ browser_uuid: "browser-456" }),
     }
   );
+});
+
+test("falls back to free caps and per-browser totals for old responses", async () => {
+  fetch.mockResolvedValueOnce(
+    jsonResponse({ history_count: 12, bookmark_count: 20 })
+  );
+
+  await expect(
+    getSyncPageCounts("https://api.example.com/v1", "browser-456")
+  ).resolves.toEqual({
+    history: 12,
+    bookmarks: 20,
+    totals: { history: 12, bookmarks: 20 },
+    caps: { history: 100, bookmarks: 250 },
+  });
 });
 
 test("normalizes code input and formats the expiry countdown", () => {

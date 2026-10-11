@@ -167,7 +167,9 @@ chrome.runtime.onInstalled.addListener((details) => {
     console.error("Failed to schedule history sync:", error);
   });
   ensureBookmarkSyncAlarm();
-  markBookmarksDirty();
+  if (details.reason === "install") {
+    markBookmarksDirty();
+  }
 });
 
 chrome.runtime.onStartup.addListener(() => {

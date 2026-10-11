@@ -95,6 +95,49 @@ const SettingsHome = ({
     if (STORE_REVIEW_URL) chrome.tabs.create({ url: STORE_REVIEW_URL });
   };
 
+  const renderCoverageResource = (resource) => {
+    const localCount = pageCounts.local[resource];
+    const syncedCount = pageCounts.remote[resource];
+    const totalCount = pageCounts.remote.totals?.[resource] ?? syncedCount;
+    const cap = pageCounts.remote.caps?.[resource];
+    const coverage = pageCounts.coverage?.[resource];
+    const showAccountTotal = syncStatus.isLinked || totalCount !== syncedCount;
+    const showCapacity =
+      Number.isFinite(cap) &&
+      Math.max(localCount, syncedCount, totalCount) >= cap;
+    const countSummary = [
+      `${localCount} local`,
+      `${syncedCount} synced`,
+      showAccountTotal ? `${totalCount} total` : null,
+      showCapacity ? `${cap} max` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    return (
+      <details className="settings-sync-resource" key={resource}>
+        <summary className="settings-sync-resource-heading">
+          <span className="settings-sync-resource-name">
+            {resource === "history" ? "History" : "Bookmarks"}
+          </span>
+          <span className="settings-sync-resource-action">
+            {coverage?.label ? (
+              <em className={`settings-sync-resource-state is-${coverage.key}`}>
+                {coverage.label}
+              </em>
+            ) : null}
+            <ChevronRight
+              className="settings-sync-resource-chevron"
+              size={14}
+              aria-hidden="true"
+            />
+          </span>
+        </summary>
+        <small className="settings-sync-resource-summary">{countSummary}</small>
+      </details>
+    );
+  };
+
   return (
     <section className="settings-home" aria-labelledby="settings-home-title">
       <h1 id="settings-home-title">Settings</h1>
@@ -106,36 +149,23 @@ const SettingsHome = ({
         <section className="settings-sync-counts" aria-label="Sync coverage">
           <div className="settings-sync-counts-heading">
             <strong>Sync coverage</strong>
-            <span
-              className={`settings-sync-state is-${pageCounts.status} ${pageCounts.matches ? "is-matched" : ""}`}
-            >
-              {["idle", "checking"].includes(pageCounts.status)
-                ? "Checking…"
-                : pageCounts.status === "error"
-                  ? "Unavailable"
-                  : pageCounts.matches
-                    ? "Up to date"
-                    : "Sync available"}
-            </span>
+            {pageCounts.status !== "ready" ? (
+              <span className={`settings-sync-state is-${pageCounts.status}`}>
+                {["idle", "checking"].includes(pageCounts.status)
+                  ? "Checking…"
+                  : "Unavailable"}
+              </span>
+            ) : null}
           </div>
+          <p className="settings-sync-note">
+            SurfMind syncs changes automatically.
+          </p>
           {pageCounts.status === "ready" ? (
             <div className="settings-sync-count-grid">
-              <span>History</span>
-              <small>
-                {pageCounts.local.history} local · {pageCounts.remote.history}{" "}
-                synced
-              </small>
-              <span>Bookmarks</span>
-              <small>
-                {pageCounts.local.bookmarks} local ·{" "}
-                {pageCounts.remote.bookmarks} synced
-              </small>
+              {renderCoverageResource("history")}
+              {renderCoverageResource("bookmarks")}
             </div>
           ) : null}
-          <p className="settings-sync-note">
-            SurfMind syncs changes automatically, so you usually don’t need to
-            do anything.
-          </p>
         </section>
       ) : null}
 

@@ -46,16 +46,15 @@ beforeEach(() => {
 });
 
 test("shows folder names and counts without listing bookmark details", async () => {
-  render(<SavedBookmarks />);
+  const onSearchFolder = jest.fn();
+  render(<SavedBookmarks onSearchFolder={onSearchFolder} />);
 
   expect(
     await screen.findByText("Bookmarks bar", { selector: "strong" })
   ).toBeInTheDocument();
-  expect(screen.getByText("Research")).not.toBeVisible();
+  expect(screen.queryByText("Research")).not.toBeInTheDocument();
 
-  fireEvent.click(
-    screen.getByText("Bookmarks bar", { selector: "strong" }).closest("summary")
-  );
+  fireEvent.click(screen.getByRole("button", { name: /^Bookmarks bar/ }));
 
   expect(screen.getByText("Research")).toBeVisible();
   const researchRow = screen.getByText("Research").closest("li");
@@ -65,4 +64,12 @@ test("shows folder names and counts without listing bookmark details", async () 
   expect(
     screen.queryByText("https://private.example.com")
   ).not.toBeInTheDocument();
+
+  const searchButton = screen.getByRole("button", {
+    name: "Search in Bookmarks bar / Research",
+  });
+  expect(searchButton).toHaveAttribute("title", "Search here");
+  expect(screen.queryByText("Search here")).not.toBeInTheDocument();
+  fireEvent.click(searchButton);
+  expect(onSearchFolder).toHaveBeenCalledWith("Bookmarks bar / Research");
 });
