@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.10.0
+
+### Changed
+
+- Migrated the extension's application code and tests from JavaScript to TypeScript with strict type checking. There are no user-facing changes.
+- Added a typecheck step and a test job to the frontend quality workflow.
+
+## v1.9.0
+
+### Added
+
+- Added recognizable names for linked browsers, with browser and operating-system defaults during pairing.
+- Added a Linked Browsers section where devices can be reviewed, renamed, or remotely unlinked without deleting saved data.
+- Added source attribution such as “Found on Work Laptop” to cross-browser search results.
+- Added a one-time full-page introduction for the named cross-browser sync experience.
+
+### Changed
+
+- Made the pairing and linked-browser sections collapsible to keep Cross-browser Sync settings compact.
+
 ## v1.8.4
 
 ### Added
