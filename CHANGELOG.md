@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.10.0
+
+### Changed
+
+- Migrated the extension's application code and tests from JavaScript to TypeScript with strict type checking. There are no user-facing changes.
+- Added a typecheck step and a test job to the frontend quality workflow.
+
 ## v1.9.0
 
 ### Added
