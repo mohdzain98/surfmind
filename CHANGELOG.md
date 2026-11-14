@@ -1,5 +1,82 @@
 # Changelog
 
+## v1.10.0
+
+### Added
+
+- Added Fast mode for near-instant link results without an AI-written answer, while preserving Standard mode for full explanations.
+- Added per-browser Fast search preferences for match strictness and maximum result count.
+- Added dedicated Fast result, no-match, and recent-search experiences with Standard and Broad fallbacks.
+- Added a lightweight update notice introducing Fast mode.
+- Added layered, on-device content filtering for blocked domains, explicit page metadata, and search-engine queries.
+- Added Clear History time ranges for the last hour, 24 hours, 7 days, month, or all time.
+
+### Changed
+
+- Migrated the extension's application code and tests from JavaScript to TypeScript with strict type checking. There are no user-facing changes.
+- Added a typecheck step and a test job to the frontend quality workflow.
+- Flagged history and bookmarks now stay local for audit while remaining excluded from every sync path.
+- Search result pages now store only their query instead of indexing the full results page, and filtered queries are removed from searchable titles and content.
+
+## v1.9.0
+
+### Added
+
+- Added recognizable names for linked browsers, with browser and operating-system defaults during pairing.
+- Added a Linked Browsers section where devices can be reviewed, renamed, or remotely unlinked without deleting saved data.
+- Added source attribution such as “Found on Work Laptop” to cross-browser search results.
+- Added a one-time full-page introduction for the named cross-browser sync experience.
+
+### Changed
+
+- Made the pairing and linked-browser sections collapsible to keep Cross-browser Sync settings compact.
+
+## v1.8.4
+
+### Added
+
+- Added bookmark-folder scoped search with an Entire Bookmarks default and a removable pinned folder indicator.
+- Added a Search Here action to saved bookmark folders and nested subfolders in Settings.
+
+### Changed
+
+- Bookmark searches now send the selected full folder path to the streaming search API while leaving unscoped searches unchanged.
+
+## v1.8.3
+
+### Added
+
+- Added account-wide history and bookmark totals, backend-provided storage caps, and per-resource sync states to Sync Coverage.
+- Added the Microsoft Edge Add-ons review link so Edge users can rate SurfMind from the prompt and Settings.
+
+### Changed
+
+- Made Sync Coverage more compact with expandable History and Bookmarks rows while keeping automatic-sync guidance visible.
+- Updated manual sync availability and labels to account for dirty data, new local items, linked-browser data, and storage capacity.
+
+### Fixed
+
+- Prevented extension updates from incorrectly marking unchanged bookmarks as dirty and showing an unnecessary sync action.
+
+## v1.8.2
+
+### Added
+
+- Added human-readable sync and search errors for common HTTP and network failures.
+- Added a Sync Coverage tip and Settings shortcut when a search returns no relevant data.
+
+### Changed
+
+- Limited history extraction to 15 sections per page and 2,000 characters per section while preserving richer bookmark content.
+- Removed common navigation, footer, sidebar, cookie-consent, and advertisement elements before extracting page content.
+- Split large history uploads into sequential, size-bounded batches and checkpointed each completed batch so interrupted full syncs resume safely.
+- Simplified the Settings layout by removing the divider below Sync Coverage.
+
+### Fixed
+
+- Prevented oversized history payloads from exceeding server request limits during large catch-up syncs.
+- Replaced raw errors such as HTTP 413 responses with actionable messages for extension users.
+
 ## v1.8
 
 ### Added

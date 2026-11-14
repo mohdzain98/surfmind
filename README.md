@@ -68,7 +68,7 @@ npm run package:chrome
 npm run package:edge
 ```
 
-The commands create unpacked builds in `build/chrome` and `build/edge`, with upload-ready ZIP files in `dist/`. Add the published Microsoft Edge Add-ons review URL to the Edge configuration when it becomes available; until then, rating prompts are omitted from the Edge build.
+The commands create unpacked builds in `build/chrome` and `build/edge`. Upload-ready ZIP files are grouped by major/minor release under `dist/`—for example, all `1.9.x` packages go to `dist/v1.9/`, while `1.10.x` packages go to `dist/v1.10/`. Release folders are created automatically. Add the published Microsoft Edge Add-ons review URL to the Edge configuration when it becomes available; until then, rating prompts are omitted from the Edge build.
 
 ## Changelog
 

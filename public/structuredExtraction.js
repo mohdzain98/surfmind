@@ -2,6 +2,24 @@
   const HEADING_SELECTOR = "h1, h2, h3, h4, h5, h6";
   const CONTENT_SELECTOR = `${HEADING_SELECTOR}, p, pre, blockquote, li, td, th`;
   const NESTED_CONTENT_SELECTOR = "p, pre, blockquote, ul, ol, table";
+  const PAGE_CHROME_SELECTOR = [
+    "nav",
+    "footer",
+    "aside",
+    "form",
+    "dialog",
+    "[role='navigation']",
+    "[role='banner']",
+    "[role='complementary']",
+    "[class*='cookie-banner']",
+    "[class*='cookie-consent']",
+    "[id*='cookie-banner']",
+    "[id*='cookie-consent']",
+    "[class*='ad-container']",
+    "[class*='advertisement']",
+  ].join(", ");
+  const MAX_HISTORY_SECTION_CHARS = 2_000;
+  const MAX_HISTORY_SECTIONS_PER_PAGE = 15;
 
   const normalizeText = (value) =>
     String(value || "")
@@ -14,9 +32,18 @@
     return container;
   };
 
+  const removePageChrome = (container) => {
+    for (const element of container.querySelectorAll(PAGE_CHROME_SELECTOR)) {
+      element.remove();
+    }
+    return container;
+  };
+
   const buildHeadingSections = (documentRef, cleanedHtml, pageTitle) => {
     const title = normalizeText(pageTitle) || "Untitled page";
-    const container = createContainer(documentRef, cleanedHtml);
+    const container = removePageChrome(
+      createContainer(documentRef, cleanedHtml)
+    );
     const sections = [];
     const sectionsByPath = new Map();
     const headingStack = [];
@@ -72,7 +99,7 @@
   const getFallbackText = (documentRef) => {
     const clone = documentRef.cloneNode(true);
     for (const element of clone.querySelectorAll(
-      "script, style, noscript, nav, footer, aside, form, dialog"
+      `script, style, noscript, ${PAGE_CHROME_SELECTOR}`
     )) {
       element.remove();
     }
@@ -91,6 +118,10 @@
 
   const extractStructuredContent = (documentRef, ReadabilityConstructor) => {
     const fallbackTitle = normalizeText(documentRef.title) || "Untitled page";
+    const metaDescription = normalizeText(
+      documentRef.querySelector('meta[name="description"]')?.content ||
+        documentRef.querySelector('meta[property="og:description"]')?.content
+    );
 
     try {
       const article = new ReadabilityConstructor(
@@ -106,6 +137,7 @@
         if (sections.length > 1) {
           return {
             title,
+            ...(metaDescription ? { metaDescription } : {}),
             sections,
             extractionMethod: "readability",
           };
@@ -115,6 +147,7 @@
         if (articleText) {
           return {
             title,
+            ...(metaDescription ? { metaDescription } : {}),
             sections: createSingleSection(title, articleText),
             extractionMethod: "readability-fallback",
           };
@@ -129,6 +162,7 @@
 
     return {
       title: fallbackTitle,
+      ...(metaDescription ? { metaDescription } : {}),
       sections: createSingleSection(
         fallbackTitle,
         getFallbackText(documentRef)
@@ -153,10 +187,14 @@
 
     return extraction.sections
       .filter((section) => normalizeText(section.text))
+      .slice(0, MAX_HISTORY_SECTIONS_PER_PAGE)
       .map((section, sectionIndex) => ({
         title: extraction.title,
         url,
-        content: normalizeText(section.text),
+        content: normalizeText(section.text).slice(
+          0,
+          MAX_HISTORY_SECTION_CHARS
+        ),
         heading_path: section.headingPath,
         heading_level: section.level,
         section_index: sectionIndex,
@@ -192,6 +230,8 @@
   };
 
   const exported = {
+    MAX_HISTORY_SECTION_CHARS,
+    MAX_HISTORY_SECTIONS_PER_PAGE,
     buildHeadingSections,
     extractStructuredContent,
     createHistoryEntries,

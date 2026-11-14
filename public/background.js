@@ -1,5 +1,7 @@
 importScripts(
   "pageEntries.js",
+  "contentFilterKeywords.js",
+  "contentFiltering.js",
   "historySync.js",
   "structuredExtraction.js",
   "bookmarkSync.js"
@@ -8,6 +10,10 @@ importScripts(
 const HISTORY_LIMIT = 100;
 const SYNC_ALARM = "surfmind-history-sync";
 const BOOKMARK_SYNC_ALARM = "surfmind-bookmark-sync";
+const contentFilter = SurfMindContentFiltering.createContentFilter({
+  chromeApi: chrome,
+  fetchImpl: (...args) => fetch(...args),
+});
 const historySync = SurfMindHistorySync.createHistorySync({
   chromeApi: chrome,
   fetchImpl: (...args) => fetch(...args),
@@ -15,6 +21,7 @@ const historySync = SurfMindHistorySync.createHistorySync({
 const bookmarkSync = SurfMindBookmarkSync.createBookmarkSync({
   chromeApi: chrome,
   fetchImpl: (...args) => fetch(...args),
+  contentFilter,
 });
 let captureQueue = Promise.resolve();
 const UPDATE_VERSION_KEY = "sm-last-seen-version";
@@ -94,6 +101,17 @@ const ensureBookmarkSyncAlarm = () => {
   });
 };
 
+const ensureContentFilter = () => {
+  chrome.alarms.create(SurfMindContentFiltering.REFRESH_ALARM, {
+    periodInMinutes: SurfMindContentFiltering.REFRESH_PERIOD_MIN,
+  });
+  return contentFilter.refreshBlocklists();
+};
+
+ensureContentFilter().catch((error) => {
+  console.warn("Content filter lists could not be refreshed:", error);
+});
+
 const markBookmarksDirty = () => {
   bookmarkSync.markDirty().catch((error) => {
     console.error("Failed to mark bookmarks dirty:", error);
@@ -167,7 +185,12 @@ chrome.runtime.onInstalled.addListener((details) => {
     console.error("Failed to schedule history sync:", error);
   });
   ensureBookmarkSyncAlarm();
-  markBookmarksDirty();
+  ensureContentFilter().catch((error) => {
+    console.warn("Content filter lists could not be refreshed:", error);
+  });
+  if (details.reason === "install") {
+    markBookmarksDirty();
+  }
 });
 
 chrome.runtime.onStartup.addListener(() => {
@@ -175,6 +198,9 @@ chrome.runtime.onStartup.addListener(() => {
     console.error("Failed to schedule history sync:", error);
   });
   ensureBookmarkSyncAlarm();
+  ensureContentFilter().catch((error) => {
+    console.warn("Content filter lists could not be refreshed:", error);
+  });
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
@@ -186,6 +212,11 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === BOOKMARK_SYNC_ALARM) {
     bookmarkSync.syncIfDirty({ reason: "time" }).catch((error) => {
       console.error("Timed bookmark sync failed:", error);
+    });
+  }
+  if (alarm.name === SurfMindContentFiltering.REFRESH_ALARM) {
+    contentFilter.refreshBlocklists({ force: true }).catch((error) => {
+      console.warn("Content filter lists could not be refreshed:", error);
     });
   }
 });
@@ -286,10 +317,30 @@ chrome.webNavigation.onCompleted.addListener((details) => {
     }
 
     if (tab.url.startsWith("http")) {
+      const capturedAt = Date.now();
+      const searchPage = contentFilter.getSearchPageInfo(tab.url);
+      if (searchPage) {
+        contentFilter
+          .classifyItem({ url: tab.url, title: "", metaDescription: "" })
+          .then((classification) => {
+            const data = SurfMindContentFiltering.createSearchHistoryEntries({
+              url: tab.url,
+              query: searchPage.query,
+              capturedAt,
+              classification,
+            });
+            queueCapturedData(data);
+          })
+          .catch((error) => {
+            console.warn("Search query filtering failed:", error);
+          });
+        return;
+      }
+
       chrome.tabs.sendMessage(
         tab.id,
         { action: "extractStructuredContent" },
-        (response) => {
+        async (response) => {
           const extractionError =
             chrome.runtime.lastError?.message || response?.error;
           if (extractionError || !response?.success) {
@@ -302,14 +353,24 @@ chrome.webNavigation.onCompleted.addListener((details) => {
             return;
           }
 
-          const capturedAt = Date.now();
-          const data = SurfMindStructuredExtraction.createHistoryEntries({
-            extraction: response.extraction,
-            url: tab.url,
-            capturedAt,
-          });
+          try {
+            const classification = await contentFilter.classifyItem({
+              url: tab.url,
+              title: response.extraction?.title || tab.title,
+              metaDescription: response.extraction?.metaDescription,
+            });
+            const data = SurfMindStructuredExtraction.createHistoryEntries({
+              extraction: response.extraction,
+              url: tab.url,
+              capturedAt,
+            });
 
-          if (data.length > 0) queueCapturedData(data);
+            for (const entry of data) Object.assign(entry, classification);
+
+            if (data.length > 0) queueCapturedData(data);
+          } catch (error) {
+            console.warn("History content filtering failed:", error);
+          }
         }
       );
     }
