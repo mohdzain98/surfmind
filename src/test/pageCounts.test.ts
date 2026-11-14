@@ -36,6 +36,27 @@ beforeEach(() => {
   } as unknown as typeof chrome;
 });
 
+test("flagged history does not affect sync coverage counts or dirty state", async () => {
+  (chrome.storage.local.get as jest.Mock).mockResolvedValue({
+    navigationData: [
+      { url: "https://safe.example", synced: true },
+      { url: "https://blocked.example", synced: false, flagged: true },
+    ],
+    bookmarksDirty: false,
+  });
+
+  expect(
+    countSavedHistoryPages([
+      { url: "https://safe.example" },
+      { url: "https://blocked.example", flagged: true },
+    ])
+  ).toBe(1);
+  await expect(readLocalPageCounts()).resolves.toMatchObject({
+    history: 1,
+    dirty: { history: false },
+  });
+});
+
 test("counts unique local pages using the same bookmark URL normalization", async () => {
   expect(
     countSavedHistoryPages([

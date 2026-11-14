@@ -103,6 +103,24 @@ test("uses Readability and keeps full section text beyond the old snippet", () =
   ).not.toContain("Navigation should be removed");
 });
 
+test("extracts the page description for local filtering", () => {
+  class FailedReadability {
+    parse() {
+      return null;
+    }
+  }
+  const documentRef = parseDocument(`
+    <html><head>
+      <title>Guide</title>
+      <meta name="description" content="A concise guide description">
+    </head><body><main>Guide content.</main></body></html>
+  `);
+
+  expect(
+    extractStructuredContent(documentRef, FailedReadability).metaDescription
+  ).toBe("A concise guide description");
+});
+
 test("falls back to one page section when Readability cannot parse", () => {
   class FailedReadability {
     parse() {

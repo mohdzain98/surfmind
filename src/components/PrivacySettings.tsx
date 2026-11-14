@@ -2,12 +2,16 @@ import { useEffect, useState } from "react";
 import { History, Trash2 } from "lucide-react";
 import ConfirmationDialog from "./ConfirmationDialog";
 import { getErrorText } from "../services/userFacingError";
-import type { SyncStatus } from "../types";
+import type { NavigationEntry, SyncStatus } from "../types";
 import {
+  DEFAULT_HISTORY_RANGE,
+  HISTORY_RANGE_OPTIONS,
   clearAllDataLocal,
   clearHistoryLocal,
   deleteAllData,
   deleteHistoryData,
+  resolveHistoryRange,
+  type HistoryRange,
 } from "../services/privacy";
 
 type DialogType = "history" | "all";
@@ -20,7 +24,9 @@ interface Message {
 interface PrivacySettingsProps {
   host: string;
   browserUuid: string;
-  onHistoryCleared?: () => void | Promise<void>;
+  onHistoryCleared?: (
+    remainingHistory: NavigationEntry[]
+  ) => void | Promise<void>;
   onAllDataCleared?: (nextBrowserUuid: string) => void | Promise<void>;
 }
 
@@ -34,6 +40,9 @@ const PrivacySettings = ({
 }: PrivacySettingsProps) => {
   const [dialog, setDialog] = useState<DialogType | null>(null);
   const [confirmation, setConfirmation] = useState("");
+  const [historyRange, setHistoryRange] = useState<HistoryRange>(
+    DEFAULT_HISTORY_RANGE
+  );
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
   const [isLinked, setIsLinked] = useState(false);
@@ -66,6 +75,7 @@ const PrivacySettings = ({
 
   const openDialog = (type: DialogType): void => {
     setConfirmation("");
+    if (type === "history") setHistoryRange(DEFAULT_HISTORY_RANGE);
     setMessage(null);
     setDialog(type);
   };
@@ -80,14 +90,20 @@ const PrivacySettings = ({
     setBusy(true);
     setMessage(null);
     try {
-      await deleteHistoryData(host, browserUuid);
-      await clearHistoryLocal();
+      const response = await deleteHistoryData(host, browserUuid, historyRange);
+      const resolvedRange = response?.range
+        ? resolveHistoryRange(response.range)
+        : historyRange;
+      const remainingHistory = await clearHistoryLocal(resolvedRange);
       setDialog(null);
       setMessage({
         tone: "success",
-        text: "Your SurfMind history was cleared.",
+        text: `${
+          HISTORY_RANGE_OPTIONS.find((option) => option.value === resolvedRange)
+            ?.label || "Selected history"
+        } was cleared from SurfMind.`,
       });
-      await onHistoryCleared?.();
+      await onHistoryCleared?.(remainingHistory);
     } catch (error) {
       setMessage({ tone: "danger", text: getErrorText(error) });
     }
@@ -187,11 +203,16 @@ const PrivacySettings = ({
                 <p>This cannot be undone.</p>
               </>
             ) : (
-              <p>
-                This removes your browsing history and its search index from
-                SurfMind. Bookmarks and recent searches are not affected. This
-                cannot be undone.
-              </p>
+              <>
+                <p>
+                  Choose the time range to remove. Selecting All time removes
+                  every saved history entry.
+                </p>
+                <p>
+                  Bookmarks and recent searches are not affected. This cannot be
+                  undone.
+                </p>
+              </>
             )
           }
           busy={busy}
@@ -202,7 +223,27 @@ const PrivacySettings = ({
           onCancel={closeDialog}
           onConfirm={dialog === "all" ? handleClearAll : handleClearHistory}
         >
-          {dialog === "all" ? (
+          {dialog === "history" ? (
+            <fieldset className="privacy-history-ranges">
+              <legend>Time range</legend>
+              {HISTORY_RANGE_OPTIONS.map((option) => (
+                <label key={option.value} className="privacy-history-range">
+                  <input
+                    type="radio"
+                    name="history-range"
+                    value={option.value}
+                    checked={historyRange === option.value}
+                    onChange={() => setHistoryRange(option.value)}
+                    disabled={busy}
+                  />
+                  <span>{option.label}</span>
+                  {option.value === DEFAULT_HISTORY_RANGE ? (
+                    <small>Default</small>
+                  ) : null}
+                </label>
+              ))}
+            </fieldset>
+          ) : dialog === "all" ? (
             <label
               className="privacy-confirm-label"
               htmlFor="clear-data-confirm"

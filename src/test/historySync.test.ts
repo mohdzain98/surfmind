@@ -182,6 +182,50 @@ test("pre-query flush syncs a recent entry below the thresholds", async () => {
   expect(getSaveDataCall(fetchImpl)).toBeDefined();
 });
 
+test("flagged history stays local and is excluded from ingestion", async () => {
+  const flaggedEntry = {
+    ...entry(1),
+    flagged: true,
+    flag_reason: "domain",
+    flag_layer: 1,
+  };
+  const safeEntry = entry(2);
+  const { sync, fetchImpl, getStorage } = createHarness({
+    entries: [flaggedEntry, safeEntry],
+  });
+
+  const result = await sync.maybeSync({ force: true, reason: "pre-query" });
+  const payload = JSON.parse(getSaveDataCall(fetchImpl)[1].body);
+
+  expect(result).toMatchObject({ success: true, synced: 1 });
+  expect(payload.data).toHaveLength(1);
+  expect(payload.data[0].url).toBe(safeEntry.url);
+  expect(getStorage().navigationData[0]).toMatchObject({
+    flagged: true,
+    synced: false,
+  });
+});
+
+test("manual full resync still excludes flagged history", async () => {
+  const { sync, fetchImpl } = createHarness({
+    entries: [
+      { ...entry(1), synced: true, flagged: true },
+      { ...entry(2), synced: true },
+    ],
+  });
+
+  await sync.maybeSync({
+    force: true,
+    resyncAll: true,
+    reason: "manual-full",
+  });
+
+  const payload = JSON.parse(getSaveDataCall(fetchImpl)[1].body);
+  expect(payload.data.map((item: any) => item.url)).toEqual([
+    "https://example.com/2",
+  ]);
+});
+
 test("manual full sync re-ingests all retained history", async () => {
   const syncedEntries = [entry(1), entry(2)].map((item) => ({
     ...item,

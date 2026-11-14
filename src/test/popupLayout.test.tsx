@@ -69,6 +69,12 @@ const baseState = {
   syncing: false,
   step: null,
   finalReceived: false,
+  searchMode: "standard",
+  fastStrictness: "balanced",
+  fastMaxResults: 5,
+  resultMode: null,
+  resultFastStrictness: null,
+  fastNoMatch: false,
 };
 
 const renderPopup = (stateOverrides = {}) => {
@@ -284,6 +290,43 @@ test("opens Cross-browser Sync from the version 1.9.0 introduction", async () =>
   );
 });
 
+test("introduces Fast Mode on the version 1.10.0 full page", async () => {
+  const { value } = renderPopup({
+    updateFlag: false,
+    updateNotice: "major",
+    updateVersion: "1.100.0",
+  });
+
+  expect(
+    screen.getByRole("heading", { name: "Choose how SurfMind responds." })
+  ).toBeInTheDocument();
+  expect(screen.getByText("New: Fast Mode")).toBeInTheDocument();
+  expect(
+    screen.getByText("Jump straight to matching pages")
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText("Keep Standard when you want an answer")
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText("Choose how closely results should match")
+  ).toBeInTheDocument();
+  expect(screen.getByText("Clear the history you choose")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Let's Surf" }));
+
+  await waitFor(() =>
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({
+      "sm-last-seen-version": "1.100.0",
+    })
+  );
+  await waitFor(() =>
+    expect(value.setState).toHaveBeenCalledWith({
+      updateFlag: true,
+      updateNotice: null,
+    })
+  );
+});
+
 test("shows the bookmark-folder update at the top for version 1.8.4", async () => {
   const { container, value } = renderPopup({
     updateFlag: false,
@@ -349,6 +392,84 @@ test("keeps the initial search UI centered with mode and recent searches below",
     modeButton.compareDocumentPosition(recent) &
       Node.DOCUMENT_POSITION_FOLLOWING
   ).toBeTruthy();
+  expect(
+    screen.getByRole("button", {
+      name: "Choose response mode. Standard selected",
+    })
+  ).toHaveTextContent("Standard");
+});
+
+test("persists the Fast mode selection from the search screen", async () => {
+  const { value } = renderPopup();
+
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Choose response mode. Standard selected",
+    })
+  );
+  fireEvent.click(screen.getByRole("menuitemradio", { name: /Fast/ }));
+
+  expect(value.setState).toHaveBeenCalledWith({ searchMode: "fast" });
+  await waitFor(() =>
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({
+      searchMode: "fast",
+    })
+  );
+});
+
+test("renders Fast results without an answer card", () => {
+  renderPopup({
+    query: "deployment article",
+    parsed: { summary: "This must not be shown", url: null },
+    docs: [{ url: "https://example.com", type: "history" }],
+    resultMode: "fast",
+    resultFastStrictness: "balanced",
+    finalReceived: true,
+  });
+
+  expect(screen.queryByText("ANSWER")).not.toBeInTheDocument();
+  expect(screen.queryByText("This must not be shown")).not.toBeInTheDocument();
+  expect(
+    screen.getByText(/Showing close matches \(Balanced\)/)
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(/Not what you wanted\? Try Broad/)
+  ).toBeInTheDocument();
+});
+
+test("offers Standard and temporary Broad reruns after a Fast no-match", () => {
+  const { value } = renderPopup({
+    query: "an uncertain query",
+    searchMode: "fast",
+    resultMode: "fast",
+    resultFastStrictness: "balanced",
+    fastNoMatch: true,
+    finalReceived: true,
+  });
+
+  expect(
+    screen.getByRole("heading", { name: "No confident match found" })
+  ).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Try Standard" }));
+  expect(value.searchStream).toHaveBeenCalledWith(
+    expect.objectContaining({
+      query: "an uncertain query",
+      flag: "history",
+      mode: "standard",
+    })
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Use Broad" }));
+  expect(value.searchStream).toHaveBeenCalledWith(
+    expect.objectContaining({
+      mode: "fast",
+      fastStrictness: "broad",
+    })
+  );
+  expect(chrome.storage.local.set).not.toHaveBeenCalledWith({
+    fastStrictness: "broad",
+  });
 });
 
 test("keeps settings as a top-right gear outside the mode dropdown", () => {
@@ -533,6 +654,23 @@ test("drills into one settings section at a time and returns to the menu", () =>
   fireEvent.click(screen.getByRole("button", { name: "Back to settings" }));
   fireEvent.click(screen.getByRole("button", { name: /Saved Bookmarks/ }));
   expect(screen.getByText("Saved bookmarks view")).toBeInTheDocument();
+});
+
+test("opens Fast mode settings and stores strictness for the next search", async () => {
+  const { value } = renderPopup({ activeTab: "settings" });
+
+  fireEvent.click(screen.getByRole("button", { name: /Fast Mode/ }));
+  expect(
+    screen.getByRole("heading", { name: "Fast Mode" })
+  ).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("radio", { name: /Precise/i }));
+  expect(value.setState).toHaveBeenCalledWith({ fastStrictness: "precise" });
+  await waitFor(() =>
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({
+      fastStrictness: "precise",
+    })
+  );
 });
 
 test("opens bookmark search with a folder selected from Settings", () => {

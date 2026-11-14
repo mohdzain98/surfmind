@@ -13,8 +13,13 @@ import {
 } from "lucide-react";
 import type {
   ActiveTab,
+  FastMaxResults,
+  FastStrictness,
+  NavigationEntry,
   PageCountsState,
   ParsedSummary,
+  RecentSearch,
+  SearchMode,
   UserStateShape,
 } from "../types";
 import Bookmarks from "./Bookmarks";
@@ -31,6 +36,8 @@ import BookmarkFolderPicker from "./BookmarkFolderPicker";
 import SearchThought from "./SearchThought";
 import SourceCard from "./SourceCard";
 import RatePromptBanner from "./RatePromptBanner";
+import SearchModeToggle from "./SearchModeToggle";
+import FastModeSettings from "./FastModeSettings";
 import { useUserContext } from "../context/userContext";
 import { truncateUrl, truncateUrlsInText } from "../services/displayText";
 import {
@@ -54,6 +61,7 @@ import {
   readLocalPageCounts,
 } from "../services/pageCounts";
 import { toUserFacingError } from "../services/userFacingError";
+import { persistFastModePreferences } from "../services/fastMode";
 
 const EMPTY_PAGE_COUNTS: PageCountsState = {
   status: "idle",
@@ -81,6 +89,12 @@ const WELCOME_LINES = [
   "That tab you closed too soon? Still here.",
   "What did you read that you can't quite place?",
 ];
+
+type SettingsView =
+  "home" | "sync" | "fast" | "history" | "bookmarks" | "privacy";
+
+const capitalize = (value: string): string =>
+  value.charAt(0).toUpperCase() + value.slice(1);
 
 interface PopupProps {
   prop: { host: string };
@@ -114,6 +128,12 @@ const Popup = (props: PopupProps) => {
     thoughts = [],
     finalReceived,
     selectedBookmarkFolder,
+    searchMode,
+    fastStrictness,
+    fastMaxResults,
+    resultMode,
+    resultFastStrictness,
+    fastNoMatch,
   } = state;
   useEffect(() => {
     initializePopup(host);
@@ -146,13 +166,21 @@ const Popup = (props: PopupProps) => {
   };
 
   const handleSearch = async () => {
-    await searchStream({ host, query, userId, flag: "history" });
+    await searchStream({
+      host,
+      query,
+      userId,
+      flag: "history",
+      mode: searchMode,
+      fastStrictness,
+      maxResults: fastMaxResults,
+    });
   };
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [lastSearchTab, setLastSearchTab] = useState<ActiveTab>("history");
   const [showRecentPage, setShowRecentPage] = useState(false);
-  const [settingsView, setSettingsView] = useState("home");
+  const [settingsView, setSettingsView] = useState<SettingsView>("home");
   const [showRatePrompt, setShowRatePrompt] = useState(false);
   const [manualSync, setManualSync] = useState({
     status: "idle",
@@ -182,8 +210,38 @@ const Popup = (props: PopupProps) => {
       step: null,
       thoughts: [],
       finalReceived: false,
+      resultMode: null,
+      resultFastStrictness: null,
+      fastNoMatch: false,
       ...statePatch,
     });
+  };
+
+  const handleSearchModeChange = async (mode: SearchMode) => {
+    setState({ searchMode: mode });
+    try {
+      await persistFastModePreferences({ searchMode: mode });
+    } catch {
+      // Keep the in-session choice usable if extension storage is unavailable.
+    }
+  };
+
+  const handleFastStrictnessChange = async (strictness: FastStrictness) => {
+    setState({ fastStrictness: strictness });
+    try {
+      await persistFastModePreferences({ fastStrictness: strictness });
+    } catch {
+      // Keep the in-session choice usable if extension storage is unavailable.
+    }
+  };
+
+  const handleFastMaxResultsChange = async (maxResults: FastMaxResults) => {
+    setState({ fastMaxResults: maxResults });
+    try {
+      await persistFastModePreferences({ fastMaxResults: maxResults });
+    } catch {
+      // Keep the in-session choice usable if extension storage is unavailable.
+    }
   };
 
   const handleOpenSyncFromUpdate = async () => {
@@ -337,11 +395,14 @@ const Popup = (props: PopupProps) => {
       thoughts: [],
       finalReceived: false,
       selectedBookmarkFolder: null,
+      resultMode: null,
+      resultFastStrictness: null,
+      fastNoMatch: false,
     });
   };
 
-  const handleHistoryCleared = () => {
-    setState({ data: { navigationData: [] } });
+  const handleHistoryCleared = (navigationData: NavigationEntry[]) => {
+    setState({ data: { navigationData } });
   };
 
   const handleAllDataCleared = (nextUserId: string) => {
@@ -365,6 +426,9 @@ const Popup = (props: PopupProps) => {
       step: null,
       thoughts: [],
       finalReceived: false,
+      resultMode: null,
+      resultFastStrictness: null,
+      fastNoMatch: false,
     });
   };
 
@@ -380,14 +444,22 @@ const Popup = (props: PopupProps) => {
   };
 
   // For combined view, split docs by source type
-  const historyDocs = docs.filter((d) => d.metadata?.type === "history");
-  const bookmarkDocs = docs.filter((d) => d.metadata?.type === "bookmark");
+  const historyDocs = docs.filter(
+    (doc) => (doc.metadata?.type || doc.type) === "history"
+  );
+  const bookmarkDocs = docs.filter(
+    (doc) => (doc.metadata?.type || doc.type) === "bookmark"
+  );
   const isCombined = activeTab === "combined";
   const hasSearchActivity = Boolean(
     loading || syncing || step || finalReceived || head || docs.length
   );
   const hasCompletedAnswer = Boolean(
-    finalReceived && (parsed.summary || parsed.url)
+    finalReceived && resultMode !== "fast" && (parsed.summary || parsed.url)
+  );
+  const hasCompletedSearch = Boolean(
+    hasCompletedAnswer ||
+    (finalReceived && resultMode === "fast" && (docs.length > 0 || fastNoMatch))
   );
   const hasEmptyHistoryAnswer = Boolean(
     activeTab === "history" &&
@@ -402,8 +474,48 @@ const Popup = (props: PopupProps) => {
     activeTab !== "settings" && !hasSearchActivity
   );
   const showRecentSearchLink = Boolean(
-    activeTab !== "settings" && hasCompletedAnswer
+    activeTab !== "settings" && hasCompletedSearch
   );
+
+  const rerunCurrentSearch = async ({
+    mode,
+    strictness = fastStrictness,
+    maxResults = fastMaxResults,
+  }: {
+    mode: SearchMode;
+    strictness?: FastStrictness;
+    maxResults?: FastMaxResults;
+  }) => {
+    if (activeTab === "settings") return;
+    await searchStream({
+      host,
+      query,
+      userId,
+      flag: activeTab,
+      folder: activeTab === "bookmark" ? selectedBookmarkFolder : null,
+      mode,
+      fastStrictness: strictness,
+      maxResults,
+    });
+  };
+
+  const handleRerunRecentSearch = async (search: RecentSearch) => {
+    setShowRecentPage(false);
+    handleTabChange(search.flag, {
+      query: search.query,
+      selectedBookmarkFolder: search.flag === "bookmark" ? search.folder : null,
+    });
+    await searchStream({
+      host,
+      query: search.query,
+      userId,
+      flag: search.flag,
+      folder: search.folder,
+      mode: search.searchMode,
+      fastStrictness: search.fastStrictness,
+      maxResults: search.fastMaxResults,
+    });
+  };
 
   const handleSourceOpen = async () => {
     try {
@@ -559,7 +671,11 @@ const Popup = (props: PopupProps) => {
 
       {showRecentPage ? (
         <div className="recent-searches-page">
-          <RecentSearches host={host} browserUuid={userId} />
+          <RecentSearches
+            host={host}
+            browserUuid={userId}
+            onRerun={handleRerunRecentSearch}
+          />
         </div>
       ) : (
         <>
@@ -615,6 +731,7 @@ const Popup = (props: PopupProps) => {
                   onOpenSync={() => setSettingsView("sync")}
                   onOpenHistory={() => setSettingsView("history")}
                   onOpenBookmarks={() => setSettingsView("bookmarks")}
+                  onOpenFastMode={() => setSettingsView("fast")}
                   onOpenPrivacy={() => setSettingsView("privacy")}
                   pageCounts={pageCounts}
                 />
@@ -633,6 +750,16 @@ const Popup = (props: PopupProps) => {
               {settingsView === "history" ? (
                 <div className="settings-detail">
                   <SavedHistory />
+                </div>
+              ) : null}
+              {settingsView === "fast" ? (
+                <div className="settings-detail">
+                  <FastModeSettings
+                    strictness={fastStrictness}
+                    maxResults={fastMaxResults}
+                    onStrictnessChange={handleFastStrictnessChange}
+                    onMaxResultsChange={handleFastMaxResultsChange}
+                  />
                 </div>
               ) : null}
               {settingsView === "bookmarks" ? (
@@ -654,6 +781,14 @@ const Popup = (props: PopupProps) => {
               ) : null}
             </div>
           )}
+
+          {activeTab !== "settings" ? (
+            <SearchModeToggle
+              value={searchMode}
+              onChange={handleSearchModeChange}
+              disabled={disable}
+            />
+          ) : null}
 
           {activeTab !== "settings" ? (
             <div
@@ -754,14 +889,24 @@ const Popup = (props: PopupProps) => {
           ) : null}
 
           {/* ── Current streamed thought ── */}
-          {activeTab !== "settings" ? (
+          {activeTab !== "settings" && resultMode !== "fast" ? (
             <SearchThought
               message={noti}
               step={step}
               thoughts={thoughts}
               mode={activeTab}
-              complete={hasCompletedAnswer}
+              complete={hasCompletedSearch}
             />
+          ) : null}
+
+          {activeTab !== "settings" && resultMode === "fast" && noti ? (
+            <div
+              className="fast-search-status"
+              role="status"
+              aria-live="polite"
+            >
+              {noti}
+            </div>
           ) : null}
 
           {showRatePrompt ? (
@@ -774,67 +919,102 @@ const Popup = (props: PopupProps) => {
           ) : null}
 
           {/* ── Final answer card ── */}
-          {finalReceived && (parsed.summary || parsed.url) && (
-            <div
-              className="answer-card border rounded p-3 mt-2"
-              style={{ backgroundColor: "#f8f9ff", borderColor: "#d0d8ff" }}
-            >
-              <p
-                className="text-muted mb-1"
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  letterSpacing: "0.5px",
-                }}
+          {finalReceived &&
+            resultMode !== "fast" &&
+            (parsed.summary || parsed.url) && (
+              <div
+                className="answer-card border rounded p-3 mt-2"
+                style={{ backgroundColor: "#f8f9ff", borderColor: "#d0d8ff" }}
               >
-                ANSWER
-              </p>
-              <p
-                className="answer-text"
-                style={{ fontSize: "13px", margin: "0 0 6px 0" }}
-              >
-                {hasEmptyHistoryAnswer
-                  ? "SurfMind hasn’t saved any searchable visits yet."
-                  : truncateUrlsInText(parsed.summary)}
-              </p>
-              {hasEmptyHistoryAnswer ? (
-                <p className="answer-context mb-0">
-                  Your existing Chrome history isn’t imported automatically.
-                  SurfMind builds its own searchable history from pages you
-                  visit after installing it.
-                </p>
-              ) : null}
-              {hasNoDataAnswer ? (
-                <div className="answer-sync-tip">
-                  <span>
-                    Check Sync Coverage in Settings to make sure your data is
-                    synced.
-                  </span>
-                  <div className="answer-sync-tip-actions">
-                    <button
-                      type="button"
-                      onClick={() => handleTabChange("settings")}
-                    >
-                      Open Settings
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-              {parsed.url && (
-                <a
-                  href={parsed.url}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (parsed.url) chrome.tabs.create({ url: parsed.url });
+                <p
+                  className="text-muted mb-1"
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    letterSpacing: "0.5px",
                   }}
-                  className="answer-url"
-                  style={{ fontSize: "12px" }}
                 >
-                  {truncateUrl(parsed.url)}
-                </a>
-              )}
-            </div>
-          )}
+                  ANSWER
+                </p>
+                <p
+                  className="answer-text"
+                  style={{ fontSize: "13px", margin: "0 0 6px 0" }}
+                >
+                  {hasEmptyHistoryAnswer
+                    ? "SurfMind hasn’t saved any searchable visits yet."
+                    : truncateUrlsInText(parsed.summary)}
+                </p>
+                {hasEmptyHistoryAnswer ? (
+                  <p className="answer-context mb-0">
+                    Your existing Chrome history isn’t imported automatically.
+                    SurfMind builds its own searchable history from pages you
+                    visit after installing it.
+                  </p>
+                ) : null}
+                {hasNoDataAnswer ? (
+                  <div className="answer-sync-tip">
+                    <span>
+                      Check Sync Coverage in Settings to make sure your data is
+                      synced.
+                    </span>
+                    <div className="answer-sync-tip-actions">
+                      <button
+                        type="button"
+                        onClick={() => handleTabChange("settings")}
+                      >
+                        Open Settings
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+                {parsed.url && (
+                  <a
+                    href={parsed.url}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (parsed.url) chrome.tabs.create({ url: parsed.url });
+                    }}
+                    className="answer-url"
+                    style={{ fontSize: "12px" }}
+                  >
+                    {truncateUrl(parsed.url)}
+                  </a>
+                )}
+              </div>
+            )}
+
+          {finalReceived && resultMode === "fast" && fastNoMatch ? (
+            <section
+              className="fast-no-match"
+              aria-labelledby="fast-no-match-title"
+            >
+              <div className="fast-no-match-icon" aria-hidden="true">
+                <Sparkles size={18} />
+              </div>
+              <h2 id="fast-no-match-title">No confident match found</h2>
+              <p>Try rephrasing your search, or use a wider search option.</p>
+              <div className="fast-no-match-actions">
+                <button
+                  type="button"
+                  className="fast-action-primary"
+                  onClick={() => rerunCurrentSearch({ mode: "standard" })}
+                >
+                  Try Standard
+                </button>
+                {resultFastStrictness !== "broad" ? (
+                  <button
+                    type="button"
+                    className="fast-action-secondary"
+                    onClick={() =>
+                      rerunCurrentSearch({ mode: "fast", strictness: "broad" })
+                    }
+                  >
+                    Use Broad
+                  </button>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
 
           {/* ── Matched sources ── */}
           <div className="mt-2">
@@ -895,7 +1075,7 @@ const Popup = (props: PopupProps) => {
                   className="fst-italic text-muted mb-1"
                   style={{ fontSize: "13px" }}
                 >
-                  Matched Sources
+                  {resultMode === "fast" ? "Close matches" : "Matched Sources"}
                 </p>
                 {docs.map((doc, i) => (
                   <SourceCard
@@ -909,8 +1089,39 @@ const Popup = (props: PopupProps) => {
             )}
           </div>
 
+          {finalReceived && resultMode === "fast" && docs.length > 0 ? (
+            <section
+              className="fast-results-footer"
+              aria-label="Fast search details"
+            >
+              <p>
+                Showing close matches (
+                {capitalize(resultFastStrictness || fastStrictness)})
+                <span aria-hidden="true"> · </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleTabChange("settings");
+                    setSettingsView("fast");
+                  }}
+                >
+                  Change in Settings
+                </button>
+              </p>
+              {docs.length < 3 ? (
+                <small>
+                  Not what you wanted? Try Broad, or use Standard for an answer.
+                </small>
+              ) : null}
+            </section>
+          ) : null}
+
           {showRecentSearches ? (
-            <RecentSearches host={host} browserUuid={userId} />
+            <RecentSearches
+              host={host}
+              browserUuid={userId}
+              onRerun={handleRerunRecentSearch}
+            />
           ) : null}
 
           {showRecentSearchLink ? (
