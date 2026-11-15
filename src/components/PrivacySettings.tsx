@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { History, Trash2 } from "lucide-react";
+import { History, ShieldCheck, Trash2 } from "lucide-react";
 import ConfirmationDialog from "./ConfirmationDialog";
 import { getErrorText } from "../services/userFacingError";
 import type { NavigationEntry, SyncStatus } from "../types";
 import {
   DEFAULT_HISTORY_RANGE,
   HISTORY_RANGE_OPTIONS,
+  PRIVACY_POLICY_URL,
   clearAllDataLocal,
   clearHistoryLocal,
   deleteAllData,
@@ -142,6 +143,26 @@ const PrivacySettings = ({
           Control what SurfMind stores about your browsing.
         </p>
       </div>
+
+      <article className="privacy-filtering-card">
+        <span className="privacy-filtering-icon" aria-hidden="true">
+          <ShieldCheck size={17} />
+        </span>
+        <div>
+          <h3>Content filtering</h3>
+          <p>
+            SurfMind skips known adult and malicious sites. Checks run on your
+            device, and flagged pages are never sent to our servers.{" "}
+            <a
+              href={`${PRIVACY_POLICY_URL}#content-filtering`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Learn more
+            </a>
+          </p>
+        </div>
+      </article>
 
       <div className="privacy-action">
         <div>

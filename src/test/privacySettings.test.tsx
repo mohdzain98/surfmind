@@ -164,3 +164,16 @@ test("keeps legal links off the privacy detail page", () => {
     document.querySelector(".privacy-settings-icon")
   ).not.toBeInTheDocument();
 });
+
+test("explains on-device content filtering and links to policy details", () => {
+  renderPrivacy();
+
+  expect(screen.getByText("Content filtering")).toBeInTheDocument();
+  expect(
+    screen.getByText(/flagged pages are never sent to our servers/i)
+  ).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Learn more" })).toHaveAttribute(
+    "href",
+    "https://surfmind.docschat.in/privacy#content-filtering"
+  );
+});

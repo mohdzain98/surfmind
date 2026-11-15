@@ -2519,6 +2519,58 @@ button.saved-bookmarks-folder-main:focus-visible {
   justify-content: space-between;
 }
 
+.privacy-filtering-card {
+  display: grid;
+  margin-top: 1rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #f8faff;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+}
+
+.privacy-filtering-icon {
+  display: inline-grid;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.55rem;
+  background: #e9f0ff;
+  color: #3468d4;
+  place-items: center;
+}
+
+.privacy-filtering-card h3 {
+  margin: 0 0 0.2rem;
+  color: #343a40;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.privacy-filtering-card p {
+  margin: 0;
+  color: #747982;
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+.privacy-filtering-card a {
+  color: #5f3dc4;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.privacy-filtering-card a:hover {
+  text-decoration: underline;
+}
+
+.privacy-filtering-card a:focus-visible {
+  border-radius: 0.2rem;
+  outline: 2px solid #86b7fe;
+  outline-offset: 2px;
+}
+
 .privacy-action-all {
   border-color: #f1aeb5;
   background: #fffafa;
