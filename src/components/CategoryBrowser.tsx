@@ -32,7 +32,7 @@ import type {
   CategoryPage,
   CategorySearchAnalytics,
   CategoryWithPages,
-} from "../types";
+} from "../types/categories";
 
 const formatVisitedAt = (value: string): string => {
   if (!value) return "";

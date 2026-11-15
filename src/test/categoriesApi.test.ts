@@ -7,7 +7,10 @@ import {
   getCategoryPages,
   getCategorySearchAnalytics,
   getClassificationStatus,
+  normalizeCategory,
+  refreshCategories,
   triggerClassification,
+  updateCategory,
 } from "../services/categoriesApi";
 
 const jsonResponse = (payload: unknown, status = 200) =>
@@ -21,6 +24,15 @@ beforeEach(() => {
   global.fetch = jest.fn() as jest.MockedFunction<typeof fetch>;
 });
 
+test("normalizes deletability from the backend instead of the category name", () => {
+  expect(normalizeCategory({ name: "Other", deletable: false }).deletable).toBe(
+    false
+  );
+  expect(normalizeCategory({ name: "Other", deletable: true }).deletable).toBe(
+    true
+  );
+});
+
 test("loads and normalizes the category overview", async () => {
   (fetch as jest.Mock).mockReturnValue(
     jsonResponse({
@@ -31,8 +43,13 @@ test("loads and normalizes the category overview", async () => {
           name: "Work",
           description: "Professional pages",
           is_default: true,
+          deletable: true,
         },
       ],
+      category_count: 1,
+      category_limit: 4,
+      can_create_category: true,
+      refresh_available_at: "2026-11-15T09:15:59.250374+00:00",
     })
   );
 
@@ -41,19 +58,49 @@ test("loads and normalizes the category overview", async () => {
   ).resolves.toEqual({
     enabled: true,
     tier: "free",
-    limit: 4,
+    categoryCount: 1,
+    categoryLimit: 4,
+    canCreateCategory: true,
+    refreshAvailableAt: "2026-11-15T09:15:59.250374+00:00",
     categories: [
       {
         id: 1,
         name: "Work",
         description: "Professional pages",
         isDefault: true,
+        deletable: true,
         pageCount: 0,
       },
     ],
   });
   expect(fetch).toHaveBeenCalledWith(
     "https://api.example.com/v1/categories/list",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ browser_uuid: "browser-123" }),
+    }
+  );
+});
+
+test("queues a full category refresh with browser_uuid", async () => {
+  (fetch as jest.Mock).mockReturnValue(
+    jsonResponse({
+      status: "queued",
+      task_id: "refresh-task-1",
+      refresh_available_at: "2026-11-15T09:15:59.250374+00:00",
+    })
+  );
+
+  await expect(
+    refreshCategories("https://api.example.com/v1", "browser-123")
+  ).resolves.toEqual({
+    status: "queued",
+    task_id: "refresh-task-1",
+    refresh_available_at: "2026-11-15T09:15:59.250374+00:00",
+  });
+  expect(fetch).toHaveBeenCalledWith(
+    "https://api.example.com/v1/categories/refresh",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -115,6 +162,34 @@ test("creates and deletes categories with the stable browser identity", async ()
   expect(fetch).toHaveBeenLastCalledWith(
     "https://api.example.com/v1/categories/category%2F1?browser_uuid=browser-123",
     { method: "DELETE" }
+  );
+});
+
+test("updates an editable category description", async () => {
+  (fetch as jest.Mock).mockReturnValue(
+    jsonResponse({
+      id: 1,
+      name: "Work",
+      description: "Work projects and tools",
+    })
+  );
+
+  await updateCategory(
+    "https://api.example.com/v1",
+    "browser-123",
+    1,
+    "Work projects and tools"
+  );
+  expect(fetch).toHaveBeenCalledWith(
+    "https://api.example.com/v1/categories/1/update",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        browser_uuid: "browser-123",
+        description: "Work projects and tools",
+      }),
+    }
   );
 });
 
@@ -212,6 +287,7 @@ test("loads grouped category pages with full page metadata", async () => {
       id: 1,
       name: "Work",
       isDefault: true,
+      deletable: true,
       pages: [
         {
           id: 123,

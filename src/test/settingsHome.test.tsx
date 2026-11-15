@@ -62,7 +62,7 @@ test("shows sync first, rate last, and stored summaries", async () => {
       categorization={{
         enabled: true,
         categories: [{ id: "work" }, { id: "learning" }],
-        limit: 4,
+        categoryCount: 2,
         classificationState: "idle",
       }}
     />

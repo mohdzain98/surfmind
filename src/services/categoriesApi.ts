@@ -5,13 +5,12 @@ import type {
   CategoryMutationInput,
   CategoryPage,
   CategoryPagesOverview,
+  CategoryRefreshResult,
   CategorySearchAnalytics,
   ClassificationResult,
-} from "../types";
+} from "../types/categories";
 
 type JsonRecord = Record<string, any>;
-
-const DEFAULT_LIMITS: Record<string, number> = { free: 4, pro: 20 };
 
 const asRecord = (value: unknown): JsonRecord =>
   value && typeof value === "object" ? (value as JsonRecord) : {};
@@ -65,6 +64,7 @@ export const normalizeCategory = (value: unknown = {}): Category => {
     name: category.name || "Untitled category",
     description: category.description || "",
     isDefault: Boolean(category.is_default ?? category.isDefault),
+    deletable: category.deletable !== false,
     pageCount: Number(category.page_count ?? category.pageCount ?? 0),
   };
 };
@@ -95,12 +95,18 @@ export const normalizeCategoriesOverview = (
     : data.categories || data.items || [];
   const categories = (rawCategories as unknown[]).map(normalizeCategory);
   const tier = String(data.tier || data.plan || "free");
-  const suppliedLimit = Number(
-    data.category_limit ?? data.categories_limit ?? data.limit
-  );
-  const limit = Number.isFinite(suppliedLimit)
-    ? suppliedLimit
-    : (DEFAULT_LIMITS[tier] ?? DEFAULT_LIMITS.free);
+  const suppliedCount = Number(data.category_count ?? data.categoryCount);
+  const categoryCount = Number.isFinite(suppliedCount)
+    ? suppliedCount
+    : categories.filter((category) => category.deletable).length;
+  const suppliedLimit = Number(data.category_limit ?? data.categoryLimit);
+  const categoryLimit = Number.isFinite(suppliedLimit) ? suppliedLimit : null;
+  const canCreateCategory =
+    typeof data.can_create_category === "boolean"
+      ? data.can_create_category
+      : typeof data.canCreateCategory === "boolean"
+        ? data.canCreateCategory
+        : categoryLimit !== null && categoryCount < categoryLimit;
 
   return {
     enabled: Boolean(
@@ -108,7 +114,15 @@ export const normalizeCategoriesOverview = (
     ),
     categories,
     tier,
-    limit,
+    categoryCount,
+    categoryLimit,
+    canCreateCategory,
+    refreshAvailableAt:
+      typeof data.refresh_available_at === "string"
+        ? data.refresh_available_at
+        : typeof data.refreshAvailableAt === "string"
+          ? data.refreshAvailableAt
+          : null,
   };
 };
 
@@ -171,6 +185,22 @@ export const createCategory = (
     "Could not create this category"
   );
 
+export const updateCategory = (
+  host: string,
+  browserUuid: string,
+  categoryId: CategoryId,
+  description: string
+): Promise<JsonRecord> =>
+  requestJson(
+    `${host}/categories/${encodeURIComponent(categoryId)}/update`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(identityBody(browserUuid, { description })),
+    },
+    "Could not update this category"
+  );
+
 export const deleteCategory = (
   host: string,
   browserUuid: string,
@@ -197,6 +227,20 @@ export const triggerClassification = (
       ),
     },
     "Could not organize your pages"
+  );
+
+export const refreshCategories = (
+  host: string,
+  browserUuid: string
+): Promise<CategoryRefreshResult> =>
+  requestJson(
+    `${host}/categories/refresh`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(identityBody(browserUuid)),
+    },
+    "Could not refresh categories"
   );
 
 export const getClassificationStatus = async (

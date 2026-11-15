@@ -5,6 +5,7 @@ export interface Category {
   name: string;
   description: string;
   isDefault: boolean;
+  deletable: boolean;
   pageCount: number;
 }
 
@@ -27,7 +28,10 @@ export interface CategoriesOverview {
   enabled: boolean;
   categories: Category[];
   tier: string;
-  limit: number;
+  categoryCount: number;
+  categoryLimit: number | null;
+  canCreateCategory: boolean;
+  refreshAvailableAt: string | null;
 }
 
 export interface CategoryPagesOverview {
@@ -60,6 +64,11 @@ export interface ClassificationResult {
   ready?: boolean;
 }
 
+export interface CategoryRefreshResult extends ClassificationResult {
+  refresh_available_at?: string | null;
+  refreshAvailableAt?: string | null;
+}
+
 export interface CategorizationController extends CategoriesOverview {
   loading: boolean;
   busyAction: string;
@@ -68,6 +77,10 @@ export interface CategorizationController extends CategoriesOverview {
   enable: () => Promise<void>;
   disable: () => Promise<void>;
   add: (input: CategoryMutationInput) => Promise<boolean>;
+  updateDescription: (
+    categoryId: CategoryId,
+    description: string
+  ) => Promise<boolean>;
   remove: (categoryId: CategoryId) => Promise<boolean>;
-  reclassifyAll: () => Promise<void>;
+  refresh: () => Promise<void>;
 }

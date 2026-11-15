@@ -37,7 +37,7 @@ interface SettingsHomeProps {
   categorization?: {
     enabled?: boolean;
     categories?: Array<{ id?: string | number }>;
-    limit?: number;
+    categoryCount?: number;
     loading?: boolean;
     classificationState?: string;
   };
@@ -135,7 +135,7 @@ const SettingsHome = ({
   const categorySummary = categorization.loading
     ? "Checking category settings…"
     : categorization.enabled
-      ? `${categorization.categories?.length || 0} categories${categorization.classificationState === "organizing" ? " · organizing pages" : ""}`
+      ? `${categorization.categoryCount || 0} categories${categorization.classificationState === "organizing" ? " · organizing pages" : ""}`
       : "Off · organize saved pages into topics";
 
   const openReviewPage = () => {

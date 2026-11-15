@@ -6,7 +6,9 @@ import {
   enableCategories,
   getCategories,
   getClassificationStatus,
+  refreshCategories,
   triggerClassification,
+  updateCategory,
 } from "../services/categoriesApi";
 import type {
   CategoriesOverview,
@@ -16,13 +18,16 @@ import type {
   CategoryMutationInput,
   ClassificationResult,
   ClassificationState,
-} from "../types";
+} from "../types/categories";
 
 const EMPTY_OVERVIEW: CategoriesOverview = {
   enabled: false,
   categories: [],
   tier: "free",
-  limit: 4,
+  categoryCount: 0,
+  categoryLimit: null,
+  canCreateCategory: false,
+  refreshAvailableAt: null,
 };
 
 const getTaskId = (result: ClassificationResult): string =>
@@ -30,6 +35,9 @@ const getTaskId = (result: ClassificationResult): string =>
 
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : "Something went wrong";
+
+type ClassificationOrigin = "automatic" | "refresh" | null;
+const SUCCESS_MESSAGE_DURATION_MS = 5000;
 
 interface UseCategorizationOptions {
   active: boolean;
@@ -47,6 +55,8 @@ const useCategorization = ({
   const [busyAction, setBusyAction] = useState("");
   const [message, setMessage] = useState<CategoryMessage | null>(null);
   const [taskId, setTaskId] = useState("");
+  const [classificationOrigin, setClassificationOrigin] =
+    useState<ClassificationOrigin>(null);
   const [classificationState, setClassificationState] =
     useState<ClassificationState>("idle");
 
@@ -56,16 +66,35 @@ const useCategorization = ({
     return nextOverview;
   }, [browserUuid, host]);
 
-  const trackClassification = useCallback((result: ClassificationResult) => {
-    const nextTaskId = getTaskId(result);
-    if (nextTaskId) {
-      setTaskId(nextTaskId);
-      setClassificationState("organizing");
-      return;
+  const trackClassification = useCallback(
+    (
+      result: ClassificationResult,
+      origin: Exclude<ClassificationOrigin, null> = "automatic"
+    ) => {
+      const nextTaskId = getTaskId(result);
+      if (nextTaskId) {
+        setTaskId(nextTaskId);
+        setClassificationOrigin(origin);
+        setClassificationState("organizing");
+        return;
+      }
+      setTaskId("");
+      setClassificationOrigin(null);
+      setClassificationState("idle");
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (message?.tone !== "success" || classificationState === "organizing") {
+      return undefined;
     }
-    setTaskId("");
-    setClassificationState("idle");
-  }, []);
+    const timerId = setTimeout(
+      () => setMessage(null),
+      SUCCESS_MESSAGE_DURATION_MS
+    );
+    return () => clearTimeout(timerId);
+  }, [classificationState, message]);
 
   useEffect(() => {
     if (!active || !host || !browserUuid) return undefined;
@@ -121,6 +150,10 @@ const useCategorization = ({
           setTaskId("");
           setClassificationState("complete");
           await loadOverview();
+          if (classificationOrigin === "refresh") {
+            setMessage({ tone: "success", text: "Categories refreshed." });
+          }
+          setClassificationOrigin(null);
           return;
         }
         setClassificationState("organizing");
@@ -128,6 +161,7 @@ const useCategorization = ({
       } catch (error) {
         if (cancelled) return;
         setTaskId("");
+        setClassificationOrigin(null);
         setClassificationState("error");
         setMessage({ tone: "warning", text: errorMessage(error) });
       }
@@ -138,7 +172,7 @@ const useCategorization = ({
       cancelled = true;
       if (timerId) clearTimeout(timerId);
     };
-  }, [active, host, loadOverview, taskId]);
+  }, [active, classificationOrigin, host, loadOverview, taskId]);
 
   const enable = useCallback(async () => {
     setBusyAction("enable");
@@ -167,6 +201,7 @@ const useCategorization = ({
       await disableCategories(host, browserUuid);
       setOverview((current) => ({ ...current, enabled: false }));
       setTaskId("");
+      setClassificationOrigin(null);
       setClassificationState("idle");
       setMessage({
         tone: "success",
@@ -220,18 +255,60 @@ const useCategorization = ({
     [browserUuid, host, loadOverview]
   );
 
-  const reclassifyAll = useCallback(async () => {
-    setBusyAction("reclassify");
+  const updateDescription = useCallback(
+    async (categoryId: CategoryId, description: string): Promise<boolean> => {
+      setBusyAction(`edit:${categoryId}`);
+      setMessage(null);
+      try {
+        await updateCategory(host, browserUuid, categoryId, description);
+        await loadOverview();
+        setMessage({ tone: "success", text: "Category description updated." });
+        return true;
+      } catch (error) {
+        setMessage({ tone: "danger", text: errorMessage(error) });
+        return false;
+      } finally {
+        setBusyAction("");
+      }
+    },
+    [browserUuid, host, loadOverview]
+  );
+
+  const refresh = useCallback(async () => {
+    setBusyAction("refresh");
     setMessage(null);
     try {
-      const result = await triggerClassification(host, browserUuid, true);
-      trackClassification(result);
-      if (!getTaskId(result)) {
-        setMessage({
-          tone: "success",
-          text: "All pages are already organized.",
-        });
+      const result = await refreshCategories(host, browserUuid);
+      const status = String(result.status || "").toLowerCase();
+      const refreshAvailableAt =
+        result.refresh_available_at ?? result.refreshAvailableAt ?? null;
+
+      if (refreshAvailableAt) {
+        setOverview((current) => ({ ...current, refreshAvailableAt }));
       }
+
+      if (status === "not_enabled") {
+        setOverview((current) => ({ ...current, enabled: false }));
+        setMessage({
+          tone: "warning",
+          text: "Turn Categories on before refreshing.",
+        });
+        return;
+      }
+
+      if (status === "cooldown") {
+        setMessage({
+          tone: "warning",
+          text: "Categories can be refreshed once per day.",
+        });
+        return;
+      }
+
+      trackClassification(result, "refresh");
+      setMessage({
+        tone: "success",
+        text: "Refreshing all categories. This may take a moment.",
+      });
     } catch (error) {
       setMessage({ tone: "danger", text: errorMessage(error) });
     } finally {
@@ -248,8 +325,9 @@ const useCategorization = ({
     enable,
     disable,
     add,
+    updateDescription,
     remove,
-    reclassifyAll,
+    refresh,
   };
 };
 

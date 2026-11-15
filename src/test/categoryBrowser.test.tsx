@@ -19,6 +19,7 @@ beforeEach(() => {
         name: "Work",
         description: "Professional pages",
         isDefault: true,
+        deletable: true,
         pages: [
           {
             id: 123,

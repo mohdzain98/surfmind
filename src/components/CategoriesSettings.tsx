@@ -1,7 +1,17 @@
-import { useState, type FormEvent } from "react";
-import { LoaderCircle, Plus, Tags, Trash2 } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import {
+  Check,
+  LoaderCircle,
+  MoreVertical,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Tags,
+  Trash2,
+  X,
+} from "lucide-react";
 import ConfirmationDialog from "./ConfirmationDialog";
-import type { CategorizationController, Category } from "../types";
+import type { CategorizationController, Category } from "../types/categories";
 
 interface CategoriesSettingsProps {
   categorization: CategorizationController;
@@ -11,7 +21,9 @@ const CategoriesSettings = ({ categorization }: CategoriesSettingsProps) => {
   const {
     enabled,
     categories,
-    limit,
+    categoryCount,
+    canCreateCategory,
+    refreshAvailableAt,
     loading,
     busyAction,
     message,
@@ -19,20 +31,80 @@ const CategoriesSettings = ({ categorization }: CategoriesSettingsProps) => {
     enable,
     disable,
     add,
+    updateDescription,
     remove,
+    refresh,
   } = categorization;
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(
     null
   );
+  const [categoryToEdit, setCategoryToEdit] = useState<Category | null>(null);
+  const [editDescription, setEditDescription] = useState("");
   const [addFormOpen, setAddFormOpen] = useState(false);
+  const [openActionMenuId, setOpenActionMenuId] = useState<
+    Category["id"] | null
+  >(null);
+  const [refreshClock, setRefreshClock] = useState(() => Date.now());
 
-  const count = categories.length;
-  const atLimit = Number.isFinite(limit) && count >= limit;
   const isBusy = Boolean(busyAction);
   const isSettingUp = busyAction === "enable";
   const isOrganizing = classificationState === "organizing";
+  const refreshAvailableTime = refreshAvailableAt
+    ? Date.parse(refreshAvailableAt)
+    : Number.NaN;
+  const isRefreshCoolingDown =
+    Number.isFinite(refreshAvailableTime) &&
+    refreshClock < refreshAvailableTime;
+  const refreshDisabled = isBusy || isOrganizing || isRefreshCoolingDown;
+
+  useEffect(() => {
+    if (!Number.isFinite(refreshAvailableTime)) return undefined;
+    const remaining = refreshAvailableTime - Date.now();
+    if (remaining <= 0) {
+      setRefreshClock(Date.now());
+      return undefined;
+    }
+
+    const timerId = window.setTimeout(
+      () => setRefreshClock(Date.now()),
+      Math.min(remaining + 50, 2_147_483_647)
+    );
+    return () => window.clearTimeout(timerId);
+  }, [refreshAvailableTime]);
+
+  useEffect(() => {
+    if (openActionMenuId === null) return undefined;
+
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest(".category-action-menu")
+      ) {
+        return;
+      }
+      setOpenActionMenuId(null);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenActionMenuId(null);
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePress);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePress);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [openActionMenuId]);
+
+  const refreshAvailabilityLabel = isRefreshCoolingDown
+    ? `Next refresh available ${new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(refreshAvailableTime))}`
+    : "Refresh all categories";
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -51,6 +123,30 @@ const CategoriesSettings = ({ categorization }: CategoriesSettingsProps) => {
     if (!categoryToDelete) return;
     const deleted = await remove(categoryToDelete.id);
     if (deleted) setCategoryToDelete(null);
+  };
+
+  const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!categoryToEdit) return;
+    const updated = await updateDescription(
+      categoryToEdit.id,
+      editDescription.trim()
+    );
+    if (updated) {
+      setCategoryToEdit(null);
+      setEditDescription("");
+    }
+  };
+
+  const startEditing = (category: Category) => {
+    setOpenActionMenuId(null);
+    setCategoryToEdit(category);
+    setEditDescription(category.description);
+  };
+
+  const cancelEditing = () => {
+    setCategoryToEdit(null);
+    setEditDescription("");
   };
 
   return (
@@ -103,19 +199,55 @@ const CategoriesSettings = ({ categorization }: CategoriesSettingsProps) => {
         <>
           <div className="category-usage-row">
             <strong>
-              {count} {count === 1 ? "category" : "categories"}
+              {categoryCount} {categoryCount === 1 ? "category" : "categories"}
             </strong>
-            {isOrganizing ? (
-              <span className="category-organizing" role="status">
-                <LoaderCircle className="spin" size={13} aria-hidden="true" />
-                Organizing your pages…
-              </span>
-            ) : null}
+            <span
+              className="category-refresh-control"
+              tabIndex={isRefreshCoolingDown ? 0 : undefined}
+              aria-label={
+                isRefreshCoolingDown
+                  ? `Refresh unavailable. ${refreshAvailabilityLabel}`
+                  : undefined
+              }
+              aria-describedby={
+                isRefreshCoolingDown ? "category-refresh-tooltip" : undefined
+              }
+            >
+              <button
+                type="button"
+                className="category-refresh-button"
+                onClick={refresh}
+                disabled={refreshDisabled}
+                aria-label={refreshAvailabilityLabel}
+              >
+                {isOrganizing || busyAction === "refresh" ? (
+                  <LoaderCircle className="spin" size={13} aria-hidden="true" />
+                ) : (
+                  <RefreshCw size={13} aria-hidden="true" />
+                )}
+                Refresh
+              </button>
+              {isRefreshCoolingDown ? (
+                <span
+                  id="category-refresh-tooltip"
+                  className="category-refresh-tooltip"
+                  role="tooltip"
+                >
+                  {refreshAvailabilityLabel}
+                </span>
+              ) : null}
+            </span>
           </div>
+
+          {isOrganizing ? (
+            <span className="category-organizing" role="status">
+              Organizing your pages…
+            </span>
+          ) : null}
 
           {categories.length ? (
             <ul className="category-list">
-              {categories.map((category) => (
+              {categories.map((category, index) => (
                 <li key={category.id || category.name}>
                   <span className="category-list-icon" aria-hidden="true">
                     <Tags size={15} />
@@ -127,7 +259,62 @@ const CategoriesSettings = ({ categorization }: CategoriesSettingsProps) => {
                         {category.isDefault ? "Default" : "Custom"}
                       </span>
                     </div>
-                    <p>{category.description}</p>
+                    {categoryToEdit?.id === category.id ? (
+                      <form
+                        className="category-edit-form"
+                        onSubmit={handleEditSubmit}
+                      >
+                        <label
+                          className="visually-hidden"
+                          htmlFor={`category-description-${category.id}`}
+                        >
+                          Description for {category.name}
+                        </label>
+                        <textarea
+                          id={`category-description-${category.id}`}
+                          value={editDescription}
+                          onChange={(event) =>
+                            setEditDescription(event.target.value)
+                          }
+                          rows={3}
+                          maxLength={300}
+                          required
+                          autoFocus
+                          disabled={busyAction === `edit:${category.id}`}
+                        />
+                        <div className="category-edit-actions">
+                          <button
+                            type="button"
+                            onClick={cancelEditing}
+                            disabled={busyAction === `edit:${category.id}`}
+                          >
+                            <X size={12} aria-hidden="true" />
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            className="is-primary"
+                            disabled={
+                              busyAction === `edit:${category.id}` ||
+                              !editDescription.trim()
+                            }
+                          >
+                            {busyAction === `edit:${category.id}` ? (
+                              <LoaderCircle
+                                className="spin"
+                                size={12}
+                                aria-hidden="true"
+                              />
+                            ) : (
+                              <Check size={12} aria-hidden="true" />
+                            )}
+                            Save
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <p>{category.description}</p>
+                    )}
                     {category.pageCount > 0 ? (
                       <small>
                         {category.pageCount}{" "}
@@ -135,16 +322,52 @@ const CategoriesSettings = ({ categorization }: CategoriesSettingsProps) => {
                       </small>
                     ) : null}
                   </div>
-                  <button
-                    type="button"
-                    className="category-delete-button"
-                    onClick={() => setCategoryToDelete(category)}
-                    disabled={isBusy}
-                    aria-label={`Delete ${category.name} category`}
-                    title={`Delete ${category.name}`}
-                  >
-                    <Trash2 size={14} aria-hidden="true" />
-                  </button>
+                  {category.deletable ? (
+                    <div className="category-action-menu">
+                      <button
+                        type="button"
+                        className="category-action-trigger"
+                        onClick={() =>
+                          setOpenActionMenuId((current) =>
+                            current === category.id ? null : category.id
+                          )
+                        }
+                        disabled={isBusy}
+                        aria-label={`Actions for ${category.name}`}
+                        aria-expanded={openActionMenuId === category.id}
+                        aria-controls={`category-actions-${index}`}
+                      >
+                        <MoreVertical size={16} aria-hidden="true" />
+                      </button>
+                      <div
+                        id={`category-actions-${index}`}
+                        className="category-action-dropdown"
+                        hidden={openActionMenuId !== category.id}
+                        aria-label={`${category.name} actions`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => startEditing(category)}
+                          disabled={isBusy}
+                        >
+                          <Pencil size={13} aria-hidden="true" />
+                          Edit description
+                        </button>
+                        <button
+                          type="button"
+                          className="is-danger"
+                          onClick={() => {
+                            setOpenActionMenuId(null);
+                            setCategoryToDelete(category);
+                          }}
+                          disabled={isBusy}
+                        >
+                          <Trash2 size={13} aria-hidden="true" />
+                          Delete category
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -154,7 +377,7 @@ const CategoriesSettings = ({ categorization }: CategoriesSettingsProps) => {
             </p>
           )}
 
-          {!atLimit ? (
+          {canCreateCategory ? (
             <div className="category-add-accordion">
               <button
                 type="button"
@@ -217,6 +440,11 @@ const CategoriesSettings = ({ categorization }: CategoriesSettingsProps) => {
               ) : null}
             </div>
           ) : null}
+
+          <p className="category-refresh-note">
+            SurfMind automatically categorizes synced pages. A full manual
+            refresh is available once every 24 hours.
+          </p>
         </>
       ) : null}
 

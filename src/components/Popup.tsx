@@ -645,17 +645,6 @@ const Popup = (props: PopupProps) => {
         <div className="panel-nav-actions">
           <button
             type="button"
-            className={`settings-button category-page-button ${showCategoryPage ? "is-active" : ""}`}
-            onClick={handleCategoryPageToggle}
-            aria-label={
-              showCategoryPage ? "Close categories" : "Browse categories"
-            }
-            title="Categories"
-          >
-            <Tags size={18} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
             className={`manual-sync-button ${manualSync.status === "syncing" ? "is-syncing" : ""} ${allLocalPagesSynced ? "is-synced" : ""}`}
             onClick={handleManualSync}
             disabled={
@@ -668,17 +657,28 @@ const Popup = (props: PopupProps) => {
                 ? "Refresh synced history and bookmarks"
                 : "Sync all history and bookmarks"
             }
-            title={
+            data-tooltip={
               allLocalPagesSynced
-                ? "History and bookmarks are up to date"
+                ? "Data is up to date"
                 : checkingPageCounts
-                  ? "Checking sync status"
+                  ? "Checking sync"
                   : refreshOnly
-                    ? "Refresh the most recent saved history and bookmarks"
-                    : "Sync all saved history and bookmarks"
+                    ? "Refresh data"
+                    : "Sync data"
             }
           >
-            <RefreshCw size={17} aria-hidden="true" />
+            <RefreshCw size={16} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className={`settings-button category-page-button ${showCategoryPage ? "is-active" : ""}`}
+            onClick={handleCategoryPageToggle}
+            aria-label={
+              showCategoryPage ? "Close categories" : "Browse categories"
+            }
+            data-tooltip="Categories"
+          >
+            <Tags size={17} aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -687,9 +687,11 @@ const Popup = (props: PopupProps) => {
             aria-label={
               activeTab === "settings" ? "Return to search" : "Open settings"
             }
-            title={activeTab === "settings" ? "Return to search" : "Settings"}
+            data-tooltip={
+              activeTab === "settings" ? "Back to search" : "Settings"
+            }
           >
-            <Settings size={18} aria-hidden="true" />
+            <Settings size={17} aria-hidden="true" />
           </button>
         </div>
       </div>
