@@ -54,6 +54,7 @@
         "globals": {
           "Readability": "readonly",
           "SurfMindBookmarkSync": "readonly",
+          "SurfMindContentFiltering": "readonly",
           "SurfMindHistorySync": "readonly",
           "SurfMindPageEntries": "readonly",
           "SurfMindStructuredExtraction": "readonly"

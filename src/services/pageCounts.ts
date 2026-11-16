@@ -13,7 +13,13 @@ export const DEFAULT_BOOKMARK_CAP = 250;
 
 export const countSavedHistoryPages = (
   entries: NavigationEntry[] = []
-): number => new Set(entries.map((entry) => entry?.url).filter(Boolean)).size;
+): number =>
+  new Set(
+    entries
+      .filter((entry) => entry?.flagged !== true)
+      .map((entry) => entry?.url)
+      .filter(Boolean)
+  ).size;
 
 export const readLocalPageCounts = async (): Promise<LocalPageCounts> => {
   const [stored, bookmarkSummary] = await Promise.all([
@@ -31,7 +37,9 @@ export const readLocalPageCounts = async (): Promise<LocalPageCounts> => {
     history: countSavedHistoryPages(stored.navigationData),
     bookmarks: bookmarkSummary.bookmarkPageCount,
     dirty: {
-      history: stored.navigationData.some((entry) => entry?.synced !== true),
+      history: stored.navigationData.some(
+        (entry) => entry?.flagged !== true && entry?.synced !== true
+      ),
       bookmarks: stored.bookmarksDirty === true,
     },
   };

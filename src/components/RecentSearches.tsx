@@ -6,6 +6,8 @@ import {
   GitMerge,
   Globe2,
   History,
+  RotateCcw,
+  Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { RecentSearch } from "../types";
@@ -14,6 +16,7 @@ import {
   formatRelativeTime,
   truncateUrlsInText,
 } from "../services/displayText";
+import SourceCard from "./SourceCard";
 
 const MODE_LABELS: Record<string, string> = {
   history: "History",
@@ -54,9 +57,14 @@ const getSourceDetails = (
 interface RecentSearchesProps {
   host: string;
   browserUuid: string;
+  onRerun?: (search: RecentSearch) => void;
 }
 
-const RecentSearches = ({ host, browserUuid }: RecentSearchesProps) => {
+const RecentSearches = ({
+  host,
+  browserUuid,
+  onRerun,
+}: RecentSearchesProps) => {
   const [searches, setSearches] = useState<RecentSearch[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -65,13 +73,21 @@ const RecentSearches = ({ host, browserUuid }: RecentSearchesProps) => {
     if (!host || !browserUuid) return undefined;
 
     const controller = new AbortController();
-    setLoading(true);
-    fetchRecentSearches(host, browserUuid, { signal: controller.signal })
-      .then(setSearches)
-      .catch(() => {})
-      .finally(() => {
+    const loadSearches = async () => {
+      setLoading(true);
+      try {
+        const nextSearches = await fetchRecentSearches(host, browserUuid, {
+          signal: controller.signal,
+        });
+        if (!controller.signal.aborted) setSearches(nextSearches);
+      } catch {
+        if (!controller.signal.aborted) setSearches([]);
+      } finally {
         if (!controller.signal.aborted) setLoading(false);
-      });
+      }
+    };
+
+    loadSearches();
 
     return () => controller.abort();
   }, [browserUuid, host]);
@@ -97,7 +113,7 @@ const RecentSearches = ({ host, browserUuid }: RecentSearchesProps) => {
       {searches.map((search) => {
         const expanded = expandedId === search.id;
         const panelId = `recent-search-${search.id}`;
-        const mode = getMode(search.mode);
+        const mode = getMode(search.flag);
         const ModeIcon = MODE_ICONS[mode] || History;
         const relativeTime = formatRelativeTime(search.createdAt);
         return (
@@ -121,8 +137,19 @@ const RecentSearches = ({ host, browserUuid }: RecentSearchesProps) => {
                   <span className="recent-search-time">{relativeTime}</span>
                 ) : null}
               </span>
-              <span className="recent-search-mode">
-                {MODE_LABELS[mode] || mode}
+              <span className="recent-search-tags">
+                <span className="recent-search-mode">
+                  {MODE_LABELS[mode] || mode}
+                </span>
+                {search.searchMode === "fast" ? (
+                  <span
+                    className="recent-search-fast-tag"
+                    aria-label="Fast search"
+                    title="Fast search"
+                  >
+                    <Zap size={11} aria-hidden="true" />
+                  </span>
+                ) : null}
               </span>
               <span className="recent-search-chevron-button" aria-hidden="true">
                 <ChevronDown
@@ -137,12 +164,29 @@ const RecentSearches = ({ host, browserUuid }: RecentSearchesProps) => {
             </button>
             {expanded ? (
               <div className="recent-search-content" id={panelId}>
-                {search.answer ? (
+                {search.searchMode === "fast" ? (
+                  search.sources.length > 0 ? (
+                    <div className="recent-fast-results">
+                      {search.sources.map((source, index) => (
+                        <SourceCard
+                          key={`${source.id || source.url || "source"}-${index}`}
+                          doc={source}
+                          showDate={search.flag === "history"}
+                          variant="recent"
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted recent-searches-empty mb-0">
+                      No stored results.
+                    </p>
+                  )
+                ) : search.answer ? (
                   <p className="recent-search-answer">
                     {truncateUrlsInText(search.answer)}
                   </p>
                 ) : null}
-                {search.sources.length > 0 ? (
+                {search.searchMode !== "fast" && search.sources.length > 0 ? (
                   <div
                     className="recent-search-source-chips d-flex flex-wrap gap-2"
                     aria-label="Stored sources"
@@ -166,11 +210,21 @@ const RecentSearches = ({ host, browserUuid }: RecentSearchesProps) => {
                       );
                     })}
                   </div>
-                ) : (
+                ) : search.searchMode !== "fast" ? (
                   <p className="text-muted recent-searches-empty mb-0">
                     No stored sources.
                   </p>
-                )}
+                ) : null}
+                {onRerun ? (
+                  <button
+                    type="button"
+                    className="recent-search-rerun"
+                    onClick={() => onRerun(search)}
+                  >
+                    <RotateCcw size={12} aria-hidden="true" />
+                    Run again
+                  </button>
+                ) : null}
               </div>
             ) : null}
           </article>

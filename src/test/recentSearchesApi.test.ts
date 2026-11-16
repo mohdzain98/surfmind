@@ -53,6 +53,8 @@ test("fetches five recent searches with the stable browser identity", async () =
     query: "vector databases",
     answer: "Stored answer",
     sources: [{ url: "https://example.com" }],
+    flag: "history",
+    searchMode: "standard",
   });
 });
 
@@ -65,10 +67,29 @@ test("normalizes alternate fields and malformed source snapshots", () => {
       createdAt: "today",
     })
   ).toMatchObject({
-    mode: "bookmark",
+    flag: "bookmark",
+    searchMode: "standard",
     answer: "Answer",
     sources: [],
     createdAt: "today",
+  });
+});
+
+test("preserves Fast mode and its resolved strictness for reruns", () => {
+  expect(
+    normalizeRecentSearch({
+      id: "fast-search-1",
+      query: "saved deployment guide",
+      flag: "bookmark",
+      mode: "fast",
+      fast_strictness: "precise",
+      results: [{ url: "https://example.com/guide", type: "bookmark" }],
+    })
+  ).toMatchObject({
+    flag: "bookmark",
+    searchMode: "fast",
+    fastStrictness: "precise",
+    sources: [{ url: "https://example.com/guide", type: "bookmark" }],
   });
 });
 

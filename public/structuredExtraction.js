@@ -118,6 +118,10 @@
 
   const extractStructuredContent = (documentRef, ReadabilityConstructor) => {
     const fallbackTitle = normalizeText(documentRef.title) || "Untitled page";
+    const metaDescription = normalizeText(
+      documentRef.querySelector('meta[name="description"]')?.content ||
+        documentRef.querySelector('meta[property="og:description"]')?.content
+    );
 
     try {
       const article = new ReadabilityConstructor(
@@ -133,6 +137,7 @@
         if (sections.length > 1) {
           return {
             title,
+            ...(metaDescription ? { metaDescription } : {}),
             sections,
             extractionMethod: "readability",
           };
@@ -142,6 +147,7 @@
         if (articleText) {
           return {
             title,
+            ...(metaDescription ? { metaDescription } : {}),
             sections: createSingleSection(title, articleText),
             extractionMethod: "readability-fallback",
           };
@@ -156,6 +162,7 @@
 
     return {
       title: fallbackTitle,
+      ...(metaDescription ? { metaDescription } : {}),
       sections: createSingleSection(
         fallbackTitle,
         getFallbackText(documentRef)

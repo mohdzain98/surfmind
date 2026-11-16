@@ -1,4 +1,10 @@
 import type { ApiPayload, RecentSearch } from "../types";
+import type { SearchFlag, SearchMode } from "../types";
+import {
+  normalizeFastMaxResults,
+  normalizeFastStrictness,
+  normalizeSearchMode,
+} from "./fastMode";
 
 const normalizeSources = (sources: unknown): Array<Record<string, any>> => {
   if (Array.isArray(sources)) return sources;
@@ -12,17 +18,45 @@ const normalizeSources = (sources: unknown): Array<Record<string, any>> => {
   }
 };
 
+const SEARCH_FLAGS = new Set<SearchFlag>(["history", "bookmark", "combined"]);
+
+const normalizeFlag = (search: ApiPayload): SearchFlag => {
+  const value = search.flag || search.corpus || search.source_type;
+  if (SEARCH_FLAGS.has(value as SearchFlag)) return value as SearchFlag;
+  if (search.mode === "bookmarks") return "bookmark";
+  if (SEARCH_FLAGS.has(search.mode as SearchFlag)) {
+    return search.mode as SearchFlag;
+  }
+  return "history";
+};
+
+const normalizeRecentSearchMode = (search: ApiPayload): SearchMode => {
+  const value = search.search_mode || search.response_mode || search.mode;
+  return value === "fast" ? "fast" : normalizeSearchMode(value);
+};
+
 export const normalizeRecentSearch = (
   search: ApiPayload | null | undefined,
   index = 0
-): RecentSearch => ({
-  id: String(search?.id || `recent-search-${index}`),
-  query: String(search?.query || "Untitled search"),
-  mode: String(search?.mode || search?.flag || "history"),
-  answer: String(search?.answer || search?.result || ""),
-  sources: normalizeSources(search?.sources || search?.docs),
-  createdAt: search?.created_at || search?.createdAt || "",
-});
+): RecentSearch => {
+  const value = search || {};
+  return {
+    id: String(value.id || `recent-search-${index}`),
+    query: String(value.query || "Untitled search"),
+    flag: normalizeFlag(value),
+    searchMode: normalizeRecentSearchMode(value),
+    fastStrictness: normalizeFastStrictness(
+      value.fast_strictness || value.fastStrictness
+    ),
+    fastMaxResults: normalizeFastMaxResults(
+      value.max_results || value.fastMaxResults
+    ),
+    folder: value.folder ? String(value.folder) : null,
+    answer: String(value.answer || value.result || ""),
+    sources: normalizeSources(value.sources || value.docs || value.results),
+    createdAt: value.created_at || value.createdAt || "",
+  };
+};
 
 export const fetchRecentSearches = async (
   host: string,

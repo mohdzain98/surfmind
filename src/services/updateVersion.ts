@@ -7,7 +7,7 @@ export const LEGACY_UPDATE_VERSIONS: Array<{ key: string; version: string }> = [
   { key: "sm-update-flag-v1.7", version: "1.7.0" },
 ];
 
-const FULL_PAGE_UPDATE_VERSIONS = new Set(["1.80.0", "1.90.0"]);
+const FULL_PAGE_UPDATE_VERSIONS = new Set(["1.80.0", "1.90.0", "1.100.0"]);
 const BANNER_UPDATE_VERSIONS = new Set(["1.80.4"]);
 
 interface ParsedVersion {

@@ -45,6 +45,9 @@
     if (sections.length === 0) return null;
     return {
       title: String(extraction.title || ""),
+      ...(extraction.metaDescription
+        ? { metaDescription: String(extraction.metaDescription) }
+        : {}),
       sections,
       extractionMethod: String(extraction.extractionMethod || "live-tab"),
     };
@@ -85,9 +88,16 @@
                   bookmark,
                 })
               : [];
-          bookmarks.push(
-            ...(extractedEntries.length ? extractedEntries : [bookmark])
-          );
+          const entries = extractedEntries.length
+            ? extractedEntries
+            : [bookmark];
+          for (const entry of entries) {
+            Object.defineProperty(entry, "filterUrl", {
+              value: node.url,
+              enumerable: false,
+            });
+            bookmarks.push(entry);
+          }
         }
 
         if (node.children) traverse(node.children, currentPath);
@@ -101,6 +111,7 @@
   const createBookmarkSync = ({
     chromeApi,
     fetchImpl,
+    contentFilter = null,
     now = () => Date.now(),
     createId = () => crypto.randomUUID(),
   }) => {
@@ -137,7 +148,24 @@
         getBookmarkTree(),
         chromeApi.storage.local.get({ [EXTRACTED_CONTENT_KEY]: {} }),
       ]);
-      return flattenBookmarks(nodes, stored[EXTRACTED_CONTENT_KEY]);
+      const bookmarks = flattenBookmarks(nodes, stored[EXTRACTED_CONTENT_KEY]);
+      if (!contentFilter) return bookmarks;
+
+      const classified = [];
+      for (const bookmark of bookmarks) {
+        const extraction = stored[EXTRACTED_CONTENT_KEY]?.[bookmark.url];
+        const classification = await contentFilter.classifyItem({
+          url: bookmark.filterUrl || bookmark.url,
+          title: bookmark.title || extraction?.title,
+          metaDescription: extraction?.metaDescription,
+        });
+        const nextBookmark = { ...bookmark, ...classification };
+        if (nextBookmark.flagged) {
+          await contentFilter.recordFlaggedBookmark(nextBookmark);
+        }
+        classified.push(nextBookmark);
+      }
+      return classified;
     };
 
     const performSync = async ({
@@ -211,14 +239,17 @@
       }
 
       const bookmarks = await getAllBookmarks();
+      const syncableBookmarks = bookmarks
+        .filter((bookmark) => bookmark.flagged !== true)
+        .map(({ flagged, flag_reason, flag_layer, ...bookmark }) => bookmark);
       const requestPayload = {
-        data: bookmarks,
+        data: syncableBookmarks,
         browser_uuid: userId,
         flag: "bookmark",
       };
       if (reason === "manual-full") {
         console.info(
-          `[SurfMind] Sending ${bookmarks.length} bookmark entries to /save-data`
+          `[SurfMind] Sending ${syncableBookmarks.length} bookmark entries to /save-data`
         );
       }
       const response = await fetchImpl(`${apiHost}/save-data`, {
@@ -257,7 +288,7 @@
 
       return {
         success: true,
-        synced: bookmarks.length,
+        synced: syncableBookmarks.length,
         pending: latest.bookmarksDirtyVersion !== dirtyVersion,
         lastSyncTime: completedAt,
       };

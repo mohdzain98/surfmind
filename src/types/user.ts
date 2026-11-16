@@ -1,4 +1,10 @@
-import type { NavigationEntry, SearchFlag } from "./search";
+import type {
+  FastMaxResults,
+  FastStrictness,
+  NavigationEntry,
+  SearchFlag,
+  SearchMode,
+} from "./search";
 import type { UpdateNotice } from "../services/updateVersion";
 
 export type ActiveTab = SearchFlag | "settings";
@@ -46,6 +52,12 @@ export interface UserStateShape {
   thoughts: SearchThoughtEntry[];
   finalReceived: boolean;
   selectedBookmarkFolder: string | null;
+  searchMode: SearchMode;
+  fastStrictness: FastStrictness;
+  fastMaxResults: FastMaxResults;
+  resultMode: SearchMode | null;
+  resultFastStrictness: FastStrictness | null;
+  fastNoMatch: boolean;
 }
 
 export type UserAction = {
@@ -61,6 +73,9 @@ export interface SearchStreamParams {
   userId: string;
   flag: SearchFlag;
   folder?: string | null;
+  mode: SearchMode;
+  fastStrictness?: FastStrictness;
+  maxResults?: FastMaxResults;
 }
 
 export interface UserContextValue {

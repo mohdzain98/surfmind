@@ -16,6 +16,16 @@ import {
 jest.mock("../services/privacy", () => ({
   PRIVACY_POLICY_URL: "https://surfmind.docschat.in/privacy",
   TERMS_URL: "https://surfmind.docschat.in/terms",
+  DEFAULT_HISTORY_RANGE: "24h",
+  HISTORY_RANGE_OPTIONS: [
+    { value: "1h", label: "Last 1 hour" },
+    { value: "24h", label: "Last 24 hours" },
+    { value: "7d", label: "Last 7 days" },
+    { value: "30d", label: "Last 1 month" },
+    { value: "all", label: "All time" },
+  ],
+  resolveHistoryRange: (value: unknown) =>
+    ["1h", "24h", "7d", "30d", "all"].includes(String(value)) ? value : "24h",
   clearAllDataLocal: jest.fn(),
   clearHistoryLocal: jest.fn(),
   deleteAllData: jest.fn(),
@@ -60,7 +70,7 @@ beforeEach(() => {
   (deleteAllData as jest.Mock).mockResolvedValue({
     status: "all_data_cleared",
   });
-  (clearHistoryLocal as jest.Mock).mockResolvedValue(undefined);
+  (clearHistoryLocal as jest.Mock).mockResolvedValue([]);
   (clearAllDataLocal as jest.Mock).mockResolvedValue("new-browser-uuid");
 });
 
@@ -73,14 +83,25 @@ test("confirms scoped history deletion before clearing local history", async () 
   expect(dialog).toHaveTextContent(
     "Bookmarks and recent searches are not affected"
   );
+  expect(
+    within(dialog).getByRole("radio", { name: /Last 24 hours/ })
+  ).toBeChecked();
+  expect(
+    within(dialog).getByRole("radio", { name: "All time" })
+  ).toBeInTheDocument();
+  fireEvent.click(within(dialog).getByRole("radio", { name: "Last 7 days" }));
   fireEvent.click(
     within(dialog).getByRole("button", { name: "Clear History" })
   );
 
   await waitFor(() => {
-    expect(deleteHistoryData).toHaveBeenCalledTimes(1);
-    expect(clearHistoryLocal).toHaveBeenCalledTimes(1);
-    expect(onHistoryCleared).toHaveBeenCalledTimes(1);
+    expect(deleteHistoryData).toHaveBeenCalledWith(
+      "https://api.example.com/v1",
+      "browser-123",
+      "7d"
+    );
+    expect(clearHistoryLocal).toHaveBeenCalledWith("7d");
+    expect(onHistoryCleared).toHaveBeenCalledWith([]);
   });
 });
 
@@ -142,4 +163,17 @@ test("keeps legal links off the privacy detail page", () => {
   expect(
     document.querySelector(".privacy-settings-icon")
   ).not.toBeInTheDocument();
+});
+
+test("explains on-device content filtering and links to policy details", () => {
+  renderPrivacy();
+
+  expect(screen.getByText("Content filtering")).toBeInTheDocument();
+  expect(
+    screen.getByText(/flagged pages are never sent to our servers/i)
+  ).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Learn more" })).toHaveAttribute(
+    "href",
+    "https://surfmind.docschat.in/privacy#content-filtering"
+  );
 });

@@ -35,13 +35,26 @@ interface SourceCardProps {
   doc?: SearchDoc;
   showDate?: boolean;
   onOpen?: () => void;
+  variant?: "default" | "recent";
 }
 
-const SourceCard = ({ doc, showDate = false, onOpen }: SourceCardProps) => {
+const SourceCard = ({
+  doc,
+  showDate = false,
+  onOpen,
+  variant = "default",
+}: SourceCardProps) => {
   const metadata = doc?.metadata || {};
   const source = metadata.source || doc?.url || doc?.source || "";
   const domain = metadata.domain || doc?.domain || getDomain(source);
   const title = metadata.title || doc?.title || "";
+  const displayDomain = domain
+    ? domain.charAt(0).toUpperCase() + domain.slice(1)
+    : "";
+  const displayHeading =
+    displayDomain && title
+      ? `${displayDomain} | ${title}`
+      : title || displayDomain;
   const rawHeadingPath =
     metadata.heading_path ||
     metadata.headingPath ||
@@ -57,9 +70,15 @@ const SourceCard = ({ doc, showDate = false, onOpen }: SourceCardProps) => {
     doc?.snippet || metadata.snippet || doc?.content || metadata.content || ""
   ).trim();
   const folder = String(metadata.folder || doc?.folder || "").trim();
-  const foundOnOtherBrowser = metadata.found_on_other_browser === true;
+  const foundOnOtherBrowser =
+    metadata.found_on_other_browser === true ||
+    doc?.found_on_other_browser === true ||
+    Boolean(metadata.source_device_name || doc?.source_device_name);
   const sourceDeviceName = String(
-    metadata.device_name || metadata.source_device_name || ""
+    metadata.device_name ||
+      metadata.source_device_name ||
+      doc?.source_device_name ||
+      ""
   ).trim();
   const linkedBrowserLabel = sourceDeviceName
     ? `Found on ${sourceDeviceName}`
@@ -73,7 +92,11 @@ const SourceCard = ({ doc, showDate = false, onOpen }: SourceCardProps) => {
 
   return (
     <div
-      className="result-card bg-light p-3 border rounded mt-2"
+      className={
+        variant === "recent"
+          ? "result-card result-card-recent"
+          : "result-card bg-light p-3 border rounded mt-2"
+      }
       role={source ? "button" : undefined}
       tabIndex={source ? 0 : undefined}
       onClick={openSource}
@@ -82,10 +105,9 @@ const SourceCard = ({ doc, showDate = false, onOpen }: SourceCardProps) => {
       }}
       title={source}
     >
-      <p style={{ margin: 0, padding: 0, fontSize: "13px" }}>
-        {domain ? domain.charAt(0).toUpperCase() + domain.slice(1) : ""}
-        {title ? ` | ${title}` : ""}
-      </p>
+      {displayHeading ? (
+        <p className="source-card-heading">{displayHeading}</p>
+      ) : null}
       {folder || foundOnOtherBrowser ? (
         <div className="source-context-tags">
           {folder ? (
@@ -108,17 +130,12 @@ const SourceCard = ({ doc, showDate = false, onOpen }: SourceCardProps) => {
         </p>
       ) : null}
       {snippet ? <p className="source-snippet">{snippet}</p> : null}
-      <div className="d-flex gap-2">
-        <p
-          className="text-muted flex-grow-1"
-          style={{ fontSize: "12px", margin: 0, padding: 0 }}
-        >
+      <div className="source-card-link-row">
+        <p className="source-card-link" title={source}>
           {getShortUrl(source)}
         </p>
         {relativeDate ? (
-          <p className="text-muted" style={{ fontSize: "12px", margin: 0 }}>
-            {relativeDate}
-          </p>
+          <p className="source-card-date">{relativeDate}</p>
         ) : null}
       </div>
     </div>

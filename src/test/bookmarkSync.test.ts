@@ -34,6 +34,7 @@ const createHarness = ({
   dataSchemaVersion = 1,
   remoteDataSchemaVersion = 1,
   statusOk = true,
+  contentFilter = null,
 }: {
   dirty?: boolean;
   responseOk?: boolean;
@@ -41,6 +42,7 @@ const createHarness = ({
   dataSchemaVersion?: number | null;
   remoteDataSchemaVersion?: number;
   statusOk?: boolean;
+  contentFilter?: any;
 } = {}) => {
   let storage: Record<string, any> = {
     apiHost: "https://api.example.com/v1",
@@ -85,6 +87,7 @@ const createHarness = ({
     chromeApi,
     fetchImpl,
     now: () => 50_000,
+    contentFilter,
   });
 
   return {
@@ -190,6 +193,30 @@ test("pre-search flush immediately syncs dirty bookmarks", async () => {
   expect(result).toMatchObject({ success: true, synced: 1 });
   expect(getSaveDataCall(fetchImpl)).toBeDefined();
   expect(getStorage().bookmarksDirty).toBe(false);
+});
+
+test("flagged bookmarks are audited locally and excluded from ingestion", async () => {
+  const contentFilter = {
+    classifyItem: jest.fn().mockResolvedValue({
+      flagged: true,
+      flag_reason: "domain",
+      flag_layer: 1,
+    }),
+    recordFlaggedBookmark: jest.fn().mockResolvedValue(undefined),
+  };
+  const { sync, fetchImpl } = createHarness({ dirty: true, contentFilter });
+
+  const result = await sync.syncIfDirty({ reason: "pre-query" });
+  const payload = JSON.parse(getSaveDataCall(fetchImpl)[1].body);
+
+  expect(result).toMatchObject({ success: true, synced: 0 });
+  expect(payload.data).toEqual([]);
+  expect(contentFilter.classifyItem).toHaveBeenCalledWith(
+    expect.objectContaining({
+      url: "https://example.com/vector?q=old#section",
+    })
+  );
+  expect(contentFilter.recordFlaggedBookmark).toHaveBeenCalledTimes(1);
 });
 
 test("manual full sync uploads the complete bookmark tree when clean", async () => {

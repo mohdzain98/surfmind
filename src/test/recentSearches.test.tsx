@@ -10,7 +10,11 @@ const searches = [
   {
     id: "search-1",
     query: "First query",
-    mode: "history",
+    flag: "history",
+    searchMode: "standard",
+    fastStrictness: "balanced",
+    fastMaxResults: 5,
+    folder: null,
     answer: "First stored answer",
     createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000 - 1000).toISOString(),
     sources: [
@@ -24,7 +28,11 @@ const searches = [
   {
     id: "search-2",
     query: "Second query",
-    mode: "combined",
+    flag: "combined",
+    searchMode: "standard",
+    fastStrictness: "balanced",
+    fastMaxResults: 5,
+    folder: null,
     answer: "Second stored answer",
     sources: [],
   },
@@ -96,4 +104,52 @@ test("fetches fresh data when the side panel remounts", async () => {
   await screen.findByText("First query");
 
   expect(fetchRecentSearches).toHaveBeenCalledTimes(2);
+});
+
+test("shows Fast entries as result lists and reruns with saved strictness", async () => {
+  const onRerun = jest.fn();
+  const fastSearch = {
+    id: "fast-search",
+    query: "deployment guide",
+    flag: "bookmark" as const,
+    searchMode: "fast" as const,
+    fastStrictness: "precise" as const,
+    fastMaxResults: 3 as const,
+    folder: "Bookmarks bar / Work",
+    answer: "",
+    createdAt: new Date().toISOString(),
+    sources: [
+      {
+        url: "https://example.com/deploy",
+        title: "Deployment guide",
+        snippet: "The matching deployment section.",
+      },
+    ],
+  };
+  (fetchRecentSearches as jest.Mock).mockResolvedValue([fastSearch]);
+
+  render(
+    <RecentSearches
+      host="https://api.example.com/v1"
+      browserUuid="browser-123"
+      onRerun={onRerun}
+    />
+  );
+
+  fireEvent.click(
+    await screen.findByRole("button", { name: /deployment guide/i })
+  );
+
+  expect(screen.getByLabelText("Fast search")).toBeInTheDocument();
+  expect(screen.queryByText("Fast")).not.toBeInTheDocument();
+  expect(
+    screen.getByText("The matching deployment section.")
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText("The matching deployment section.").closest(".result-card")
+  ).toHaveClass("result-card-recent");
+  expect(screen.queryByText("No stored sources.")).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Run again" }));
+  expect(onRerun).toHaveBeenCalledWith(fastSearch);
 });

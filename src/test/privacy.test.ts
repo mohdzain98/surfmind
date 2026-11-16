@@ -18,6 +18,8 @@ beforeEach(() => {
   global.chrome = {
     storage: {
       local: {
+        get: jest.fn().mockResolvedValue({ navigationData: [] }),
+        set: jest.fn().mockResolvedValue(undefined),
         remove: jest.fn().mockResolvedValue(undefined),
         clear: jest.fn().mockResolvedValue(undefined),
       },
@@ -32,7 +34,7 @@ test("uses distinct deletion endpoints with the current identity", async () => {
 
   expect(fetch).toHaveBeenNthCalledWith(
     1,
-    "https://api.example.com/v1/user/history?user_id=browser-123",
+    "https://api.example.com/v1/user/history?browser_uuid=browser-123&range=24h",
     { method: "DELETE" }
   );
   expect(fetch).toHaveBeenNthCalledWith(
@@ -42,13 +44,52 @@ test("uses distinct deletion endpoints with the current identity", async () => {
   );
 });
 
-test("clears only history keys for the scoped local action", async () => {
-  await clearHistoryLocal();
+test("sends the selected history range", async () => {
+  await deleteHistoryData("https://api.example.com/v1", "browser-123", "30d");
 
-  expect(chrome.storage.local.remove).toHaveBeenCalledWith([
-    "navigationData",
-    "lastSyncTime",
-  ]);
+  expect(fetch).toHaveBeenCalledWith(
+    "https://api.example.com/v1/user/history?browser_uuid=browser-123&range=30d",
+    { method: "DELETE" }
+  );
+});
+
+test("sends and applies the all-time history range", async () => {
+  await deleteHistoryData("https://api.example.com/v1", "browser-123", "all");
+  expect(fetch).toHaveBeenCalledWith(
+    "https://api.example.com/v1/user/history?browser_uuid=browser-123&range=all",
+    { method: "DELETE" }
+  );
+
+  (chrome.storage.local.get as jest.Mock).mockResolvedValue({
+    navigationData: [
+      { url: "https://old.example.com", date: "2020-01-01T00:00:00.000Z" },
+      { url: "https://recent.example.com", capturedAt: Date.now() },
+    ],
+  });
+  await expect(clearHistoryLocal("all")).resolves.toEqual([]);
+  expect(chrome.storage.local.set).toHaveBeenCalledWith({ navigationData: [] });
+});
+
+test("clears only local history inside the selected range", async () => {
+  const now = Date.parse("2026-11-13T12:00:00.000Z");
+  const oldEntry = {
+    url: "https://old.example.com",
+    visited_at: "2026-11-01T12:00:00.000Z",
+  };
+  const recentEntry = {
+    url: "https://recent.example.com",
+    capturedAt: now - 2 * 60 * 60 * 1000,
+  };
+  (chrome.storage.local.get as jest.Mock).mockResolvedValue({
+    navigationData: [oldEntry, recentEntry],
+  });
+
+  await expect(clearHistoryLocal("7d", now)).resolves.toEqual([oldEntry]);
+
+  expect(chrome.storage.local.set).toHaveBeenCalledWith({
+    navigationData: [oldEntry],
+  });
+  expect(chrome.storage.local.remove).toHaveBeenCalledWith("lastSyncTime");
   expect(chrome.storage.local.clear).not.toHaveBeenCalled();
 });
 

@@ -14,6 +14,11 @@ test("passes the pinned folder to bookmark search", async () => {
       userId: "browser-123",
       query: "deployment notes",
       selectedBookmarkFolder: "Bookmarks bar / Work",
+      loading: false,
+      disable: false,
+      searchMode: "fast",
+      fastStrictness: "precise",
+      fastMaxResults: 8,
     },
     setState: jest.fn(),
     searchStream,
@@ -35,6 +40,9 @@ test("passes the pinned folder to bookmark search", async () => {
       userId: "browser-123",
       flag: "bookmark",
       folder: "Bookmarks bar / Work",
+      mode: "fast",
+      fastStrictness: "precise",
+      maxResults: 8,
     })
   );
 });

@@ -21,6 +21,11 @@ test("uses the lightweight banner for the 1.8.4 feature release", () => {
   expect(getUpdateNotice("1.80.5", "1.80.4")).toBeNull();
 });
 
+test("uses the full page for the Fast Mode release", () => {
+  expect(getUpdateNotice("1.90.0", "1.100.0")).toBe("major");
+  expect(getUpdateNotice("1.100.0", "1.100.0")).toBeNull();
+});
+
 test("migrates the newest acknowledged legacy update flag", () => {
   expect(
     getStoredUpdateVersion({

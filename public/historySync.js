@@ -55,7 +55,16 @@
   const capString = (value, maxLength) =>
     String(value || "").slice(0, maxLength);
 
-  const toApiEntry = ({ synced, capturedAt, captureId, ...entry }) => ({
+  const toApiEntry = ({
+    synced,
+    capturedAt,
+    captureId,
+    flagged,
+    flag_reason,
+    flag_layer,
+    local_query,
+    ...entry
+  }) => ({
     ...entry,
     title: capString(entry.title, 500),
     url: capString(entry.url, 8_192),
@@ -246,15 +255,16 @@
       let { normalized, changed } = normalizeHistory(stored.navigationData);
       let resyncInProgress = stored[HISTORY_RESYNC_IN_PROGRESS_KEY] === true;
 
-      let unsynced = normalized.filter((entry) => !entry.synced);
+      let unsynced = normalized.filter(
+        (entry) => entry.flagged !== true && !entry.synced
+      );
       if (resyncAll && normalized.length > 0 && !resyncInProgress) {
-        normalized = normalized.map((entry) => ({
-          ...entry,
-          synced: false,
-        }));
+        normalized = normalized.map((entry) =>
+          entry.flagged === true ? entry : { ...entry, synced: false }
+        );
         changed = true;
         resyncInProgress = true;
-        unsynced = normalized;
+        unsynced = normalized.filter((entry) => entry.flagged !== true);
       }
       const countReady =
         pageEntries.countDistinctPages(unsynced) >= syncConfig.countThreshold;
@@ -284,13 +294,12 @@
             normalizeDataSchemaVersion(stored[HISTORY_DATA_SCHEMA_VERSION_KEY])
         );
         if (schemaChanged && !resyncInProgress) {
-          normalized = normalized.map((entry) => ({
-            ...entry,
-            synced: false,
-          }));
+          normalized = normalized.map((entry) =>
+            entry.flagged === true ? entry : { ...entry, synced: false }
+          );
           changed = true;
           resyncInProgress = true;
-          unsynced = normalized;
+          unsynced = normalized.filter((entry) => entry.flagged !== true);
         }
       }
 

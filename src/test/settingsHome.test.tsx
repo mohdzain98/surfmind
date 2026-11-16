@@ -56,6 +56,7 @@ test("shows sync first, rate last, and stored summaries", async () => {
       onOpenSync={jest.fn()}
       onOpenHistory={jest.fn()}
       onOpenBookmarks={jest.fn()}
+      onOpenFastMode={jest.fn()}
       onOpenPrivacy={jest.fn()}
     />
   );
@@ -97,6 +98,7 @@ test("opens the Web Store review page without changing prompt state", async () =
       onOpenSync={jest.fn()}
       onOpenHistory={jest.fn()}
       onOpenBookmarks={jest.fn()}
+      onOpenFastMode={jest.fn()}
       onOpenPrivacy={jest.fn()}
     />
   );
@@ -129,6 +131,7 @@ test("shows local and persisted counts for the current browser", async () => {
       onOpenSync={jest.fn()}
       onOpenHistory={jest.fn()}
       onOpenBookmarks={jest.fn()}
+      onOpenFastMode={jest.fn()}
       onOpenPrivacy={jest.fn()}
       pageCounts={{
         status: "ready",
@@ -171,6 +174,7 @@ test("shows when linked browsers filled the shared account capacity", () => {
       onOpenSync={jest.fn()}
       onOpenHistory={jest.fn()}
       onOpenBookmarks={jest.fn()}
+      onOpenFastMode={jest.fn()}
       onOpenPrivacy={jest.fn()}
       pageCounts={{
         status: "ready",
@@ -205,6 +209,7 @@ test("always shows shared totals when cross-browser sync is linked", async () =>
       onOpenSync={jest.fn()}
       onOpenHistory={jest.fn()}
       onOpenBookmarks={jest.fn()}
+      onOpenFastMode={jest.fn()}
       onOpenPrivacy={jest.fn()}
       pageCounts={{
         status: "ready",

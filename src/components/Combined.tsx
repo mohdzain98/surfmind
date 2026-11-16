@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useUserContext } from "../context/userContext";
 import SearchComposer from "./SearchComposer";
 
@@ -8,18 +8,29 @@ interface CombinedProps {
 
 const Combined = ({ host }: CombinedProps) => {
   const { state, setState, searchStream, flushBookmarks } = useUserContext();
-  const { userId, query } = state;
-  const [loading, setLoading] = useState(false);
-  const [disable, setDisable] = useState(false);
+  const {
+    userId,
+    query,
+    loading,
+    disable,
+    searchMode,
+    fastStrictness,
+    fastMaxResults,
+  } = state;
 
   useEffect(() => {
     if (!host || !userId) return;
-    flushBookmarks(host, "dropdown-open").catch(() => {});
+    const prepareBookmarks = async () => {
+      try {
+        await flushBookmarks(host, "dropdown-open");
+      } catch {
+        // A later search or background sync will retry.
+      }
+    };
+    prepareBookmarks();
   }, [flushBookmarks, host, userId]);
 
   const handleSearch = async () => {
-    setLoading(true);
-    setDisable(true);
     setState({
       noti: "Retrieving sources...",
       docs: [],
@@ -28,12 +39,17 @@ const Combined = ({ host }: CombinedProps) => {
     });
 
     try {
-      await searchStream({ host, query, userId, flag: "combined" });
+      await searchStream({
+        host,
+        query,
+        userId,
+        flag: "combined",
+        mode: searchMode,
+        fastStrictness,
+        maxResults: fastMaxResults,
+      });
     } catch {
       setState({ noti: "There is a problem with combined search" });
-    } finally {
-      setLoading(false);
-      setDisable(false);
     }
   };
 

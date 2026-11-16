@@ -4,10 +4,14 @@ import {
   FolderSearch,
   Laptop,
   Link2,
+  MessageSquareText,
   PanelRightOpen,
   Pencil,
   SearchCheck,
+  SlidersHorizontal,
   Sparkles,
+  Trash2,
+  Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -65,6 +69,33 @@ const LINKED_BROWSER_HIGHLIGHTS: Highlight[] = [
   },
 ];
 
+const FAST_MODE_HIGHLIGHTS: Highlight[] = [
+  {
+    Icon: Zap,
+    title: "Jump straight to matching pages",
+    description:
+      "Fast Mode returns close matches from your history and bookmarks without waiting for an AI-written answer.",
+  },
+  {
+    Icon: MessageSquareText,
+    title: "Keep Standard when you want an answer",
+    description:
+      "Standard Mode writes an answer for you and keeps the supporting sources alongside it.",
+  },
+  {
+    Icon: SlidersHorizontal,
+    title: "Choose how closely results should match",
+    description:
+      "Use Broad, Balanced, or Precise matching and choose how many Fast results to show from Settings.",
+  },
+  {
+    Icon: Trash2,
+    title: "Clear the history you choose",
+    description:
+      "Remove the last hour, day, week, month, or all saved history from Settings.",
+  },
+];
+
 const MINOR_UPDATE_CONTENT: Record<
   string,
   { title: string; description: string }
@@ -96,30 +127,37 @@ const Update = ({
 }: UpdateProps) => {
   if (severity === "major") {
     const isLinkedBrowserUpdate = version === "1.90.0";
-    const highlights = isLinkedBrowserUpdate
-      ? LINKED_BROWSER_HIGHLIGHTS
-      : MAJOR_HIGHLIGHTS;
+    const isFastModeUpdate = version === "1.100.0";
+    const highlights = isFastModeUpdate
+      ? FAST_MODE_HIGHLIGHTS
+      : isLinkedBrowserUpdate
+        ? LINKED_BROWSER_HIGHLIGHTS
+        : MAJOR_HIGHLIGHTS;
+    const eyebrow = isFastModeUpdate
+      ? "New: Fast Mode"
+      : isLinkedBrowserUpdate
+        ? "Cross-browser search, made clearer"
+        : "Meet the new SurfMind";
+    const title = isFastModeUpdate
+      ? "Choose how SurfMind responds."
+      : isLinkedBrowserUpdate
+        ? "Know which browser found it."
+        : "SurfMind, reimagined.";
+    const intro = isFastModeUpdate
+      ? "Use Fast Mode when you want matching pages immediately, or Standard Mode when you want SurfMind to write a sourced answer."
+      : isLinkedBrowserUpdate
+        ? "Give linked browsers recognizable names and see exactly where cross-browser search results came from."
+        : "Your browsing assistant has moved from a popup into a persistent, smarter side panel.";
+    const TakeoverIcon = isFastModeUpdate ? Zap : Sparkles;
     return (
       <main className="update-takeover" aria-labelledby="major-update-title">
         <section className="update-takeover-card">
           <div className="update-takeover-icon" aria-hidden="true">
-            <Sparkles size={25} />
+            <TakeoverIcon size={25} />
           </div>
-          <span className="update-eyebrow">
-            {isLinkedBrowserUpdate
-              ? "Cross-browser search, made clearer"
-              : "Meet the new SurfMind"}
-          </span>
-          <h1 id="major-update-title">
-            {isLinkedBrowserUpdate
-              ? "Know which browser found it."
-              : "SurfMind, reimagined."}
-          </h1>
-          <p className="update-intro">
-            {isLinkedBrowserUpdate
-              ? "Give linked browsers recognizable names and see exactly where cross-browser search results came from."
-              : "Your browsing assistant has moved from a popup into a persistent, smarter side panel."}
-          </p>
+          <span className="update-eyebrow">{eyebrow}</span>
+          <h1 id="major-update-title">{title}</h1>
+          <p className="update-intro">{intro}</p>
 
           <div className="update-highlights">
             {highlights.map(({ Icon, title, description }) => (
@@ -180,11 +218,12 @@ const Update = ({
   const content =
     (version ? MINOR_UPDATE_CONTENT[version] : undefined) ||
     DEFAULT_MINOR_UPDATE;
+  const BannerIcon = FolderSearch;
 
   return (
     <aside className="update-banner" aria-label="What’s new">
       <span className="update-banner-icon" aria-hidden="true">
-        <FolderSearch size={16} />
+        <BannerIcon size={16} />
       </span>
       <div className="update-banner-content">
         <span className="update-banner-label">New</span>

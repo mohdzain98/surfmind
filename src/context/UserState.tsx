@@ -18,6 +18,14 @@ import { recordSuccessfulSearch } from "../services/ratePrompt";
 import { toUserFacingError } from "../services/userFacingError";
 import { buildSearchRequest } from "../services/searchRequest";
 import {
+  DEFAULT_FAST_MAX_RESULTS,
+  DEFAULT_FAST_STRICTNESS,
+  DEFAULT_SEARCH_MODE,
+  normalizeFastStrictness,
+  readFastModePreferences,
+} from "../services/fastMode";
+import { normalizeFastResults } from "../services/fastSearch";
+import {
   LEGACY_UPDATE_VERSIONS,
   UPDATE_PREVIOUS_VERSION_KEY,
   UPDATE_VERSION_KEY,
@@ -66,6 +74,12 @@ const initialState: UserStateShape = {
   thoughts: [],
   finalReceived: false,
   selectedBookmarkFolder: null,
+  searchMode: DEFAULT_SEARCH_MODE,
+  fastStrictness: DEFAULT_FAST_STRICTNESS,
+  fastMaxResults: DEFAULT_FAST_MAX_RESULTS,
+  resultMode: null,
+  resultFastStrictness: null,
+  fastNoMatch: false,
 };
 
 const userReducer = (
@@ -153,15 +167,17 @@ const UserState = ({ children }: { children?: ReactNode }) => {
           LEGACY_UPDATE_VERSIONS.map(({ key }) => [key, false])
         ),
       };
-      const [result, uid, storedUpdate] = await Promise.all([
-        chrome.storage.local.get<{ navigationData: NavigationEntry[] }>({
-          navigationData: [],
-        }),
-        initializeUserId(),
-        chrome.storage.local.get<Record<string, string | boolean>>(
-          updateDefaults
-        ),
-      ]);
+      const [result, uid, storedUpdate, fastModePreferences] =
+        await Promise.all([
+          chrome.storage.local.get<{ navigationData: NavigationEntry[] }>({
+            navigationData: [],
+          }),
+          initializeUserId(),
+          chrome.storage.local.get<Record<string, string | boolean>>(
+            updateDefaults
+          ),
+          readFastModePreferences(),
+        ]);
       const storedVersion = getStoredUpdateVersion(storedUpdate);
       const updateNotice = getUpdateNotice(storedVersion, currentVersion);
       await chrome.storage.local.set({
@@ -180,6 +196,7 @@ const UserState = ({ children }: { children?: ReactNode }) => {
         updateNotice,
         updateReady: true,
         updateVersion: currentVersion,
+        ...fastModePreferences,
       });
       await pendingSync;
     },
@@ -193,6 +210,9 @@ const UserState = ({ children }: { children?: ReactNode }) => {
       userId,
       flag,
       folder = null,
+      mode,
+      fastStrictness = DEFAULT_FAST_STRICTNESS,
+      maxResults = DEFAULT_FAST_MAX_RESULTS,
     }: SearchStreamParams) => {
       let thoughtSequence = 0;
       let thoughts: SearchThoughtEntry[] = [];
@@ -232,17 +252,28 @@ const UserState = ({ children }: { children?: ReactNode }) => {
         step: null,
         thoughts: [],
         finalReceived: false,
+        resultMode: mode,
+        resultFastStrictness: mode === "fast" ? fastStrictness : null,
+        fastNoMatch: false,
       });
 
       try {
-        appendThought("Syncing recent history...", null, { syncing: true });
+        if (mode === "fast") {
+          setState({ noti: "Searching…", syncing: true });
+        } else {
+          appendThought("Syncing recent history...", null, { syncing: true });
+        }
         await flushBeforeSearch({
           flag,
           host,
           flushHistory,
           flushBookmarks,
         });
-        appendThought("Retrieving sources...", null, { syncing: false });
+        if (mode === "fast") {
+          setState({ noti: "Searching…", syncing: false });
+        } else {
+          appendThought("Retrieving sources...", null, { syncing: false });
+        }
 
         const response = await fetch(`${host}/search-stream`, {
           method: "POST",
@@ -253,6 +284,9 @@ const UserState = ({ children }: { children?: ReactNode }) => {
               query,
               flag,
               folder,
+              mode,
+              fastStrictness,
+              maxResults,
             })
           ),
         });
@@ -290,6 +324,10 @@ const UserState = ({ children }: { children?: ReactNode }) => {
 
             if (step === "retrieved_parents") {
               const count = data.count || 0;
+              if (mode === "fast") {
+                setState({ noti: "Searching…", syncing: false });
+                continue;
+              }
               const currentStep = {
                 step,
                 title: "Retrieved Sources",
@@ -319,7 +357,14 @@ const UserState = ({ children }: { children?: ReactNode }) => {
               };
               appendThought("Validating results...", currentStep);
             } else if (step === "final") {
-              const finalDocs = data.docs || [];
+              const finalMode = data.mode === "fast" ? "fast" : mode;
+              const finalDocs =
+                finalMode === "fast"
+                  ? normalizeFastResults(data, flag)
+                  : data.docs || [];
+              const noMatch =
+                finalMode === "fast" &&
+                (data.no_match === true || finalDocs.length === 0);
               if (finalDocs.length > 0) {
                 try {
                   await recordSuccessfulSearch();
@@ -330,10 +375,12 @@ const UserState = ({ children }: { children?: ReactNode }) => {
               setState({
                 docs: finalDocs,
                 head:
-                  data.result ||
-                  (finalDocs.length === 0
-                    ? "No results found for this query."
-                    : ""),
+                  finalMode === "fast"
+                    ? ""
+                    : data.result ||
+                      (finalDocs.length === 0
+                        ? "No results found for this query."
+                        : ""),
                 format: finalDocs.length === 0 ? null : data.format || null,
                 loading: false,
                 disable: false,
@@ -341,6 +388,14 @@ const UserState = ({ children }: { children?: ReactNode }) => {
                 step: null,
                 thoughts,
                 finalReceived: true,
+                resultMode: finalMode,
+                resultFastStrictness:
+                  finalMode === "fast"
+                    ? normalizeFastStrictness(
+                        data.fast_strictness ?? fastStrictness
+                      )
+                    : null,
+                fastNoMatch: noMatch,
               });
               return;
             } else if (step === "error") {
@@ -367,6 +422,19 @@ const UserState = ({ children }: { children?: ReactNode }) => {
           step: null,
         });
       } catch (error) {
+        if (mode === "fast") {
+          setState({
+            noti: toUserFacingError(
+              error,
+              "SurfMind couldn’t complete this search. Please try again."
+            ),
+            syncing: false,
+            loading: false,
+            disable: false,
+            finalReceived: true,
+          });
+          return;
+        }
         appendThought(
           toUserFacingError(
             error,
@@ -394,6 +462,9 @@ const UserState = ({ children }: { children?: ReactNode }) => {
         format: null,
         step: null,
         finalReceived: false,
+        resultMode: null,
+        resultFastStrictness: null,
+        fastNoMatch: false,
         syncing: true,
         noti:
           action === "paired"

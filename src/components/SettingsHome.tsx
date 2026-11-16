@@ -6,6 +6,7 @@ import {
   Link2,
   ShieldCheck,
   Star,
+  Zap,
 } from "lucide-react";
 import { STORE_REVIEW_URL } from "../services/ratePrompt";
 import { readBookmarkFolders } from "../services/bookmarkFolders";
@@ -28,6 +29,7 @@ interface SettingsHomeProps {
   onOpenSync: () => void;
   onOpenHistory: () => void;
   onOpenBookmarks: () => void;
+  onOpenFastMode: () => void;
   onOpenPrivacy: () => void;
   pageCounts?: PageCountsState;
 }
@@ -36,6 +38,7 @@ const SettingsHome = ({
   onOpenSync,
   onOpenHistory,
   onOpenBookmarks,
+  onOpenFastMode,
   onOpenPrivacy,
   pageCounts,
 }: SettingsHomeProps) => {
@@ -48,16 +51,20 @@ const SettingsHome = ({
     if (!storage?.local) return undefined;
 
     let mounted = true;
-    storage.local
-      .get<{
-        crossBrowserSyncStatus: StoredSyncStatus;
-        navigationData: NavigationEntry[];
-      }>({ [SYNC_STATUS_KEY]: SOLO_STATUS, navigationData: [] })
-      .then((stored) => {
+    const loadStoredSettings = async () => {
+      try {
+        const stored = await storage.local.get<{
+          crossBrowserSyncStatus: StoredSyncStatus;
+          navigationData: NavigationEntry[];
+        }>({ [SYNC_STATUS_KEY]: SOLO_STATUS, navigationData: [] });
         if (!mounted) return;
         setSyncStatus(stored[SYNC_STATUS_KEY] || SOLO_STATUS);
         setSavedPageCount(countSavedHistoryPages(stored.navigationData));
-      });
+      } catch {
+        // Keep the Settings menu usable with its empty summaries.
+      }
+    };
+    loadStoredSettings();
 
     const handleStorageChange = (
       changes: { [key: string]: chrome.storage.StorageChange },
@@ -205,6 +212,25 @@ const SettingsHome = ({
           <span className="settings-tile-copy">
             <strong>Cross-browser Sync</strong>
             <small>{syncSummary}</small>
+          </span>
+          <ChevronRight
+            className="settings-tile-chevron"
+            size={17}
+            aria-hidden="true"
+          />
+        </button>
+
+        <button
+          type="button"
+          className="settings-tile"
+          onClick={onOpenFastMode}
+        >
+          <span className="settings-tile-icon is-fast" aria-hidden="true">
+            <Zap size={18} />
+          </span>
+          <span className="settings-tile-copy">
+            <strong>Fast Mode</strong>
+            <small>Choose how closely links should match</small>
           </span>
           <ChevronRight
             className="settings-tile-chevron"

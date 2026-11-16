@@ -59,7 +59,13 @@ const SearchComposer = ({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key === "Enter" && !event.shiftKey) submit(event);
+          if (
+            event.key === "Enter" &&
+            !event.shiftKey &&
+            !event.nativeEvent.isComposing
+          ) {
+            submit(event);
+          }
         }}
         placeholder={placeholder}
         disabled={disabled}
