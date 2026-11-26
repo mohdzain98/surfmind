@@ -1,0 +1,28 @@
+# Runs GNOST on every pull request and push: quality gate, onboarding guide and a pull
+# request comment with what the change touches. Written by `gnost init --github-action`; edit freely.
+name: GNOST
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write # for the pull request comment
+  # security-events: write  # add this and set `sarif: "true"` to show findings in code scanning
+
+jobs:
+  gnost:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history: hotspots and `gnost changes` need it
+      - name: GNOST Codebase Onboarding and Quality Gate
+        uses: mohdzain98/gnost@v0.7.0
+        with:
+          comment: "true" # one comment per pull request: blast radius, risk, new cycles
+          onboard: "true" # also attach the .gnost/ guide to the run
+          sarif: "true" # "true" uploads findings to code scanning
+          # fail-under: "7.5"   # fail the job when the quality score is below this

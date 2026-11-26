@@ -1,0 +1,17 @@
+flowchart TD
+  dir_src_services["src/services<br/>15 files"]
+  dir_src_context["src/context<br/>2 files"]
+  dir_src_types["src/types<br/>5 files"]
+  dir_src_components["src/components<br/>20 files"]
+  dir_src["src<br/>3 files"]
+  dir_src --> dir_src_components
+  dir_src --> dir_src_context
+  dir_src_components -->|3| dir_src_context
+  dir_src_components -->|24| dir_src_services
+  dir_src_components -.->|12| dir_src_types
+  dir_src_context --> dir_src_components
+  dir_src_context -->|7| dir_src_services
+  dir_src_context -.->|2| dir_src_types
+  dir_src_services --> dir_src_components
+  dir_src_services -.->|11| dir_src_types
+  dir_src_types -.-> dir_src_services

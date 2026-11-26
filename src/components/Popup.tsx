@@ -134,6 +134,8 @@ const Popup = (props: PopupProps) => {
     resultMode,
     resultFastStrictness,
     fastNoMatch,
+    searchNotice,
+    searchDurationMs,
   } = state;
   useEffect(() => {
     initializePopup(host);
@@ -213,6 +215,8 @@ const Popup = (props: PopupProps) => {
       resultMode: null,
       resultFastStrictness: null,
       fastNoMatch: false,
+      searchNotice: null,
+      searchDurationMs: null,
       ...statePatch,
     });
   };
@@ -398,6 +402,8 @@ const Popup = (props: PopupProps) => {
       resultMode: null,
       resultFastStrictness: null,
       fastNoMatch: false,
+      searchNotice: null,
+      searchDurationMs: null,
     });
   };
 
@@ -429,6 +435,8 @@ const Popup = (props: PopupProps) => {
       resultMode: null,
       resultFastStrictness: null,
       fastNoMatch: false,
+      searchNotice: null,
+      searchDurationMs: null,
     });
   };
 
@@ -918,6 +926,15 @@ const Popup = (props: PopupProps) => {
             />
           ) : null}
 
+          {finalReceived && resultMode !== "fast" && searchNotice != null ? (
+            <div
+              className="alert alert-info small py-2 mt-2 mb-2"
+              role="status"
+            >
+              {searchNotice}
+            </div>
+          ) : null}
+
           {/* ── Final answer card ── */}
           {finalReceived &&
             resultMode !== "fast" &&
@@ -1114,6 +1131,12 @@ const Popup = (props: PopupProps) => {
                 </small>
               ) : null}
             </section>
+          ) : null}
+
+          {finalReceived && searchDurationMs != null ? (
+            <p className="text-muted mt-2 mb-1" style={{ fontSize: "11px" }}>
+              Found in {(searchDurationMs / 1000).toFixed(1)}s
+            </p>
           ) : null}
 
           {showRecentSearches ? (

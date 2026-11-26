@@ -1,0 +1,1688 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GNOST Analysis Report</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --panel: #111827;
+        --panel-soft: #1f2937;
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --border: #334155;
+        --good: #22c55e;
+        --warn: #f59e0b;
+        --bad: #ef4444;
+        --neutral: #64748b;
+        --accent: #60a5fa;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, "Segoe UI", Arial, sans-serif;
+        background: radial-gradient(circle at top, #111827, #0f172a 45%);
+        color: var(--text);
+        padding: 22px;
+      }
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+      }
+      .subtitle {
+        margin: 0 0 18px;
+        color: var(--muted);
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+      }
+      .card h3 {
+        margin: 0 0 8px;
+        font-size: 14px;
+        color: var(--muted);
+        font-weight: 500;
+        letter-spacing: 0.2px;
+      }
+      .card p {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 700;
+      }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 18px;
+        flex-wrap: wrap;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 14px;
+      }
+      .filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .filters input,
+      .filters select {
+        background: var(--panel-soft);
+        color: var(--text);
+        border: 1px solid var(--border);
+        padding: 8px 10px;
+        border-radius: 8px;
+        min-width: 180px;
+        font-size: 14px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      th,
+      td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        border-right: 1px solid rgba(148, 163, 184, 0.12);
+        text-align: left;
+        vertical-align: top;
+        font-size: 14px;
+      }
+      th {
+        background: #0b1220;
+        color: var(--muted);
+        position: sticky;
+        top: 0;
+        cursor: pointer;
+        user-select: none;
+      }
+      tr:hover td {
+        background: rgba(96, 165, 250, 0.08);
+      }
+      .badge {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 3px 8px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+      .badge-high {
+        background: rgba(239, 68, 68, 0.2);
+        color: #fecaca;
+      }
+      .badge-medium {
+        background: rgba(245, 158, 11, 0.2);
+        color: #fde68a;
+      }
+      .badge-low {
+        background: rgba(34, 197, 94, 0.2);
+        color: #bbf7d0;
+      }
+      .badge-info {
+        background: rgba(14, 165, 233, 0.2);
+        color: #bae6fd;
+      }
+      .badge-critical {
+        background: rgba(236, 72, 153, 0.2);
+        color: #fbcfe8;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .small {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .pager {
+        margin-top: 10px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        align-items: center;
+      }
+      .pager button {
+        border: 1px solid var(--border);
+        color: var(--text);
+        background: var(--panel-soft);
+        border-radius: 8px;
+        padding: 6px 10px;
+        cursor: pointer;
+      }
+      .pager button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .score {
+        display: inline-block;
+        background: #0f172a;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .score.good {
+        border-color: rgba(34, 197, 94, 0.5);
+        color: #86efac;
+      }
+      .score.okay {
+        border-color: rgba(245, 158, 11, 0.5);
+        color: #fcd34d;
+      }
+      .score.bad {
+        border-color: rgba(239, 68, 68, 0.5);
+        color: #fca5a5;
+      }
+      .severity-col {
+        width: 90px;
+      }
+      .details {
+        max-width: 360px;
+        white-space: pre-wrap;
+      }
+      .analysis-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 10px;
+        margin-bottom: 18px;
+      }
+      .kpi-subtitle {
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        opacity: 0.75;
+        margin-top: 6px;
+      }
+      .stats .card p {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+      }
+      .table-shell {
+        overflow-x: auto;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: transparent;
+      }
+      table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      tbody tr:nth-child(even) td {
+        background: rgba(15, 23, 42, 0.28);
+      }
+      .badge-unknown {
+        background: rgba(148, 163, 184, 0.25);
+        color: #e2e8f0;
+      }
+      .muted-note {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+      .scorebar {
+        height: 8px;
+        width: 100%;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.18);
+        overflow: hidden;
+        margin-top: 8px;
+      }
+      .scorebar > span {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, #0ea5e9, #22c55e);
+        width: 0;
+      }
+      .score-note {
+        margin-top: 6px;
+        padding-top: 6px;
+        font-size: 10px;
+        opacity: 0.8;
+      }
+      .glossary-layout {
+        display: grid;
+        gap: 12px;
+      }
+      .glossary-tabs {
+        margin-bottom: 12px;
+      }
+      .analyzer-guide-panels {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 4px;
+        background: var(--panel);
+      }
+      .analyzer-guide-panel {
+        display: none;
+      }
+      .analyzer-guide-panel.active {
+        display: block;
+      }
+      .glossary-panel {
+        display: grid;
+        gap: 14px;
+      }
+      .guide-card {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+        background: var(--panel);
+      }
+      .guide-card h3 {
+        margin: 0 0 12px;
+        font-size: 18px;
+        color: var(--text);
+      }
+      .guide-meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .guide-block {
+        border: 1px solid rgba(148, 163, 184, 0.15);
+        border-radius: 10px;
+        padding: 10px;
+        background: var(--panel-soft);
+        min-width: 0;
+      }
+      .guide-block h4 {
+        margin: 0 0 8px;
+        font-size: 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.35px;
+      }
+      .guide-block p {
+        margin: 0;
+        color: var(--text);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      .guide-list {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--text);
+        line-height: 1.5;
+        font-size: 13px;
+      }
+      .guide-list li {
+        margin-bottom: 6px;
+        word-break: break-word;
+      }
+      .guide-subtitle {
+        margin: 8px 0 8px;
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.35px;
+      }
+      .guide-card th,
+      .guide-card td {
+        font-size: 13px;
+      }
+      .finding-details {
+        margin-top: 6px;
+        border-top: 1px dashed rgba(148, 163, 184, 0.28);
+        padding-top: 6px;
+      }
+      .finding-details summary {
+        cursor: pointer;
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 4px;
+      }
+      .finding-details ul {
+        margin: 0;
+        padding-left: 18px;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .finding-details li {
+        margin: 0 0 4px;
+        word-break: break-word;
+      }
+      .clubbed-line-indicator {
+        display: inline-flex;
+        margin-left: 4px;
+        font-size: 11px;
+        color: var(--muted);
+        border: 1px dashed rgba(148, 163, 184, 0.45);
+        padding: 1px 6px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .severity-breakdown {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .severity-item {
+        background: var(--panel-soft);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px;
+        text-align: center;
+      }
+      .severity-item h4 {
+        margin: 0;
+        font-size: 13px;
+        color: var(--muted);
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+      }
+      .severity-item p {
+        margin: 6px 0 0;
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .small-pill {
+        display: inline-block;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 11px;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-right: 6px;
+      }
+      .tabs {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 12px;
+        flex-wrap: wrap;
+      }
+      .tab-btn {
+        border: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--text);
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .tab-btn:hover {
+        border-color: rgba(96, 165, 250, 0.6);
+        color: #bfdbfe;
+      }
+      .tab-btn.active {
+        border-color: rgba(96, 165, 250, 0.85);
+        background: rgba(96, 165, 250, 0.12);
+        color: #bfdbfe;
+      }
+      .tab-panel {
+        display: none;
+      }
+      .tab-panel.active {
+        display: block;
+      }
+      .pager button:hover:not(:disabled) {
+        border-color: rgba(96, 165, 250, 0.6);
+        color: #dbeafe;
+      }
+      @media (max-width: 1024px) {
+        body {
+          padding: 12px;
+        }
+      }
+      @media (max-width: 900px) {
+        h1 {
+          font-size: 24px;
+        }
+        .stats {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .severity-breakdown {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>GNOST Analysis Report</h1>
+      <p class="subtitle">
+        Target: /Users/mohdzain/Documents/GitHub/surfmind/surfmind
+      </p>
+      <div class="row">
+        <div class="stats">
+          <div class="card">
+            <h3>Final Score</h3>
+            <p>
+              <span id="finalScore" class="score 7.93_CLASS">7.93 / 10.00</span>
+            </p>
+            <div class="scorebar"><span id="scoreBar"></span></div>
+            <p class="small score-note" style="font-size: small">
+              Higher is better
+            </p>
+          </div>
+          <div class="card">
+            <h3>Total Findings</h3>
+            <p>68</p>
+          </div>
+          <div class="card">
+            <h3>Analyzers</h3>
+            <p>4</p>
+          </div>
+          <div class="card">
+            <h3>Files with findings</h3>
+            <p>34</p>
+          </div>
+          <div class="card">
+            <h3>Execution Time</h3>
+            <p>0.52s</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Severity Breakdown</h3>
+        <div class="severity-breakdown">
+          <div class="severity-item">
+            <h4>High</h4>
+            <p>4</p>
+          </div>
+          <div class="severity-item">
+            <h4>Medium</h4>
+            <p>11</p>
+          </div>
+          <div class="severity-item">
+            <h4>Low</h4>
+            <p>51</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Analyzer Summary</h3>
+        <div class="table-shell">
+          <table id="analyzerTable">
+            <thead>
+              <tr>
+                <th>Analyzer</th>
+                <th>Score</th>
+                <th>Findings</th>
+                <th>High</th>
+                <th>Medium</th>
+                <th>Low</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>maintainability</td>
+                <td>7.89</td>
+                <td>38</td>
+                <td>4</td>
+                <td>11</td>
+                <td>23</td>
+              </tr>
+              <tr>
+                <td>observability</td>
+                <td>9.00</td>
+                <td>14</td>
+                <td>0</td>
+                <td>0</td>
+                <td>14</td>
+              </tr>
+              <tr>
+                <td>readability</td>
+                <td>9.50</td>
+                <td>2</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+              </tr>
+              <tr>
+                <td>robustness</td>
+                <td>9.00</td>
+                <td>14</td>
+                <td>0</td>
+                <td>0</td>
+                <td>14</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tabs" role="tablist" aria-label="Report tabs">
+        <button
+          type="button"
+          class="tab-btn active"
+          data-main-tab="true"
+          data-tab="findingsTab"
+          aria-selected="true"
+        >
+          Findings
+        </button>
+        <button
+          type="button"
+          class="tab-btn"
+          data-main-tab="true"
+          data-tab="glossaryTab"
+          aria-selected="false"
+        >
+          Glossary
+        </button>
+      </div>
+
+      <div class="tab-panel active" id="findingsTab">
+        <div class="panel">
+          <h3>Findings</h3>
+          <div class="filters">
+            <input
+              id="searchInput"
+              type="text"
+              placeholder="Search title, message, file, analyzer"
+            />
+            <select id="severityFilter">
+              <option value="">All severities</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+              <option value="critical">Critical</option>
+              <option value="info">Info</option>
+            </select>
+            <select id="analyzerFilter">
+              <option value="">All analyzers</option>
+              <option value="maintainability">maintainability</option>
+              <option value="observability">observability</option>
+              <option value="readability">readability</option>
+              <option value="robustness">robustness</option>
+            </select>
+            <select id="titleFilter">
+              <option value="">All error titles</option>
+              <option value="Code is nested too deeply">
+                Code is nested too deeply
+              </option>
+              <option value="Error is caught and neither logged nor rethrown">
+                Error is caught and neither logged nor rethrown
+              </option>
+              <option value="Explicit any type">Explicit any type</option>
+              <option value="File is too long">File is too long</option>
+              <option value="Function is too complex">
+                Function is too complex
+              </option>
+              <option value="Function is too long">Function is too long</option>
+              <option value="Line is too long">Line is too long</option>
+            </select>
+          </div>
+          <div class="table-shell">
+            <table id="findingsTable">
+              <thead>
+                <tr>
+                  <th data-sort="severity" class="severity-col">Severity</th>
+                  <th data-sort="source_analyzer">Analyzer</th>
+                  <th data-sort="file">File</th>
+                  <th data-sort="line">Line</th>
+                  <th data-sort="title">Title</th>
+                  <th data-sort="description">Description</th>
+                  <th data-sort="remediation">Remediation</th>
+                </tr>
+              </thead>
+              <tbody id="findingsBody"></tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <label for="pageSize" class="small">Rows / page</label>
+            <select id="pageSize">
+              <option value="25">25</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+              <option value="200">200</option>
+            </select>
+            <span id="pagerInfo" class="small"></span>
+            <button id="prevPage">Prev</button>
+            <button id="nextPage">Next</button>
+          </div>
+        </div>
+      </div>
+      <div class="tab-panel" id="glossaryTab">
+        <div class="panel">
+          <h3>Glossary</h3>
+          <div class="glossary-panel">
+            <div class="glossary-layout">
+              <h3>Analyzer Guide</h3>
+              <div
+                class="tabs glossary-tabs"
+                role="tablist"
+                aria-label="Analyzer guides"
+              >
+                <button
+                  type="button"
+                  class="tab-btn glossary-tab-btn active"
+                  data-guide-tab="guide-maintainability"
+                  data-guide-analyzer="maintainability"
+                  aria-selected="true"
+                >
+                  Maintainability</button
+                ><button
+                  type="button"
+                  class="tab-btn glossary-tab-btn"
+                  data-guide-tab="guide-observability"
+                  data-guide-analyzer="observability"
+                  aria-selected="false"
+                >
+                  Observability</button
+                ><button
+                  type="button"
+                  class="tab-btn glossary-tab-btn"
+                  data-guide-tab="guide-readability"
+                  data-guide-analyzer="readability"
+                  aria-selected="false"
+                >
+                  Readability</button
+                ><button
+                  type="button"
+                  class="tab-btn glossary-tab-btn"
+                  data-guide-tab="guide-robustness"
+                  data-guide-analyzer="robustness"
+                  aria-selected="false"
+                >
+                  Robustness
+                </button>
+              </div>
+              <div class="analyzer-guide-panels">
+                <div
+                  class="analyzer-guide-panel active"
+                  id="guide-maintainability"
+                >
+                  <section class="guide-card" data-analyzer="maintainability">
+                    <h3>Maintainability</h3>
+                    <div class="guide-meta">
+                      <div class="guide-block">
+                        <h4>Quality Categories</h4>
+                        <ul class="guide-list">
+                          <li>Complexity Risk Ranking</li>
+                          <li>Cyclomatic Complexity</li>
+                          <li>Code Duplication</li>
+                          <li>Complexity Hotspots</li>
+                        </ul>
+                      </div>
+                      <div class="guide-block">
+                        <h4>Description</h4>
+                        <p>
+                          Evaluates maintainability signals across modules and
+                          functions, with emphasis on complexity and long-term
+                          edit risk.
+                        </p>
+                      </div>
+                      <div class="guide-block">
+                        <h4>What it finds</h4>
+                        <ul class="guide-list">
+                          <li>High function or file complexity</li>
+                          <li>Low maintainability index</li>
+                          <li>Repeated logic and deep branching patterns</li>
+                        </ul>
+                      </div>
+                      <div class="guide-block">
+                        <h4>Tools used</h4>
+                        <ul class="guide-list">
+                          <li>radon</li>
+                        </ul>
+                      </div>
+                    </div>
+                    <div class="guide-subtitle">Severity Focus</div>
+                    <div class="table-shell">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Severity</th>
+                            <th>Description</th>
+                            <th>Example Code</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td><span class="badge badge-high">High</span></td>
+                            <td>
+                              Indicates poor maintainability and high technical
+                              debt. Typically caused by extremely low MI (≤ 10)
+                              or high cyclomatic complexity (&gt;20). Code at
+                              this level is difficult to extend, debug, or
+                              reuse.
+                            </td>
+                            <td>
+                              Maintainability Index ≤ 10, Cyclomatic Complexity
+                              &gt; 20
+                            </td>
+                          </tr>
+                          <tr>
+                            <td>
+                              <span class="badge badge-medium">Medium</span>
+                            </td>
+                            <td>
+                              Moderate maintainability issues that require
+                              refactoring or cleanup. Caused by MI between
+                              10-20, moderate complexity (&gt;10), or
+                              duplication. Such code is maintainable but may
+                              lead to higher future maintenance cost.
+                            </td>
+                            <td>
+                              Maintainability Index 10-20, Cyclomatic Complexity
+                              10-20, Function/Code Duplication
+                            </td>
+                          </tr>
+                          <tr>
+                            <td><span class="badge badge-info">Info</span></td>
+                            <td>
+                              Codebase is generally maintainable with low
+                              complexity and high MI. No immediate action
+                              required but monitor quality regularly.
+                            </td>
+                            <td>
+                              Maintainability Index &gt; 20, System Rank:
+                              Highly/Fairly Maintainable
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                  <div class="guide-subtitle">Terms</div>
+                  <div class="table-shell">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Term</th>
+                          <th>Meaning</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>Cyclomatic Complexity</td>
+                          <td>
+                            Cyclomatic Complexity measures the number of
+                            independent execution paths in a function. It
+                            increases with branching, loops, and conditional
+                            logic.
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>Complexity Risk Ranking</td>
+                          <td>
+                            Maintainability rank is derived from aggregated
+                            function complexity distribution. Rank lowers as
+                            low/high/very_high complexity percentages exceed
+                            thresholds for the analyzed codebase.
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="guide-subtitle">Cyclomatic Complexity</div>
+                  <div class="table-shell">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Complexity Risk Ranking</th>
+                          <th>CC</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>low - simple</td>
+                          <td>1-5</td>
+                        </tr>
+                        <tr>
+                          <td>low - well structured and stable</td>
+                          <td>6-10</td>
+                        </tr>
+                        <tr>
+                          <td>moderate - slightly complex</td>
+                          <td>11-20</td>
+                        </tr>
+                        <tr>
+                          <td>more than moderate - more complex</td>
+                          <td>21-30</td>
+                        </tr>
+                        <tr>
+                          <td>high - complex, alarming</td>
+                          <td>31-40</td>
+                        </tr>
+                        <tr>
+                          <td>very high - error-prone, unstable</td>
+                          <td>41+</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="guide-subtitle">Complexity Risk Ranking</div>
+                  <div class="table-shell">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Moderate</th>
+                          <th>High</th>
+                          <th>Very High</th>
+                          <th>Meaning</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>≤ 40 %</td>
+                          <td>≤ 10 %</td>
+                          <td>= 0 %</td>
+                          <td>Moderately Maintainable</td>
+                        </tr>
+                        <tr>
+                          <td>≤ 50 %</td>
+                          <td>≤ 15 %</td>
+                          <td>≤ 5 %</td>
+                          <td>Maintainable</td>
+                        </tr>
+                        <tr>
+                          <td>&gt; 50 %</td>
+                          <td>&gt; 15 %</td>
+                          <td>&gt; 5 %</td>
+                          <td>Poorly Maintainable</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="analyzer-guide-panel" id="guide-observability">
+                  <section class="guide-card" data-analyzer="observability">
+                    <h3>Observability</h3>
+                    <div class="guide-meta">
+                      <div class="guide-block">
+                        <h4>Quality Categories</h4>
+                        <ul class="guide-list">
+                          <li>Logging coverage</li>
+                          <li>Critical function instrumentation</li>
+                          <li>Monitoring and exception visibility</li>
+                        </ul>
+                      </div>
+                      <div class="guide-block">
+                        <h4>Description</h4>
+                        <p>
+                          Checks runtime visibility so incidents can be
+                          diagnosed and traced with less ambiguity.
+                        </p>
+                      </div>
+                      <div class="guide-block">
+                        <h4>What it finds</h4>
+                        <ul class="guide-list">
+                          <li>Missing logs in critical functions</li>
+                          <li>Low coverage of observability across files</li>
+                          <li>
+                            Unstructured or weak instrumentation practices
+                          </li>
+                        </ul>
+                      </div>
+                      <div class="guide-block">
+                        <h4>Tools used</h4>
+                        <ul class="guide-list">
+                          <li>AST scanning rules</li>
+                          <li>internal heuristic analysis</li>
+                        </ul>
+                      </div>
+                    </div>
+                    <div class="guide-subtitle">Severity Focus</div>
+                    <div class="table-shell">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Severity</th>
+                            <th>Description</th>
+                            <th>Example Code</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td><span class="badge badge-high">High</span></td>
+                            <td>
+                              Critical observability gaps that can hide
+                              production failures or block debugging. These
+                              include missing logs in critical functions or
+                              overall observability score below threshold.
+                            </td>
+                            <td>
+                              Overall observability score &lt; 30, critical
+                              function without logging
+                            </td>
+                          </tr>
+                          <tr>
+                            <td>
+                              <span class="badge badge-medium">Medium</span>
+                            </td>
+                            <td>
+                              Files or modules with insufficient logging or
+                              limited instrumentation, reducing incident
+                              traceability.
+                            </td>
+                            <td>Files with Poor Observability</td>
+                          </tr>
+                          <tr>
+                            <td><span class="badge badge-low">Low</span></td>
+                            <td>
+                              Logging is present but not structured or
+                              standardized, making correlation and deep analysis
+                              harder.
+                            </td>
+                            <td>Missing Structured Logging</td>
+                          </tr>
+                          <tr>
+                            <td><span class="badge badge-info">Info</span></td>
+                            <td>
+                              Files with fair observability that meet minimum
+                              standards but can still benefit from richer logs.
+                            </td>
+                            <td>Files with Fair Observability</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                  <div class="guide-subtitle">What is a Critical Function?</div>
+                  <div class="table-shell">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Term</th>
+                          <th>Meaning</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>Critical Function</td>
+                          <td>
+                            Any function that includes patterns like
+                            error/exception handling,
+                            authentication/authorization, processing,
+                            validation, or functions with try/except/raise
+                            usage. These functions are expected to emit logs
+                            because failures here have higher observability
+                            impact.
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="analyzer-guide-panel" id="guide-readability">
+                  <section class="guide-card" data-analyzer="readability">
+                    <h3>Readability</h3>
+                    <div class="guide-meta">
+                      <div class="guide-block">
+                        <h4>Quality Categories</h4>
+                        <ul class="guide-list">
+                          <li>Docstring completeness</li>
+                          <li>Unused/unused-like symbols</li>
+                          <li>Whitespace and syntax style</li>
+                          <li>Function signatures and readability smells</li>
+                        </ul>
+                      </div>
+                      <div class="guide-block">
+                        <h4>Description</h4>
+                        <p>
+                          Flags Python code style and readability issues to
+                          improve consistency and comprehension.
+                        </p>
+                      </div>
+                      <div class="guide-block">
+                        <h4>What it finds</h4>
+                        <ul class="guide-list">
+                          <li>
+                            Missing docstrings and weak documentation patterns
+                          </li>
+                          <li>Overly long lines and complex function bodies</li>
+                          <li>
+                            Unused imports/variables and minor style violations
+                          </li>
+                        </ul>
+                      </div>
+                      <div class="guide-block">
+                        <h4>Tools used</h4>
+                        <ul class="guide-list">
+                          <li>ruff</li>
+                        </ul>
+                      </div>
+                    </div>
+                    <div class="guide-subtitle">Severity Focus</div>
+                    <div class="table-shell">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Severity</th>
+                            <th>Description</th>
+                            <th>Example Code</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td><span class="badge badge-high">High</span></td>
+                            <td>
+                              Significant readability or documentation gaps that
+                              increase onboarding and maintenance cost.
+                            </td>
+                            <td>
+                              Critical docstring/clarity issues, repeated style
+                              violations
+                            </td>
+                          </tr>
+                          <tr>
+                            <td>
+                              <span class="badge badge-medium">Medium</span>
+                            </td>
+                            <td>
+                              Moderate quality concerns in style and structure;
+                              worth cleaning in next hardening pass.
+                            </td>
+                            <td>
+                              Mixed style patterns, repeated long lines, heavy
+                              nesting
+                            </td>
+                          </tr>
+                          <tr>
+                            <td><span class="badge badge-low">Low</span></td>
+                            <td>
+                              Minor cleanup opportunities that improve
+                              consistency over time.
+                            </td>
+                            <td>Whitespace or light stylistic preferences</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                </div>
+                <div class="analyzer-guide-panel" id="guide-robustness">
+                  <section class="guide-card" data-analyzer="robustness">
+                    <h3>Robustness</h3>
+                    <div class="guide-meta">
+                      <div class="guide-block">
+                        <h4>Quality Categories</h4>
+                        <ul class="guide-list">
+                          <li>Security anti-patterns</li>
+                          <li>Type-safety weaknesses</li>
+                          <li>Input validation coverage</li>
+                          <li>Defensive handling</li>
+                        </ul>
+                      </div>
+                      <div class="guide-block">
+                        <h4>Description</h4>
+                        <p>
+                          Detects coding practices that reduce runtime safety
+                          and increase failure risk.
+                        </p>
+                      </div>
+                      <div class="guide-block">
+                        <h4>What it finds</h4>
+                        <ul class="guide-list">
+                          <li>High-risk or unsafe constructs</li>
+                          <li>Typing and validation weaknesses</li>
+                          <li>Exception and error-handling risks</li>
+                        </ul>
+                      </div>
+                      <div class="guide-block">
+                        <h4>Tools used</h4>
+                        <ul class="guide-list">
+                          <li>bandit</li>
+                          <li>mypy</li>
+                        </ul>
+                      </div>
+                    </div>
+                    <div class="guide-subtitle">Severity Focus</div>
+                    <div class="table-shell">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Severity</th>
+                            <th>Description</th>
+                            <th>Example Code</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td><span class="badge badge-high">High</span></td>
+                            <td>
+                              Issues that can directly cause runtime failure or
+                              exploitable behavior.
+                            </td>
+                            <td>
+                              Dangerous security patterns or unsafe operations
+                              like Return value mismatch, invalid arguement
+                              type, invalid return statement
+                            </td>
+                          </tr>
+                          <tr>
+                            <td>
+                              <span class="badge badge-medium">Medium</span>
+                            </td>
+                            <td>
+                              Potential stability concerns that degrade
+                              reliability without immediate failure.
+                            </td>
+                            <td>
+                              Potentially unsafe patterns with limited risk like
+                              Wrong Operator, missing/invalid type argument
+                            </td>
+                          </tr>
+                          <tr>
+                            <td><span class="badge badge-low">Low</span></td>
+                            <td>
+                              Minor robustness improvements and low-impact
+                              suggestions.
+                            </td>
+                            <td>
+                              Style-level robustness improvements like missing
+                              function annotations, call to untyped function
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const REPORT_DATA = JSON.parse(
+        '{"id": "b0ffb946-9c6b-4469-a9e1-4db869585a9d", "timestamp": "2026-11-22T12:57:38.154394", "target_path": "/Users/mohdzain/Documents/GitHub/surfmind/surfmind", "findings": [{"id": "35410e10-7734-4629-8668-b4c0dd44ab52", "title": "Function is too complex", "description": "`SyncSettings` has a cyclomatic complexity of 23 (limit 10)", "details": null, "clubbed": null, "category": "quality", "severity": "high", "confidence_score": 0.8, "location": {"file_path": "src/components/SyncSettings.tsx", "line_number": 52, "end_line_number": null, "column": null, "end_column": null, "function_name": "SyncSettings", "class_name": null}, "rule_id": "MNT-COMPLEXITY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Split the function into smaller ones, or replace long if/else chains with a lookup.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.360721", "tags": ["complexity", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 69.0, "cross_references": ["ab737a53-b2e0-4168-bc40-a3b441cb6c69", "a6094716-0a63-4079-8bc0-60bb38169805", "2549fea0-362a-4433-ac99-4a5e5837c6f2"], "file_issue_count": 4, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "4e522f27-f476-43c1-81a6-4b3ab0558379", "title": "Function is too complex", "description": "`Popup` has a cyclomatic complexity of 101 (limit 10)", "details": null, "clubbed": null, "category": "quality", "severity": "high", "confidence_score": 0.8, "location": {"file_path": "src/components/Popup.tsx", "line_number": 103, "end_line_number": null, "column": null, "end_column": null, "function_name": "Popup", "class_name": null}, "rule_id": "MNT-COMPLEXITY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Split the function into smaller ones, or replace long if/else chains with a lookup.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.386529", "tags": ["complexity", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 69.0, "cross_references": ["48a35763-721d-4850-b841-c92ee39e3279", "bfc79bd3-2f96-49c2-b4d4-aa14c386c732", "0d6aa872-362f-48b1-a960-cb3489a16778"], "file_issue_count": 4, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "25327631-be60-4e64-abc7-f1a00606bef7", "title": "Function is too complex", "description": "`SourceCard` has a cyclomatic complexity of 46 (limit 10)", "details": null, "clubbed": null, "category": "quality", "severity": "high", "confidence_score": 0.8, "location": {"file_path": "src/components/SourceCard.tsx", "line_number": 41, "end_line_number": null, "column": null, "end_column": null, "function_name": "SourceCard", "class_name": null}, "rule_id": "MNT-COMPLEXITY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Split the function into smaller ones, or replace long if/else chains with a lookup.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.407895", "tags": ["complexity", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 69.0, "file_issue_count": 3, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "d56de0fd-f7cf-4b0f-8619-a62c41aef51a", "title": "Function is too complex", "description": "`<anonymous>` has a cyclomatic complexity of 40 (limit 10)", "details": null, "clubbed": null, "category": "quality", "severity": "high", "confidence_score": 0.8, "location": {"file_path": "src/context/UserState.tsx", "line_number": 207, "end_line_number": null, "column": null, "end_column": null, "function_name": "<anonymous>", "class_name": null}, "rule_id": "MNT-COMPLEXITY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Split the function into smaller ones, or replace long if/else chains with a lookup.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.505513", "tags": ["complexity", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 69.0, "cross_references": ["76134707-a5c3-4d3d-9842-69c0a711cc46", "c8be1b2a-5c55-4dce-8a7f-71449269fe4e", "01d0882d-0e0b-4ab9-9fb9-d6c7afe1759a", "5324a799-bc2b-438a-82d6-c5edf9ffc51d"], "file_issue_count": 7, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "f8536e84-c51c-46bd-99ab-3b5c64de0d2f", "title": "Function is too long", "description": "`SavedHistory` is 140 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "medium", "confidence_score": 0.8, "location": {"file_path": "src/components/SavedHistory.tsx", "line_number": 74, "end_line_number": null, "column": null, "end_column": null, "function_name": "SavedHistory", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.376890", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 59.0, "file_issue_count": 2, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "cb8a5a51-a2c8-4bc0-b9b9-13751099a4fc", "title": "Function is too long", "description": "`RecentSearches` is 173 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "medium", "confidence_score": 0.8, "location": {"file_path": "src/components/RecentSearches.tsx", "line_number": 63, "end_line_number": null, "column": null, "end_column": null, "function_name": "RecentSearches", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.404642", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 59.0, "cross_references": ["925f9528-836e-4bf2-960c-1b4dcaadcd9c", "9438755c-714f-4beb-90c9-4aecf3160958", "256c16b9-948b-4645-a76a-9d393185f816", "6f9ef6df-8c75-40aa-9bab-c444317b5440"], "file_issue_count": 7, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "2549fea0-362a-4433-ac99-4a5e5837c6f2", "title": "Function is too long", "description": "`SyncSettings` is 520 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "medium", "confidence_score": 0.8, "location": {"file_path": "src/components/SyncSettings.tsx", "line_number": 52, "end_line_number": null, "column": null, "end_column": null, "function_name": "SyncSettings", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.361798", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 59.0, "cross_references": ["ab737a53-b2e0-4168-bc40-a3b441cb6c69", "a6094716-0a63-4079-8bc0-60bb38169805", "35410e10-7734-4629-8668-b4c0dd44ab52"], "file_issue_count": 4, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "48a35763-721d-4850-b841-c92ee39e3279", "title": "File is too long", "description": "The file has 1162 lines (limit 500)", "details": null, "clubbed": null, "category": "quality", "severity": "medium", "confidence_score": 0.8, "location": {"file_path": "src/components/Popup.tsx", "line_number": 1, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "MNT-LONG-FILE", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Split the file by responsibility.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.388639", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 59.0, "cross_references": ["bfc79bd3-2f96-49c2-b4d4-aa14c386c732", "4e522f27-f476-43c1-81a6-4b3ab0558379", "0d6aa872-362f-48b1-a960-cb3489a16778"], "file_issue_count": 4, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "bfc79bd3-2f96-49c2-b4d4-aa14c386c732", "title": "Function is too long", "description": "`Popup` is 1058 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "medium", "confidence_score": 0.8, "location": {"file_path": "src/components/Popup.tsx", "line_number": 103, "end_line_number": null, "column": null, "end_column": null, "function_name": "Popup", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.388541", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 59.0, "cross_references": ["48a35763-721d-4850-b841-c92ee39e3279", "4e522f27-f476-43c1-81a6-4b3ab0558379", "0d6aa872-362f-48b1-a960-cb3489a16778"], "file_issue_count": 4, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "c8be1b2a-5c55-4dce-8a7f-71449269fe4e", "title": "Function is too long", "description": "`UserState` is 404 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "medium", "confidence_score": 0.8, "location": {"file_path": "src/context/UserState.tsx", "line_number": 97, "end_line_number": null, "column": null, "end_column": null, "function_name": "UserState", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.506335", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 59.0, "cross_references": ["d56de0fd-f7cf-4b0f-8619-a62c41aef51a", "76134707-a5c3-4d3d-9842-69c0a711cc46", "01d0882d-0e0b-4ab9-9fb9-d6c7afe1759a", "5324a799-bc2b-438a-82d6-c5edf9ffc51d"], "file_issue_count": 7, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "76134707-a5c3-4d3d-9842-69c0a711cc46", "title": "Function is too long", "description": "`<anonymous>` is 246 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "medium", "confidence_score": 0.8, "location": {"file_path": "src/context/UserState.tsx", "line_number": 207, "end_line_number": null, "column": null, "end_column": null, "function_name": "<anonymous>", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.506340", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 59.0, "cross_references": ["d56de0fd-f7cf-4b0f-8619-a62c41aef51a", "c8be1b2a-5c55-4dce-8a7f-71449269fe4e", "01d0882d-0e0b-4ab9-9fb9-d6c7afe1759a", "5324a799-bc2b-438a-82d6-c5edf9ffc51d"], "file_issue_count": 7, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "b99bfb46-8d56-4544-bc39-6af5120f8889", "title": "Function is too complex", "description": "`getSyncPageCounts` has a cyclomatic complexity of 19 (limit 10)", "details": null, "clubbed": null, "category": "quality", "severity": "medium", "confidence_score": 0.8, "location": {"file_path": "src/services/syncApi.ts", "line_number": 250, "end_line_number": null, "column": null, "end_column": null, "function_name": "getSyncPageCounts", "class_name": null}, "rule_id": "MNT-COMPLEXITY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Split the function into smaller ones, or replace long if/else chains with a lookup.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.329114", "tags": ["complexity", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 59.0, "cross_references": ["48e9a996-d8ec-4312-a60d-65da6fda680a", "b6af9316-342a-48c4-8471-1b95ecc54996", "052b5d78-3acf-400d-853f-c9e66bc0880e"], "file_issue_count": 4, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "b0ff223a-a607-427c-b1ec-db6d4cfa1d01", "title": "Function is too long", "description": "`PrivacySettings` is 252 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "medium", "confidence_score": 0.8, "location": {"file_path": "src/components/PrivacySettings.tsx", "line_number": 36, "end_line_number": null, "column": null, "end_column": null, "function_name": "PrivacySettings", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.347961", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 59.0, "file_issue_count": 2, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "246ffe1b-e331-450b-95bc-4805c545e704", "title": "Function is too long", "description": "`SettingsHome` is 286 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "medium", "confidence_score": 0.8, "location": {"file_path": "src/components/SettingsHome.tsx", "line_number": 37, "end_line_number": null, "column": null, "end_column": null, "function_name": "SettingsHome", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.372266", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 59.0, "file_issue_count": 3, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "84c4354f-4fb8-4492-bb04-a1f4cad0e955", "title": "Function is too long", "description": "`LinkedBrowsers` is 187 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "medium", "confidence_score": 0.8, "location": {"file_path": "src/components/LinkedBrowsers.tsx", "line_number": 51, "end_line_number": null, "column": null, "end_column": null, "function_name": "LinkedBrowsers", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.400304", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 59.0, "file_issue_count": 2, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "b1df68d9-a35d-4b60-8eac-f29966cad4fc", "title": "Explicit any type", "description": "A value is typed as `any`", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/services/recentSearches.ts", "line_number": 9, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "ROB-UNTYPED-ANY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Use a precise type, `unknown` with a check, or a generic.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "robustness", "timestamp": "2026-11-22T12:57:38.189678", "tags": ["type_safety", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 3, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "79ac8986-9b36-4dd6-9641-d8254c75637b", "title": "Function is too complex", "description": "`normalizeRecentSearch` has a cyclomatic complexity of 13 (limit 10)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/services/recentSearches.ts", "line_number": 38, "end_line_number": null, "column": null, "end_column": null, "function_name": "normalizeRecentSearch", "class_name": null}, "rule_id": "MNT-COMPLEXITY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Split the function into smaller ones, or replace long if/else chains with a lookup.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.343101", "tags": ["complexity", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 3, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "77424474-8b17-4692-8964-23b4c7f5d3b0", "title": "Explicit any type", "description": "A value is typed as `any`", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/SavedHistory.tsx", "line_number": 6, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "ROB-UNTYPED-ANY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Use a precise type, `unknown` with a check, or a generic.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "robustness", "timestamp": "2026-11-22T12:57:38.221472", "tags": ["type_safety", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 2, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "9438755c-714f-4beb-90c9-4aecf3160958", "title": "Function is too complex", "description": "`getSourceDetails` has a cyclomatic complexity of 13 (limit 10)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/RecentSearches.tsx", "line_number": 38, "end_line_number": null, "column": null, "end_column": null, "function_name": "getSourceDetails", "class_name": null}, "rule_id": "MNT-COMPLEXITY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Split the function into smaller ones, or replace long if/else chains with a lookup.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.404141", "tags": ["complexity", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "cross_references": ["925f9528-836e-4bf2-960c-1b4dcaadcd9c", "cb8a5a51-a2c8-4bc0-b9b9-13751099a4fc", "256c16b9-948b-4645-a76a-9d393185f816", "6f9ef6df-8c75-40aa-9bab-c444317b5440"], "file_issue_count": 7, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "925f9528-836e-4bf2-960c-1b4dcaadcd9c", "title": "Explicit any type", "description": "A value is typed as `any`", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/RecentSearches.tsx", "line_number": 39, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "ROB-UNTYPED-ANY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Use a precise type, `unknown` with a check, or a generic.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "robustness", "timestamp": "2026-11-22T12:57:38.249370", "tags": ["type_safety", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "cross_references": ["9438755c-714f-4beb-90c9-4aecf3160958", "cb8a5a51-a2c8-4bc0-b9b9-13751099a4fc", "256c16b9-948b-4645-a76a-9d393185f816", "6f9ef6df-8c75-40aa-9bab-c444317b5440"], "file_issue_count": 7, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "77372c41-d9f0-445b-95ca-4ef8e5cf92fd", "title": "Function is too complex", "description": "`<anonymous>` has a cyclomatic complexity of 14 (limit 10)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/RecentSearches.tsx", "line_number": 113, "end_line_number": null, "column": null, "end_column": null, "function_name": "<anonymous>", "class_name": null}, "rule_id": "MNT-COMPLEXITY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Split the function into smaller ones, or replace long if/else chains with a lookup.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.404147", "tags": ["complexity", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "cross_references": ["9438755c-714f-4beb-90c9-4aecf3160958", "6f9ef6df-8c75-40aa-9bab-c444317b5440", "925f9528-836e-4bf2-960c-1b4dcaadcd9c", "256c16b9-948b-4645-a76a-9d393185f816", "cb8a5a51-a2c8-4bc0-b9b9-13751099a4fc"], "file_issue_count": 7, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "2433342d-e644-41c5-904a-2e363ff337c1", "title": "Function is too long", "description": "`<anonymous>` is 120 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/RecentSearches.tsx", "line_number": 113, "end_line_number": null, "column": null, "end_column": null, "function_name": "<anonymous>", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.404646", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "cross_references": ["9438755c-714f-4beb-90c9-4aecf3160958", "6f9ef6df-8c75-40aa-9bab-c444317b5440", "925f9528-836e-4bf2-960c-1b4dcaadcd9c", "256c16b9-948b-4645-a76a-9d393185f816", "cb8a5a51-a2c8-4bc0-b9b9-13751099a4fc"], "file_issue_count": 7, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "5869f3a4-6c2e-4b46-9be0-2a55baf5158f", "title": "Explicit any type", "description": "A value is typed as `any`", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/test/contentFiltering.test.ts", "line_number": 14, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "ROB-UNTYPED-ANY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Use a precise type, `unknown` with a check, or a generic.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "robustness", "timestamp": "2026-11-22T12:57:38.272354", "tags": ["type_safety", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 1, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "c51e8899-f3bc-41bb-8968-716be190279d", "title": "Explicit any type", "description": "A value is typed as `any` (8 in this file, the first is shown)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/test/pageEntries.test.ts", "line_number": 9, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "ROB-UNTYPED-ANY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Use a precise type, `unknown` with a check, or a generic.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "robustness", "timestamp": "2026-11-22T12:57:38.277173", "tags": ["type_safety", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 1, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "b707375a-6b43-4841-89ca-6d7627c15726", "title": "Explicit any type", "description": "A value is typed as `any`", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/test/syncApi.test.ts", "line_number": 15, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "ROB-UNTYPED-ANY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Use a precise type, `unknown` with a check, or a generic.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "robustness", "timestamp": "2026-11-22T12:57:38.278860", "tags": ["type_safety", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 1, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "dbf52178-d747-449b-9562-ff33d857fceb", "title": "Explicit any type", "description": "A value is typed as `any` (15 in this file, the first is shown)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/test/historySync.test.ts", "line_number": 25, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "ROB-UNTYPED-ANY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Use a precise type, `unknown` with a check, or a generic.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "robustness", "timestamp": "2026-11-22T12:57:38.286955", "tags": ["type_safety", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 1, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "488debe2-4701-4172-a557-ad50d43d8cd6", "title": "Explicit any type", "description": "A value is typed as `any` (3 in this file, the first is shown)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/test/bookmarkSync.test.ts", "line_number": 45, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "ROB-UNTYPED-ANY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Use a precise type, `unknown` with a check, or a generic.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "robustness", "timestamp": "2026-11-22T12:57:38.290851", "tags": ["type_safety", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 1, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "b4c357fd-30db-4661-99cd-029f263c2eba", "title": "Explicit any type", "description": "A value is typed as `any`", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/test/ratePrompt.test.ts", "line_number": 10, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "ROB-UNTYPED-ANY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Use a precise type, `unknown` with a check, or a generic.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "robustness", "timestamp": "2026-11-22T12:57:38.292663", "tags": ["type_safety", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 1, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "5e763130-1584-4b88-81ec-0eef566140b1", "title": "Explicit any type", "description": "A value is typed as `any`", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/test/recentSearchesApi.test.ts", "line_number": 6, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "ROB-UNTYPED-ANY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Use a precise type, `unknown` with a check, or a generic.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "robustness", "timestamp": "2026-11-22T12:57:38.295009", "tags": ["type_safety", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 1, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "e50a0dfd-396a-4a95-9411-c38346cb4380", "title": "Explicit any type", "description": "A value is typed as `any` (3 in this file, the first is shown)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/test/structuredExtraction.test.ts", "line_number": 13, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "ROB-UNTYPED-ANY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Use a precise type, `unknown` with a check, or a generic.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "robustness", "timestamp": "2026-11-22T12:57:38.296688", "tags": ["type_safety", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 1, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "0c65ac8d-813b-4f28-b41b-e5791e8e5ca3", "title": "Explicit any type", "description": "A value is typed as `any`", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/types/search.ts", "line_number": 25, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "ROB-UNTYPED-ANY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Use a precise type, `unknown` with a check, or a generic.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "robustness", "timestamp": "2026-11-22T12:57:38.315299", "tags": ["type_safety", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 1, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "33a2a5bd-1b1c-475a-b16f-cb63033a4936", "title": "Explicit any type", "description": "A value is typed as `any` (2 in this file, the first is shown)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/types/user.ts", "line_number": 26, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "ROB-UNTYPED-ANY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Use a precise type, `unknown` with a check, or a generic.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "robustness", "timestamp": "2026-11-22T12:57:38.316706", "tags": ["type_safety", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 1, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "5c385314-fbed-4a6b-a5d1-7e267033f4b5", "title": "Explicit any type", "description": "A value is typed as `any`", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/types/sync.ts", "line_number": 6, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "ROB-UNTYPED-ANY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Use a precise type, `unknown` with a check, or a generic.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "robustness", "timestamp": "2026-11-22T12:57:38.317695", "tags": ["type_safety", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 1, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "a6094716-0a63-4079-8bc0-60bb38169805", "title": "File is too long", "description": "The file has 573 lines (limit 500)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/SyncSettings.tsx", "line_number": 1, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "MNT-LONG-FILE", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Split the file by responsibility.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.361859", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "cross_references": ["ab737a53-b2e0-4168-bc40-a3b441cb6c69", "35410e10-7734-4629-8668-b4c0dd44ab52", "2549fea0-362a-4433-ac99-4a5e5837c6f2"], "file_issue_count": 4, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "cdbfc00e-bda6-4b0a-8563-0360a16f70d3", "title": "Function is too long", "description": "`SourceCard` is 103 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/SourceCard.tsx", "line_number": 41, "end_line_number": null, "column": null, "end_column": null, "function_name": "SourceCard", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.408262", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 3, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "5324a799-bc2b-438a-82d6-c5edf9ffc51d", "title": "File is too long", "description": "The file has 502 lines (limit 500)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/context/UserState.tsx", "line_number": 1, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "MNT-LONG-FILE", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Split the file by responsibility.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.506386", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "cross_references": ["d56de0fd-f7cf-4b0f-8619-a62c41aef51a", "76134707-a5c3-4d3d-9842-69c0a711cc46", "01d0882d-0e0b-4ab9-9fb9-d6c7afe1759a", "c8be1b2a-5c55-4dce-8a7f-71449269fe4e"], "file_issue_count": 7, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "01d0882d-0e0b-4ab9-9fb9-d6c7afe1759a", "title": "Code is nested too deeply", "description": "`<anonymous>` nests blocks 10 levels deep (limit 4)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/context/UserState.tsx", "line_number": 207, "end_line_number": null, "column": null, "end_column": null, "function_name": "<anonymous>", "class_name": null}, "rule_id": "MNT-DEEP-NESTING", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Return early, extract the inner part into a function, or flatten the conditions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.508416", "tags": ["complexity", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "cross_references": ["d56de0fd-f7cf-4b0f-8619-a62c41aef51a", "76134707-a5c3-4d3d-9842-69c0a711cc46", "c8be1b2a-5c55-4dce-8a7f-71449269fe4e", "5324a799-bc2b-438a-82d6-c5edf9ffc51d"], "file_issue_count": 7, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "052b5d78-3acf-400d-853f-c9e66bc0880e", "title": "Function is too complex", "description": "`normalizeSyncStatus` has a cyclomatic complexity of 11 (limit 10)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/services/syncApi.ts", "line_number": 67, "end_line_number": null, "column": null, "end_column": null, "function_name": "normalizeSyncStatus", "class_name": null}, "rule_id": "MNT-COMPLEXITY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Split the function into smaller ones, or replace long if/else chains with a lookup.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.329107", "tags": ["complexity", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "cross_references": ["48e9a996-d8ec-4312-a60d-65da6fda680a", "b6af9316-342a-48c4-8471-1b95ecc54996", "b99bfb46-8d56-4544-bc39-6af5120f8889"], "file_issue_count": 4, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "9e8b18dc-b994-4c17-8129-f7a0785aeef6", "title": "Function is too complex", "description": "`PrivacySettings` has a cyclomatic complexity of 14 (limit 10)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/PrivacySettings.tsx", "line_number": 36, "end_line_number": null, "column": null, "end_column": null, "function_name": "PrivacySettings", "class_name": null}, "rule_id": "MNT-COMPLEXITY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Split the function into smaller ones, or replace long if/else chains with a lookup.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.347423", "tags": ["complexity", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 2, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "3c58541d-c63f-40fb-b104-246a4e04896c", "title": "Function is too complex", "description": "`SettingsHome` has a cyclomatic complexity of 12 (limit 10)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/SettingsHome.tsx", "line_number": 37, "end_line_number": null, "column": null, "end_column": null, "function_name": "SettingsHome", "class_name": null}, "rule_id": "MNT-COMPLEXITY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Split the function into smaller ones, or replace long if/else chains with a lookup.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.371653", "tags": ["complexity", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 3, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "f304cf6c-b9d8-4179-b602-74c2323795a8", "title": "Function is too long", "description": "`<anonymous>` is 91 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/LinkedBrowsers.tsx", "line_number": 113, "end_line_number": null, "column": null, "end_column": null, "function_name": "<anonymous>", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.400310", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 2, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "8e716388-f14e-49ea-87ce-071e1f587dec", "title": "Function is too complex", "description": "`getResourceSyncCoverage` has a cyclomatic complexity of 13 (limit 10)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/services/pageCounts.ts", "line_number": 61, "end_line_number": null, "column": null, "end_column": null, "function_name": "getResourceSyncCoverage", "class_name": null}, "rule_id": "MNT-COMPLEXITY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Split the function into smaller ones, or replace long if/else chains with a lookup.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.324966", "tags": ["complexity", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 2, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "d2874300-c2d1-4755-beef-d1869d69a103", "title": "Function is too long", "description": "`getResourceSyncCoverage` is 84 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/services/pageCounts.ts", "line_number": 61, "end_line_number": null, "column": null, "end_column": null, "function_name": "getResourceSyncCoverage", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.325295", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 2, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "b9142cae-18db-455e-8ea1-f8928b0f1544", "title": "Function is too complex", "description": "`Update` has a cyclomatic complexity of 15 (limit 10)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/Update.tsx", "line_number": 122, "end_line_number": null, "column": null, "end_column": null, "function_name": "Update", "class_name": null}, "rule_id": "MNT-COMPLEXITY", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Split the function into smaller ones, or replace long if/else chains with a lookup.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.351148", "tags": ["complexity", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 3, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "0b2f35d3-48fb-463f-9ea7-76bee69207f3", "title": "Function is too long", "description": "`Update` is 120 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/Update.tsx", "line_number": 122, "end_line_number": null, "column": null, "end_column": null, "function_name": "Update", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.351493", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 3, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "fe417699-55c2-4ba9-9341-17b22dd3ba5f", "title": "Function is too long", "description": "`BookmarkFolderPicker` is 74 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/BookmarkFolderPicker.tsx", "line_number": 54, "end_line_number": null, "column": null, "end_column": null, "function_name": "BookmarkFolderPicker", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.353749", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 1, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "9c17aeb4-0a21-449d-95aa-94ff267b3dd3", "title": "Function is too long", "description": "`SavedBookmarks` is 87 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/SavedBookmarks.tsx", "line_number": 120, "end_line_number": null, "column": null, "end_column": null, "function_name": "SavedBookmarks", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.367800", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 1, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "1147b8cd-398b-47e8-b44f-78d28b5714ac", "title": "Function is too long", "description": "`SearchComposer` is 71 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/SearchComposer.tsx", "line_number": 19, "end_line_number": null, "column": null, "end_column": null, "function_name": "SearchComposer", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.396835", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 1, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "03a455bd-76e4-4e36-8445-8380f30b463b", "title": "Function is too long", "description": "`Bookmarks` is 69 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/Bookmarks.tsx", "line_number": 10, "end_line_number": null, "column": null, "end_column": null, "function_name": "Bookmarks", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.410279", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 2, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "04f5f709-ed1c-4724-8d2d-c6dc8d8b7af5", "title": "Function is too long", "description": "`FastModeSettings` is 66 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/FastModeSettings.tsx", "line_number": 35, "end_line_number": null, "column": null, "end_column": null, "function_name": "FastModeSettings", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.411574", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 1, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "54a7fe75-dbeb-47a8-8b53-b5b0131aa4b5", "title": "Function is too long", "description": "`SearchModeToggle` is 101 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/SearchModeToggle.tsx", "line_number": 26, "end_line_number": null, "column": null, "end_column": null, "function_name": "SearchModeToggle", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.413404", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 1, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "447d5953-9075-4a95-927a-9c3a8564162c", "title": "Function is too long", "description": "`SearchThought` is 79 lines long (limit 60)", "details": null, "clubbed": null, "category": "quality", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/SearchThought.tsx", "line_number": 72, "end_line_number": null, "column": null, "end_column": null, "function_name": "SearchThought", "class_name": null}, "rule_id": "MNT-LONG-FUNCTION", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Extract the steps into named functions.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "maintainability", "timestamp": "2026-11-22T12:57:38.416791", "tags": ["size", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 49.0, "file_issue_count": 1, "category_prevalence": 52, "complexity_rank": 1}}, {"id": "c251c36c-edad-4151-bffa-2693b7d86ea2", "title": "Error is caught and neither logged nor rethrown", "description": "The error is caught but not logged, rethrown or used", "details": null, "clubbed": null, "category": "observability", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/services/recentSearches.ts", "line_number": 16, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "OBS-SWALLOWED-ERROR", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Log the error (with context), rethrow it, show it to the user, or pass it on.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "observability", "timestamp": "2026-11-22T12:57:38.523675", "tags": ["error_handling", "logging", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 41.0, "file_issue_count": 3, "category_prevalence": 14, "complexity_rank": 1}}, {"id": "256c16b9-948b-4645-a76a-9d393185f816", "title": "Error is caught and neither logged nor rethrown", "description": "The error is caught but not logged, rethrown or used", "details": null, "clubbed": null, "category": "observability", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/RecentSearches.tsx", "line_number": 47, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "OBS-SWALLOWED-ERROR", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Log the error (with context), rethrow it, show it to the user, or pass it on.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "observability", "timestamp": "2026-11-22T12:57:38.550215", "tags": ["error_handling", "logging", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 41.0, "cross_references": ["925f9528-836e-4bf2-960c-1b4dcaadcd9c", "9438755c-714f-4beb-90c9-4aecf3160958", "cb8a5a51-a2c8-4bc0-b9b9-13751099a4fc", "6f9ef6df-8c75-40aa-9bab-c444317b5440"], "file_issue_count": 7, "category_prevalence": 14, "complexity_rank": 1}}, {"id": "6f9ef6df-8c75-40aa-9bab-c444317b5440", "title": "Error is caught and neither logged nor rethrown", "description": "The error is caught but not logged, rethrown or used", "details": null, "clubbed": null, "category": "observability", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/RecentSearches.tsx", "line_number": 83, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "OBS-SWALLOWED-ERROR", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Log the error (with context), rethrow it, show it to the user, or pass it on.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "observability", "timestamp": "2026-11-22T12:57:38.550221", "tags": ["error_handling", "logging", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 41.0, "cross_references": ["925f9528-836e-4bf2-960c-1b4dcaadcd9c", "9438755c-714f-4beb-90c9-4aecf3160958", "cb8a5a51-a2c8-4bc0-b9b9-13751099a4fc", "256c16b9-948b-4645-a76a-9d393185f816"], "file_issue_count": 7, "category_prevalence": 14, "complexity_rank": 1}}, {"id": "ab737a53-b2e0-4168-bc40-a3b441cb6c69", "title": "Error is caught and neither logged nor rethrown", "description": "The error is caught but not logged, rethrown or used", "details": null, "clubbed": null, "category": "observability", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/SyncSettings.tsx", "line_number": 162, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "OBS-SWALLOWED-ERROR", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Log the error (with context), rethrow it, show it to the user, or pass it on.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "observability", "timestamp": "2026-11-22T12:57:38.532028", "tags": ["error_handling", "logging", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 41.0, "cross_references": ["a6094716-0a63-4079-8bc0-60bb38169805", "35410e10-7734-4629-8668-b4c0dd44ab52", "2549fea0-362a-4433-ac99-4a5e5837c6f2"], "file_issue_count": 4, "category_prevalence": 14, "complexity_rank": 1}}, {"id": "3596a234-b6b4-4ce1-b3e5-4cf8da2d6312", "title": "Error is caught and neither logged nor rethrown", "description": "The error is caught but not logged, rethrown or used", "details": null, "clubbed": null, "category": "observability", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/SourceCard.tsx", "line_number": 7, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "OBS-SWALLOWED-ERROR", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Log the error (with context), rethrow it, show it to the user, or pass it on.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "observability", "timestamp": "2026-11-22T12:57:38.551688", "tags": ["error_handling", "logging", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 41.0, "file_issue_count": 3, "category_prevalence": 14, "complexity_rank": 1}}, {"id": "17550ed3-a7dd-47b6-93bc-2886c0b85050", "title": "Error is caught and neither logged nor rethrown", "description": "The error is caught but not logged, rethrown or used", "details": null, "clubbed": null, "category": "observability", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/context/UserState.tsx", "line_number": 318, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "OBS-SWALLOWED-ERROR", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Log the error (with context), rethrow it, show it to the user, or pass it on.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "observability", "timestamp": "2026-11-22T12:57:38.570906", "tags": ["error_handling", "logging", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 41.0, "cross_references": ["76134707-a5c3-4d3d-9842-69c0a711cc46", "d56de0fd-f7cf-4b0f-8619-a62c41aef51a", "5324a799-bc2b-438a-82d6-c5edf9ffc51d", "01d0882d-0e0b-4ab9-9fb9-d6c7afe1759a", "c8be1b2a-5c55-4dce-8a7f-71449269fe4e"], "file_issue_count": 7, "category_prevalence": 14, "complexity_rank": 1}}, {"id": "7d2fd440-86a2-4fd0-9b71-74daae0eb70e", "title": "Error is caught and neither logged nor rethrown", "description": "The error is caught but not logged, rethrown or used", "details": null, "clubbed": null, "category": "observability", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/context/UserState.tsx", "line_number": 476, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "OBS-SWALLOWED-ERROR", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Log the error (with context), rethrow it, show it to the user, or pass it on.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "observability", "timestamp": "2026-11-22T12:57:38.570913", "tags": ["error_handling", "logging", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 41.0, "cross_references": ["76134707-a5c3-4d3d-9842-69c0a711cc46", "d56de0fd-f7cf-4b0f-8619-a62c41aef51a", "5324a799-bc2b-438a-82d6-c5edf9ffc51d", "01d0882d-0e0b-4ab9-9fb9-d6c7afe1759a", "c8be1b2a-5c55-4dce-8a7f-71449269fe4e"], "file_issue_count": 7, "category_prevalence": 14, "complexity_rank": 1}}, {"id": "48e9a996-d8ec-4312-a60d-65da6fda680a", "title": "Error is caught and neither logged nor rethrown", "description": "The error is caught but not logged, rethrown or used", "details": null, "clubbed": null, "category": "observability", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/services/syncApi.ts", "line_number": 38, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "OBS-SWALLOWED-ERROR", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Log the error (with context), rethrow it, show it to the user, or pass it on.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "observability", "timestamp": "2026-11-22T12:57:38.517588", "tags": ["error_handling", "logging", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 41.0, "cross_references": ["b6af9316-342a-48c4-8471-1b95ecc54996", "b99bfb46-8d56-4544-bc39-6af5120f8889", "052b5d78-3acf-400d-853f-c9e66bc0880e"], "file_issue_count": 4, "category_prevalence": 14, "complexity_rank": 1}}, {"id": "b6af9316-342a-48c4-8471-1b95ecc54996", "title": "Error is caught and neither logged nor rethrown", "description": "The error is caught but not logged, rethrown or used", "details": null, "clubbed": null, "category": "observability", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/services/syncApi.ts", "line_number": 241, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "OBS-SWALLOWED-ERROR", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Log the error (with context), rethrow it, show it to the user, or pass it on.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "observability", "timestamp": "2026-11-22T12:57:38.517594", "tags": ["error_handling", "logging", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 41.0, "cross_references": ["48e9a996-d8ec-4312-a60d-65da6fda680a", "b99bfb46-8d56-4544-bc39-6af5120f8889", "052b5d78-3acf-400d-853f-c9e66bc0880e"], "file_issue_count": 4, "category_prevalence": 14, "complexity_rank": 1}}, {"id": "c3f130cb-a70b-4113-abce-893b715fac99", "title": "Error is caught and neither logged nor rethrown", "description": "The error is caught but not logged, rethrown or used", "details": null, "clubbed": null, "category": "observability", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/SettingsHome.tsx", "line_number": 103, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "OBS-SWALLOWED-ERROR", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Log the error (with context), rethrow it, show it to the user, or pass it on.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "observability", "timestamp": "2026-11-22T12:57:38.536122", "tags": ["error_handling", "logging", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 41.0, "file_issue_count": 3, "category_prevalence": 14, "complexity_rank": 1}}, {"id": "f990f21b-f794-42cc-a8b7-1317bbbf86de", "title": "Error is caught and neither logged nor rethrown", "description": "The error is caught but not logged, rethrown or used", "details": null, "clubbed": null, "category": "observability", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/Bookmarks.tsx", "line_number": 54, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "OBS-SWALLOWED-ERROR", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Log the error (with context), rethrow it, show it to the user, or pass it on.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "observability", "timestamp": "2026-11-22T12:57:38.552480", "tags": ["error_handling", "logging", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 41.0, "file_issue_count": 2, "category_prevalence": 14, "complexity_rank": 1}}, {"id": "47a164a0-2480-45ae-9905-c177f3fc0385", "title": "Error is caught and neither logged nor rethrown", "description": "The error is caught but not logged, rethrown or used", "details": null, "clubbed": null, "category": "observability", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/services/privacy.ts", "line_number": 56, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "OBS-SWALLOWED-ERROR", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Log the error (with context), rethrow it, show it to the user, or pass it on.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "observability", "timestamp": "2026-11-22T12:57:38.513437", "tags": ["error_handling", "logging", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 41.0, "file_issue_count": 1, "category_prevalence": 14, "complexity_rank": 1}}, {"id": "f2f1e3fe-16f9-400d-984b-1c106a59a638", "title": "Error is caught and neither logged nor rethrown", "description": "The error is caught but not logged, rethrown or used", "details": null, "clubbed": null, "category": "observability", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/services/bookmarkFolders.ts", "line_number": 73, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "OBS-SWALLOWED-ERROR", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Log the error (with context), rethrow it, show it to the user, or pass it on.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "observability", "timestamp": "2026-11-22T12:57:38.519289", "tags": ["error_handling", "logging", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 41.0, "file_issue_count": 1, "category_prevalence": 14, "complexity_rank": 1}}, {"id": "6e0d4b6a-ee97-4e4f-bb3e-5825a59ab34c", "title": "Error is caught and neither logged nor rethrown", "description": "The error is caught but not logged, rethrown or used", "details": null, "clubbed": null, "category": "observability", "severity": "low", "confidence_score": 0.8, "location": {"file_path": "src/components/Combined.tsx", "line_number": 51, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "OBS-SWALLOWED-ERROR", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Log the error (with context), rethrow it, show it to the user, or pass it on.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "observability", "timestamp": "2026-11-22T12:57:38.528825", "tags": ["error_handling", "logging", "rule_engine", "typescript"], "extra_data": {"language": "typescript", "priority_score": 41.0, "file_issue_count": 1, "category_prevalence": 14, "complexity_rank": 1}}, {"id": "0d6aa872-362f-48b1-a960-cb3489a16778", "title": "Line is too long", "description": "The line is 141 characters (limit 120) (3 in this file, the first is shown)", "details": null, "clubbed": null, "category": "readability", "severity": "info", "confidence_score": 0.8, "location": {"file_path": "src/components/Popup.tsx", "line_number": 616, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "RDB-LONG-LINE", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Break the line, or let a formatter (Prettier) do it.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "readability", "timestamp": "2026-11-22T12:57:38.613373", "tags": ["rule_engine", "typescript", "formatting"], "extra_data": {"language": "typescript", "priority_score": 37.0, "cross_references": ["48a35763-721d-4850-b841-c92ee39e3279", "bfc79bd3-2f96-49c2-b4d4-aa14c386c732", "4e522f27-f476-43c1-81a6-4b3ab0558379"], "file_issue_count": 4, "category_prevalence": 2, "complexity_rank": 1}}, {"id": "e7e7f958-ef2f-429e-9938-cc6c56f66fdc", "title": "Line is too long", "description": "The line is 132 characters (limit 120)", "details": null, "clubbed": null, "category": "readability", "severity": "info", "confidence_score": 0.8, "location": {"file_path": "src/components/Update.tsx", "line_number": 147, "end_line_number": null, "column": null, "end_column": null, "function_name": null, "class_name": null}, "rule_id": "RDB-LONG-LINE", "cwe_id": null, "cve_id": null, "code_snippet": null, "remediation_guidance": "Break the line, or let a formatter (Prettier) do it.", "remediation_complexity": "simple", "compliance_frameworks": [], "owasp_category": null, "source_analyzer": "readability", "timestamp": "2026-11-22T12:57:38.593195", "tags": ["rule_engine", "typescript", "formatting"], "extra_data": {"language": "typescript", "priority_score": 37.0, "file_issue_count": 3, "category_prevalence": 2, "complexity_rank": 1}}], "analysis_metrics": [{"analyzer_name": "robustness", "execution_time_seconds": 0.16333603858947754, "files_analyzed": 82, "findings_count": 14, "error_count": 0, "warnings_count": 0, "success": true, "error_message": null}, {"analyzer_name": "maintainability", "execution_time_seconds": 0.19403886795043945, "files_analyzed": 82, "findings_count": 38, "error_count": 0, "warnings_count": 0, "success": true, "error_message": null}, {"analyzer_name": "observability", "execution_time_seconds": 0.061525821685791016, "files_analyzed": 82, "findings_count": 14, "error_count": 0, "warnings_count": 0, "success": true, "error_message": null}, {"analyzer_name": "readability", "execution_time_seconds": 0.10375595092773438, "files_analyzed": 82, "findings_count": 2, "error_count": 0, "warnings_count": 0, "success": true, "error_message": null}], "total_execution_time": 0.5243990421295166, "summary": {"timestamp": "2026-11-22T12:57:38.678620", "target_path": "/Users/mohdzain/Documents/GitHub/surfmind/surfmind", "analysis_duration": 0.0, "total_findings": 68, "total_analyzers": 4, "successful_analyzers": 4, "failed_analyzers": 0, "severity_breakdown": {"critical": 0, "high": 4, "medium": 11, "low": 51, "info": 2}, "category_breakdown": {"security": 0, "privacy": 0, "quality": 52, "performance": 0, "testability": 0, "readability": 2, "observability": 14, "dependency": 0, "maintainability": 0, "compliance": 0}, "risk_score": 20.70588235294118, "risk_level": "LOW", "files_with_issues": 34, "top_problematic_files": [{"file": "src/context/UserState.tsx", "total": 7, "critical": 0, "high": 1}, {"file": "src/components/RecentSearches.tsx", "total": 7, "critical": 0, "high": 0}, {"file": "src/components/SyncSettings.tsx", "total": 4, "critical": 0, "high": 1}, {"file": "src/components/Popup.tsx", "total": 4, "critical": 0, "high": 1}, {"file": "src/services/syncApi.ts", "total": 4, "critical": 0, "high": 0}], "remediation_complexity": {"trivial": 0, "simple": 68, "moderate": 0, "complex": 0, "very_complex": 0}, "quick_wins": 0, "compliance_issues": {}, "analyzer_performance": {"total_execution_time": 0.5226566791534424, "average_time_per_analyzer": 0.1306641697883606, "fastest_analyzer": "observability", "slowest_analyzer": "maintainability", "success_rate": 1.0}, "trend_analysis": {"note": "Trend analysis requires historical data", "current_timestamp": "2026-11-22T12:57:38.154394", "baseline_established": true}}, "compliance_status": [], "trend_data": [], "analysis_config": {"target_path": "/Users/mohdzain/Documents/GitHub/surfmind/surfmind", "file_patterns": ["*.py"], "exclude_patterns": [], "enabled_analyzers": [], "severity_threshold": "info", "parallel_execution": true, "timeout_seconds": 900, "include_low_confidence": false, "max_findings_per_analyzer": 1000}}'
+      );
+      const findings = Array.isArray(REPORT_DATA.findings)
+        ? REPORT_DATA.findings
+        : [];
+
+      const severityOrder = {
+        critical: 4,
+        high: 3,
+        medium: 2,
+        low: 1,
+        info: 0,
+      };
+
+      const severityFilter = document.getElementById("severityFilter");
+      const analyzerFilter = document.getElementById("analyzerFilter");
+      const titleFilter = document.getElementById("titleFilter");
+      const searchInput = document.getElementById("searchInput");
+      const tableBody = document.getElementById("findingsBody");
+      const pageSizeEl = document.getElementById("pageSize");
+      const pagerInfo = document.getElementById("pagerInfo");
+      const prevBtn = document.getElementById("prevPage");
+      const nextBtn = document.getElementById("nextPage");
+      const scoreBar = document.getElementById("scoreBar");
+      const tabButtons = document.querySelectorAll(
+        ".tab-btn[data-main-tab='true']"
+      );
+      const glossaryTabButtons = document.querySelectorAll(".glossary-tab-btn");
+      const tabPanels = document.querySelectorAll(".tab-panel");
+      const glossaryTabPanels = document.querySelectorAll(
+        ".analyzer-guide-panel"
+      );
+
+      let currentPage = 1;
+      let filtered = [...findings];
+      let sortState = { key: "severity", direction: "desc" };
+
+      if (scoreBar) {
+        const scoreValue = parseFloat(7.93);
+        scoreBar.style.width = `${Math.max(0, Math.min(100, scoreValue * 10)).toFixed(0)}%`;
+      }
+
+      function badgeClass(value) {
+        const severity = String(value || "info").toLowerCase();
+        if (severity === "critical") return "badge-critical";
+        if (severity === "high") return "badge-high";
+        if (severity === "medium") return "badge-medium";
+        return "badge-low";
+      }
+
+      function getText(value) {
+        return value === null || value === undefined ? "" : String(value);
+      }
+
+      function createTextCell(value, className) {
+        const td = document.createElement("td");
+        if (className) {
+          td.className = className;
+        }
+        td.textContent = value;
+        return td;
+      }
+
+      function createTableSpacer(
+        columns = 7,
+        message = "No findings found for the selected filters."
+      ) {
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = columns;
+        cell.className = "muted small";
+        cell.textContent = message;
+        row.appendChild(cell);
+        return row;
+      }
+
+      function formatClubbedValue(value) {
+        if (value === null || value === undefined) {
+          return "";
+        }
+        if (Array.isArray(value)) {
+          return value
+            .map((item) => String(item))
+            .filter((item) => item.length > 0)
+            .join(", ");
+        }
+        if (typeof value === "object") {
+          try {
+            return JSON.stringify(value);
+          } catch (_) {
+            return "";
+          }
+        }
+        return String(value);
+      }
+
+      function isClubbedFinding(clubbed) {
+        return (
+          Boolean(clubbed) &&
+          typeof clubbed === "object" &&
+          !Array.isArray(clubbed)
+        );
+      }
+
+      function extractClubbedLines(clubbed) {
+        if (!isClubbedFinding(clubbed)) {
+          return [];
+        }
+        const lines = [];
+        const rawLines = clubbed.lines;
+        if (Array.isArray(rawLines)) {
+          rawLines.forEach((line) => {
+            if (line === 0 || Number.isInteger(line)) {
+              lines.push(line);
+            } else {
+              const parsed = parseInt(line, 10);
+              if (!Number.isNaN(parsed)) {
+                lines.push(parsed);
+              }
+            }
+          });
+        }
+        return lines;
+      }
+
+      function buildClubbedList(clubbed) {
+        if (!isClubbedFinding(clubbed)) {
+          return [];
+        }
+        const details = [];
+        const lines = extractClubbedLines(clubbed);
+        const messages = Array.isArray(clubbed.messages)
+          ? clubbed.messages
+          : [];
+        if (
+          Array.isArray(clubbed.lines) &&
+          lines.length > 0 &&
+          Array.isArray(clubbed.messages) &&
+          messages.length > 0
+        ) {
+          const maxLen = Math.max(lines.length, messages.length);
+          for (let i = 0; i < maxLen; i += 1) {
+            const line =
+              i < lines.length && lines[i] !== 0 ? String(lines[i]) : "-";
+            const message = messages[i] || "";
+            if (message) {
+              details.push(`Line ${line}: ${message}`);
+            } else {
+              details.push(`Line ${line}`.trim());
+            }
+          }
+          return details;
+        }
+
+        const entries = Object.entries(clubbed);
+        const arrayEntries = entries.filter((entry) => Array.isArray(entry[1]));
+        if (
+          arrayEntries.length >= 2 &&
+          arrayEntries.every(
+            (entry) =>
+              Array.isArray(entry[1]) &&
+              entry[1].length === arrayEntries[0][1].length
+          )
+        ) {
+          const length = arrayEntries[0][1].length;
+          for (let i = 0; i < length; i += 1) {
+            const row = arrayEntries
+              .map(
+                ([key, values]) => `${key}: ${formatClubbedValue(values[i])}`
+              )
+              .join(" | ");
+            details.push(row);
+          }
+          return details;
+        }
+
+        entries.forEach(([key, value]) => {
+          const formatted = formatClubbedValue(value);
+          if (formatted) {
+            details.push(`${key}: ${formatted}`);
+          }
+        });
+        return details;
+      }
+
+      function createDescriptionCell(description, f) {
+        const td = document.createElement("td");
+        td.className = "details";
+        td.textContent = description;
+
+        const clubbed = f.clubbed;
+        if (isClubbedFinding(clubbed)) {
+          const clubbedItems = buildClubbedList(clubbed);
+          if (clubbedItems.length > 0) {
+            const details = document.createElement("details");
+            details.className = "finding-details";
+            const summary = document.createElement("summary");
+            summary.textContent = `Grouped: ${clubbedItems.length} item(s)`;
+            const list = document.createElement("ul");
+            clubbedItems.forEach((entry) => {
+              const li = document.createElement("li");
+              li.textContent = entry;
+              list.appendChild(li);
+            });
+            details.appendChild(summary);
+            details.appendChild(list);
+            td.appendChild(details);
+          }
+        }
+        return td;
+      }
+
+      function clubbedLineText(clubbed) {
+        const lines = extractClubbedLines(clubbed);
+        if (lines.length === 0) {
+          return "";
+        }
+        const sortedLines = [...new Set(lines)].sort((a, b) => a - b);
+        if (lines.length === 1) {
+          return String(sortedLines[0]);
+        }
+        if (sortedLines.length <= 5) {
+          return sortedLines.join(", ");
+        }
+        return `${sortedLines[0]}...${sortedLines[sortedLines.length - 1]}`;
+      }
+
+      function clubbedSearchText(clubbed) {
+        if (!isClubbedFinding(clubbed)) {
+          return "";
+        }
+        return Object.entries(clubbed)
+          .map(([key, value]) => `${key}:${formatClubbedValue(value)}`)
+          .join(" ")
+          .toLowerCase();
+      }
+
+      function cellForFinding(f) {
+        const filePath = getText(f.location && f.location.file_path);
+        const clubbed = f.clubbed;
+        const line = f.location
+          ? f.location.line_number || clubbedLineText(clubbed)
+          : clubbedLineText(clubbed);
+        const rule = getText(f.rule_id);
+        const analyzer = getText(f.source_analyzer || "unknown");
+        const severity = getText(f.severity || "info").toLowerCase();
+        const title = getText(f.title);
+        const desc = getText(f.description);
+        const remediation = getText(f.remediation_guidance);
+
+        const row = document.createElement("tr");
+
+        const severityCell = document.createElement("td");
+        const severityBadge = document.createElement("span");
+        severityBadge.className = `badge ${badgeClass(severity)}`;
+        severityBadge.textContent = severity;
+        severityCell.appendChild(severityBadge);
+        row.appendChild(severityCell);
+
+        row.appendChild(createTextCell(analyzer));
+        row.appendChild(createTextCell(filePath));
+        const lineCell = createTextCell(line);
+        if (
+          f.location &&
+          !f.location.line_number &&
+          isClubbedFinding(clubbed) &&
+          extractClubbedLines(clubbed).length > 1
+        ) {
+          const indicator = document.createElement("span");
+          indicator.className = "clubbed-line-indicator";
+          indicator.textContent = "multiple";
+          lineCell.appendChild(indicator);
+        }
+        row.appendChild(lineCell);
+        row.appendChild(createTextCell(title, "details"));
+        row.appendChild(createDescriptionCell(desc, f));
+        row.appendChild(createTextCell(remediation, "details"));
+
+        row.dataset.severity = severity;
+        row.dataset.analyzer = analyzer.toLowerCase();
+        row.dataset.search =
+          `${severity} ${analyzer} ${rule} ${filePath} ${line} ${title} ${desc} ${remediation} ${clubbedSearchText(clubbed)}`.toLowerCase();
+        return row;
+      }
+
+      function normalizeCell(value) {
+        return getText(value).toLowerCase().trim();
+      }
+
+      function switchTab(activeTabId) {
+        tabButtons.forEach((button) => {
+          const isActive = button.dataset.tab === activeTabId;
+          button.classList.toggle("active", isActive);
+          button.setAttribute("aria-selected", isActive ? "true" : "false");
+        });
+        tabPanels.forEach((panel) => {
+          panel.classList.toggle("active", panel.id === activeTabId);
+        });
+      }
+
+      function switchGuideTab(activeTabId) {
+        glossaryTabButtons.forEach((button) => {
+          const isActive = button.dataset.guideTab === activeTabId;
+          button.classList.toggle("active", isActive);
+          button.setAttribute("aria-selected", isActive ? "true" : "false");
+        });
+        glossaryTabPanels.forEach((panel) => {
+          panel.classList.toggle("active", panel.id === activeTabId);
+        });
+      }
+
+      function applyFilters() {
+        const text = (searchInput.value || "").toLowerCase().trim();
+        const severity = (severityFilter.value || "").toLowerCase();
+        const analyzer = (analyzerFilter.value || "").toLowerCase();
+        const title = (titleFilter.value || "").toLowerCase();
+
+        filtered = findings.filter((f) => {
+          const loc = f.location || {};
+          const matchesText =
+            !text ||
+            (
+              (f.title || "") +
+              (f.description || "") +
+              (loc.file_path || "") +
+              (f.rule_id || "") +
+              (f.source_analyzer || "") +
+              (f.category || "") +
+              clubbedSearchText(f.clubbed)
+            )
+              .toLowerCase()
+              .includes(text);
+          const s = (f.severity || "info").toLowerCase();
+          const a = (f.source_analyzer || "unknown").toLowerCase();
+          const t = (f.title || "").toLowerCase();
+          const passesSeverity = !severity || s === severity;
+          const passesAnalyzer = !analyzer || a === analyzer;
+          const passesTitle = !title || t === title;
+          return matchesText && passesSeverity && passesAnalyzer && passesTitle;
+        });
+
+        currentPage = 1;
+        applySort();
+        renderTable();
+      }
+
+      function getComparable(f, key) {
+        const loc = f.location || {};
+        const sev = (f.severity || "info").toLowerCase();
+        const analyzer = getText(f.source_analyzer || "unknown");
+        const title = getText(f.title);
+        const line = loc.line_number || 0;
+        const clubbedLine = clubbedLineText(f.clubbed);
+        const parsedLine = parseInt(line || clubbedLine, 10);
+        const rule = getText(f.rule_id);
+        const desc = getText(f.description);
+        const filePath = getText(loc.file_path);
+        const remediation = getText(f.remediation_guidance);
+        switch (key) {
+          case "severity":
+            return severityOrder[sev] || 0;
+          case "source_analyzer":
+            return analyzer.toLowerCase();
+          case "rule_id":
+            return rule.toLowerCase();
+          case "file":
+            return filePath.toLowerCase();
+          case "title":
+            return title.toLowerCase();
+          case "description":
+            return desc.toLowerCase();
+          case "line":
+            return Number.isFinite(parsedLine) ? parsedLine : 0;
+          case "remediation":
+            return remediation.toLowerCase();
+          default:
+            return "";
+        }
+      }
+
+      function applySort() {
+        const direction = sortState.direction === "asc" ? 1 : -1;
+        const key = sortState.key;
+        filtered.sort((a, b) => {
+          const aVal = getComparable(a, key);
+          const bVal = getComparable(b, key);
+          if (aVal === bVal) return 0;
+          return aVal > bVal ? direction : -direction;
+        });
+      }
+
+      function renderTable() {
+        tableBody.innerHTML = "";
+        const pageSize = parseInt(pageSizeEl.value || "50", 10);
+        const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+        const safePage = Math.min(Math.max(1, currentPage), totalPages);
+        currentPage = safePage;
+        const start = (currentPage - 1) * pageSize;
+        const end = Math.min(start + pageSize, filtered.length);
+
+        if (filtered.length === 0) {
+          tableBody.appendChild(createTableSpacer());
+        } else {
+          for (let i = start; i < end; i += 1) {
+            tableBody.appendChild(cellForFinding(filtered[i]));
+          }
+        }
+
+        if (filtered.length === 0) {
+          pagerInfo.textContent = "No findings match your filters.";
+        } else {
+          pagerInfo.textContent = `Showing ${start + 1}-${end} of ${filtered.length} findings`;
+        }
+        prevBtn.disabled = currentPage === 1;
+        nextBtn.disabled = currentPage === totalPages;
+      }
+
+      document.querySelectorAll("th[data-sort]").forEach((header) => {
+        header.addEventListener("click", () => {
+          const key = header.dataset.sort;
+          if (sortState.key === key) {
+            sortState.direction =
+              sortState.direction === "asc" ? "desc" : "asc";
+          } else {
+            sortState.key = key;
+            sortState.direction = "asc";
+          }
+          applySort();
+          currentPage = 1;
+          renderTable();
+        });
+      });
+
+      searchInput.addEventListener("input", applyFilters);
+      severityFilter.addEventListener("change", applyFilters);
+      analyzerFilter.addEventListener("change", applyFilters);
+      titleFilter.addEventListener("change", applyFilters);
+      pageSizeEl.addEventListener("change", () => {
+        currentPage = 1;
+        renderTable();
+      });
+      prevBtn.addEventListener("click", () => {
+        if (currentPage > 1) {
+          currentPage -= 1;
+          renderTable();
+        }
+      });
+      nextBtn.addEventListener("click", () => {
+        currentPage += 1;
+        renderTable();
+      });
+
+      tabButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          switchTab(button.dataset.tab);
+        });
+      });
+
+      glossaryTabButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          switchGuideTab(button.dataset.guideTab);
+        });
+      });
+
+      applyFilters();
+    </script>
+  </body>
+</html>

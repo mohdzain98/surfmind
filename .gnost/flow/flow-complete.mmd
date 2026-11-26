@@ -1,0 +1,146 @@
+flowchart TD
+  src_App_tsx["src/App.tsx"]
+  src_components_BookmarkFolderPicker_tsx["src/components/BookmarkFolderPicker.tsx"]
+  src_components_Bookmarks_tsx["src/components/Bookmarks.tsx"]
+  src_components_Combined_tsx["src/components/Combined.tsx"]
+  src_components_ConfirmationDialog_tsx["src/components/ConfirmationDialog.tsx"]
+  src_components_FastModeSettings_tsx["src/components/FastModeSettings.tsx"]
+  src_components_LinkedBrowsers_tsx["src/components/LinkedBrowsers.tsx"]
+  src_components_Popup_tsx["src/components/Popup.tsx"]
+  src_components_PrivacySettings_tsx["src/components/PrivacySettings.tsx"]
+  src_components_RatePromptBanner_tsx["src/components/RatePromptBanner.tsx"]
+  src_components_RecentSearches_tsx["src/components/RecentSearches.tsx"]
+  src_components_SavedBookmarks_tsx["src/components/SavedBookmarks.tsx"]
+  src_components_SavedHistory_tsx["src/components/SavedHistory.tsx"]
+  src_components_SearchComposer_tsx["src/components/SearchComposer.tsx"]
+  src_components_SearchModeToggle_tsx["src/components/SearchModeToggle.tsx"]
+  src_components_SearchThought_tsx["src/components/SearchThought.tsx"]
+  src_components_SettingsHome_tsx["src/components/SettingsHome.tsx"]
+  src_components_SourceCard_tsx["src/components/SourceCard.tsx"]
+  src_components_SyncSettings_tsx["src/components/SyncSettings.tsx"]
+  src_components_Update_tsx["src/components/Update.tsx"]
+  src_components_UserId_tsx["src/components/UserId.tsx"]
+  src_context_UserState_tsx["src/context/UserState.tsx"]
+  src_context_userContext_ts["src/context/userContext.ts"]
+  src_index_tsx["src/index.tsx"]
+  src_reportWebVitals_ts["src/reportWebVitals.ts"]
+  src_services_bookmarkFolders_ts["src/services/bookmarkFolders.ts"]
+  src_services_deviceName_ts["src/services/deviceName.ts"]
+  src_services_displayText_ts["src/services/displayText.ts"]
+  src_services_fastMode_ts["src/services/fastMode.ts"]
+  src_services_fastSearch_ts["src/services/fastSearch.ts"]
+  src_services_pageCounts_ts["src/services/pageCounts.ts"]
+  src_services_privacy_ts["src/services/privacy.ts"]
+  src_services_ratePrompt_ts["src/services/ratePrompt.ts"]
+  src_services_recentSearches_ts["src/services/recentSearches.ts"]
+  src_services_searchRequest_ts["src/services/searchRequest.ts"]
+  src_services_searchSync_ts["src/services/searchSync.ts"]
+  src_services_storeConfig_ts["src/services/storeConfig.ts"]
+  src_services_syncApi_ts["src/services/syncApi.ts"]
+  src_services_updateVersion_ts["src/services/updateVersion.ts"]
+  src_services_userFacingError_ts["src/services/userFacingError.ts"]
+  src_types_bookmarks_ts["src/types/bookmarks.ts"]
+  src_types_index_ts["src/types/index.ts"]
+  src_types_search_ts["src/types/search.ts"]
+  src_types_sync_ts["src/types/sync.ts"]
+  src_types_user_ts["src/types/user.ts"]
+  src_App_tsx --> src_components_Popup_tsx
+  src_App_tsx --> src_context_UserState_tsx
+  src_components_BookmarkFolderPicker_tsx --> src_services_bookmarkFolders_ts
+  src_components_BookmarkFolderPicker_tsx -.-> src_types_index_ts
+  src_components_Bookmarks_tsx --> src_components_BookmarkFolderPicker_tsx
+  src_components_Bookmarks_tsx --> src_components_SearchComposer_tsx
+  src_components_Bookmarks_tsx --> src_context_userContext_ts
+  src_components_Combined_tsx --> src_components_SearchComposer_tsx
+  src_components_Combined_tsx --> src_context_userContext_ts
+  src_components_FastModeSettings_tsx -.-> src_types_index_ts
+  src_components_LinkedBrowsers_tsx --> src_components_ConfirmationDialog_tsx
+  src_components_LinkedBrowsers_tsx --> src_services_deviceName_ts
+  src_components_LinkedBrowsers_tsx --> src_services_userFacingError_ts
+  src_components_LinkedBrowsers_tsx -.-> src_types_index_ts
+  src_components_Popup_tsx --> src_components_BookmarkFolderPicker_tsx
+  src_components_Popup_tsx --> src_components_Bookmarks_tsx
+  src_components_Popup_tsx --> src_components_Combined_tsx
+  src_components_Popup_tsx --> src_components_FastModeSettings_tsx
+  src_components_Popup_tsx --> src_components_PrivacySettings_tsx
+  src_components_Popup_tsx --> src_components_RatePromptBanner_tsx
+  src_components_Popup_tsx --> src_components_RecentSearches_tsx
+  src_components_Popup_tsx --> src_components_SavedBookmarks_tsx
+  src_components_Popup_tsx --> src_components_SavedHistory_tsx
+  src_components_Popup_tsx --> src_components_SearchComposer_tsx
+  src_components_Popup_tsx --> src_components_SearchModeToggle_tsx
+  src_components_Popup_tsx --> src_components_SearchThought_tsx
+  src_components_Popup_tsx --> src_components_SettingsHome_tsx
+  src_components_Popup_tsx --> src_components_SourceCard_tsx
+  src_components_Popup_tsx --> src_components_SyncSettings_tsx
+  src_components_Popup_tsx --> src_components_Update_tsx
+  src_components_Popup_tsx --> src_context_userContext_ts
+  src_components_Popup_tsx --> src_services_displayText_ts
+  src_components_Popup_tsx --> src_services_fastMode_ts
+  src_components_Popup_tsx --> src_services_pageCounts_ts
+  src_components_Popup_tsx --> src_services_privacy_ts
+  src_components_Popup_tsx --> src_services_ratePrompt_ts
+  src_components_Popup_tsx --> src_services_syncApi_ts
+  src_components_Popup_tsx --> src_services_updateVersion_ts
+  src_components_Popup_tsx --> src_services_userFacingError_ts
+  src_components_Popup_tsx -.-> src_types_index_ts
+  src_components_PrivacySettings_tsx --> src_components_ConfirmationDialog_tsx
+  src_components_PrivacySettings_tsx --> src_services_privacy_ts
+  src_components_PrivacySettings_tsx --> src_services_userFacingError_ts
+  src_components_PrivacySettings_tsx -.-> src_types_index_ts
+  src_components_RatePromptBanner_tsx --> src_services_storeConfig_ts
+  src_components_RecentSearches_tsx --> src_components_SourceCard_tsx
+  src_components_RecentSearches_tsx --> src_services_displayText_ts
+  src_components_RecentSearches_tsx --> src_services_recentSearches_ts
+  src_components_RecentSearches_tsx -.-> src_types_index_ts
+  src_components_SavedBookmarks_tsx --> src_services_bookmarkFolders_ts
+  src_components_SavedBookmarks_tsx -.-> src_types_index_ts
+  src_components_SearchModeToggle_tsx -.-> src_types_index_ts
+  src_components_SearchThought_tsx -.-> src_types_index_ts
+  src_components_SettingsHome_tsx --> src_services_bookmarkFolders_ts
+  src_components_SettingsHome_tsx --> src_services_pageCounts_ts
+  src_components_SettingsHome_tsx --> src_services_ratePrompt_ts
+  src_components_SettingsHome_tsx --> src_services_storeConfig_ts
+  src_components_SettingsHome_tsx -.-> src_types_index_ts
+  src_components_SourceCard_tsx -.-> src_types_index_ts
+  src_components_SyncSettings_tsx --> src_components_ConfirmationDialog_tsx
+  src_components_SyncSettings_tsx --> src_components_LinkedBrowsers_tsx
+  src_components_SyncSettings_tsx --> src_services_deviceName_ts
+  src_components_SyncSettings_tsx --> src_services_syncApi_ts
+  src_components_SyncSettings_tsx --> src_services_userFacingError_ts
+  src_components_SyncSettings_tsx -.-> src_types_index_ts
+  src_context_UserState_tsx --> src_components_UserId_tsx
+  src_context_UserState_tsx --> src_context_userContext_ts
+  src_context_UserState_tsx --> src_services_fastMode_ts
+  src_context_UserState_tsx --> src_services_fastSearch_ts
+  src_context_UserState_tsx --> src_services_ratePrompt_ts
+  src_context_UserState_tsx --> src_services_searchRequest_ts
+  src_context_UserState_tsx --> src_services_searchSync_ts
+  src_context_UserState_tsx --> src_services_updateVersion_ts
+  src_context_UserState_tsx --> src_services_userFacingError_ts
+  src_context_UserState_tsx -.-> src_types_index_ts
+  src_context_userContext_ts -.-> src_types_index_ts
+  src_index_tsx --> src_App_tsx
+  src_index_tsx --> src_reportWebVitals_ts
+  src_services_bookmarkFolders_ts -.-> src_types_index_ts
+  src_services_deviceName_ts -.-> src_types_index_ts
+  src_services_fastMode_ts -.-> src_types_index_ts
+  src_services_fastSearch_ts -.-> src_types_index_ts
+  src_services_pageCounts_ts --> src_services_bookmarkFolders_ts
+  src_services_pageCounts_ts -.-> src_types_index_ts
+  src_services_privacy_ts --> src_components_UserId_tsx
+  src_services_privacy_ts -.-> src_types_index_ts
+  src_services_ratePrompt_ts --> src_services_storeConfig_ts
+  src_services_ratePrompt_ts -.-> src_types_index_ts
+  src_services_recentSearches_ts --> src_services_fastMode_ts
+  src_services_recentSearches_ts -.-> src_types_index_ts
+  src_services_searchRequest_ts --> src_services_syncApi_ts
+  src_services_searchRequest_ts -.-> src_types_index_ts
+  src_services_searchSync_ts -.-> src_types_index_ts
+  src_services_syncApi_ts -.-> src_types_index_ts
+  src_types_index_ts --> src_types_bookmarks_ts
+  src_types_index_ts --> src_types_search_ts
+  src_types_index_ts --> src_types_sync_ts
+  src_types_index_ts --> src_types_user_ts
+  src_types_user_ts -.-> src_services_updateVersion_ts
+  src_types_user_ts -.-> src_types_search_ts

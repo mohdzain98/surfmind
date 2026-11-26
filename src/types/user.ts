@@ -58,6 +58,8 @@ export interface UserStateShape {
   resultMode: SearchMode | null;
   resultFastStrictness: FastStrictness | null;
   fastNoMatch: boolean;
+  searchNotice: string | null;
+  searchDurationMs: number | null;
 }
 
 export type UserAction = {
