@@ -80,6 +80,8 @@ const initialState: UserStateShape = {
   resultMode: null,
   resultFastStrictness: null,
   fastNoMatch: false,
+  searchNotice: null,
+  searchDurationMs: null,
 };
 
 const userReducer = (
@@ -255,6 +257,8 @@ const UserState = ({ children }: { children?: ReactNode }) => {
         resultMode: mode,
         resultFastStrictness: mode === "fast" ? fastStrictness : null,
         fastNoMatch: false,
+        searchNotice: null,
+        searchDurationMs: null,
       });
 
       try {
@@ -396,6 +400,14 @@ const UserState = ({ children }: { children?: ReactNode }) => {
                       )
                     : null,
                 fastNoMatch: noMatch,
+                searchDurationMs:
+                  Number.isInteger(data.duration_ms) && data.duration_ms >= 0
+                    ? data.duration_ms
+                    : null,
+                searchNotice:
+                  finalMode !== "fast" && typeof data.notice === "string"
+                    ? data.notice
+                    : null,
               });
               return;
             } else if (step === "error") {
@@ -465,6 +477,8 @@ const UserState = ({ children }: { children?: ReactNode }) => {
         resultMode: null,
         resultFastStrictness: null,
         fastNoMatch: false,
+        searchNotice: null,
+        searchDurationMs: null,
         syncing: true,
         noti:
           action === "paired"
