@@ -171,7 +171,7 @@ test("formats duration_ms as Found in 9.7s in Standard and Fast modes", async ()
         step: "final",
         data: {
           mode: "fast",
-          docs: [{ url: "https://example.com/b", title: "Fast Hit" }],
+          results: [{ url: "https://example.com/b", title: "Fast Hit" }],
           duration_ms: 9700,
         },
       },
@@ -190,6 +190,7 @@ test("formats duration_ms as Found in 9.7s in Standard and Fast modes", async ()
   fireEvent.click(screen.getByRole("menuitemradio", { name: /Fast/ }));
 
   await submitSearch("second query");
+  expect(await screen.findByText(/Fast Hit/)).toBeInTheDocument();
   expect(await screen.findByText("Found in 9.7s")).toBeInTheDocument();
 });
 
