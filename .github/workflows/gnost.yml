@@ -1,10 +1,9 @@
-# Runs GNOST on every pull request and push: quality gate, onboarding guide and a pull
+# Runs GNOST on pull requests targeting main: quality gate, onboarding guide and a pull
 # request comment with what the change touches. Written by `gnost init --github-action`; edit freely.
 name: GNOST
 
 on:
   pull_request:
-  push:
     branches: [main]
 
 permissions:
