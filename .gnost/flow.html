@@ -18154,22 +18154,18 @@
                           v = e.findNearestElement(i[2], i[3], !0, !0);
                         return (
                           g && g.isNode()
-                            ? (g
-                                .activate()
-                                .emit({
+                            ? (g.activate().emit({
+                                originalEvent: t,
+                                type: "cxttapstart",
+                                position: { x: i[0], y: i[1] },
+                              }),
+                              (e.touchData.start = g))
+                            : v && v.isNode()
+                              ? (v.activate().emit({
                                   originalEvent: t,
                                   type: "cxttapstart",
                                   position: { x: i[0], y: i[1] },
                                 }),
-                              (e.touchData.start = g))
-                            : v && v.isNode()
-                              ? (v
-                                  .activate()
-                                  .emit({
-                                    originalEvent: t,
-                                    type: "cxttapstart",
-                                    position: { x: i[0], y: i[1] },
-                                  }),
                                 (e.touchData.start = v))
                               : n.emit({
                                   originalEvent: t,
@@ -32548,13 +32544,11 @@
                   dag.forEach(function (value, key) {
                     value.forEach(function (adjacent) {
                       undirected.get(key).push(adjacent);
-                      undirected
-                        .get(adjacent.id)
-                        .push({
-                          id: key,
-                          gap: adjacent.gap,
-                          direction: adjacent.direction,
-                        });
+                      undirected.get(adjacent.id).push({
+                        id: key,
+                        gap: adjacent.gap,
+                        direction: adjacent.direction,
+                      });
                     });
                   });
 
@@ -32571,13 +32565,11 @@
 
                   dag.forEach(function (value, key) {
                     value.forEach(function (adjacent) {
-                      reversed
-                        .get(adjacent.id)
-                        .push({
-                          id: key,
-                          gap: adjacent.gap,
-                          direction: adjacent.direction,
-                        });
+                      reversed.get(adjacent.id).push({
+                        id: key,
+                        gap: adjacent.gap,
+                        direction: adjacent.direction,
+                      });
                     });
                   });
 
@@ -32613,13 +32605,11 @@
                     function (constraint) {
                       if (constraint.left) {
                         if (dag.has(constraint.left)) {
-                          dag
-                            .get(constraint.left)
-                            .push({
-                              id: constraint.right,
-                              gap: constraint.gap,
-                              direction: "horizontal",
-                            });
+                          dag.get(constraint.left).push({
+                            id: constraint.right,
+                            gap: constraint.gap,
+                            direction: "horizontal",
+                          });
                         } else {
                           dag.set(constraint.left, [
                             {
@@ -32634,13 +32624,11 @@
                         }
                       } else {
                         if (dag.has(constraint.top)) {
-                          dag
-                            .get(constraint.top)
-                            .push({
-                              id: constraint.bottom,
-                              gap: constraint.gap,
-                              direction: "vertical",
-                            });
+                          dag.get(constraint.top).push({
+                            id: constraint.bottom,
+                            gap: constraint.gap,
+                            direction: "vertical",
+                          });
                         } else {
                           dag.set(constraint.top, [
                             {
