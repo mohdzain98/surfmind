@@ -5,11 +5,13 @@ name: GNOST
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main] # scans main, so code scanning has alerts to show and compare against
 
 permissions:
   contents: read
   pull-requests: write # for the pull request comment
-  # security-events: write  # add this and set `sarif: "true"` to show findings in code scanning
+  security-events: write # upload findings to code scanning (sarif: "true")
 
 jobs:
   gnost:
@@ -19,7 +21,7 @@ jobs:
         with:
           fetch-depth: 0 # full history: hotspots and `gnost changes` need it
       - name: GNOST Codebase Onboarding and Quality Gate
-        uses: mohdzain98/gnost@v0.7.0
+        uses: mohdzain98/gnost@v0.7.2rc1
         with:
           comment: "true" # one comment per pull request: blast radius, risk, new cycles
           onboard: "true" # also attach the .gnost/ guide to the run
